@@ -22,6 +22,15 @@ resource "unifi_network" "this" {
   vlan_id = var.vlan_id
 }
 
+# Unifi switches take up to a minute to receive new configuration.
+# During a config update, they briefly bounce the NICs.
+# If not delayed, this causes failures during ISO downloads and/or VM creation.
+resource "time_sleep" "unifi_switch_delay" {
+  depends_on = [ unifi_network.this ]
+
+  create_duration = "1m"
+}
+
 data "talos_image_factory_extensions_versions" "this" {
   talos_version = var.cluster.talos_version
   filters = {
@@ -60,6 +69,8 @@ resource "proxmox_virtual_environment_download_file" "iso" {
   datastore_id = "local"
   url          = data.talos_image_factory_urls.this.urls.iso
   content_type = "iso"
+
+  depends_on = [ time_sleep.unifi_switch_delay ]
 }
 
 # Generate CA certificates and related secrets
@@ -160,7 +171,7 @@ resource "proxmox_virtual_environment_vm" "nodes" {
     }
   }
 
-  depends_on = [unifi_network.this]
+  # depends_on = [unifi_network.this]
 }
 
 resource "talos_machine_configuration_apply" "this" {

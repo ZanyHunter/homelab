@@ -46,7 +46,7 @@ variable "cluster" {
 }
 
 variable "chart_versions" {
-  description = "Pinned Helm chart versions for cluster add-ons, so upgrades across dev/prod are deliberate rather than floating."
+  description = "Pinned Helm chart versions for cluster add-ons, so upgrades across dev/prod are deliberate rather than floating. Plain numbers.periods only, no leading \"v\" — cert-manager's chart version uses one upstream, so the resource that consumes it prepends the \"v\" itself, keeping this variable consistent across all five entries."
   type = object({
     metallb        = string
     ingress_nginx  = string

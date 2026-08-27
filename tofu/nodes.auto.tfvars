@@ -14,7 +14,7 @@ cluster = {
 chart_versions = {
   metallb        = "0.14.8"
   ingress_nginx  = "4.11.2"
-  cert_manager   = "v1.15.1"
+  cert_manager   = "1.15.1"
   argocd         = "7.3.7"
   csi_driver_nfs = "4.13.4"
 }

@@ -1,0 +1,31 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+    name: letsencrypt-staging
+spec:
+    acme:
+        server: https://acme-staging-v02.api.letsencrypt.org/directory
+        email: ENC[AES256_GCM,data:gng9aO7k/fdXKw4hV4kSluhlglE9,iv:Q5zlLYVNSXyeE0aNxa+1mWaevzeGj1FQc/z8yHnO9P4=,tag:zIQn71P7FBKhemNAF2C4gQ==,type:str]
+        privateKeySecretRef:
+            name: letsencrypt-staging
+        solvers:
+            - dns01:
+                cloudflare:
+                    apiTokenSecretRef:
+                        name: cloudflare-api-token
+                        key: api-token
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA4ZGNCQVFsMjJTUm1yWURh
+            N3JtTnZzNFlVZFNnN3Vjc0ZCemhJd2c3ZjN3CmZFY0hBUUozVGxvRkZlM29Hb0dL
+            T2NPbnNOVDEwRzFZVlVhTkt2dlFCTGcKLS0tIDVvVFIzajQ5eDZjT3l1WGpJVURu
+            SDBvNHBvRmludnBKTUhkVFk0Mng3T3MKJTuFvQJJdB60K4vZ14iRimWhyfh2DPcA
+            eHYPM98/yAlPSpJ2NsL0LyGA1WDVYLBvhugPiIoGlqh7bHAq4EI8VA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
+    encrypted_regex: ^(data|stringData|email)$
+    lastmodified: "2026-08-27T05:34:21Z"
+    mac: ENC[AES256_GCM,data:IGknVWIFeRLe3wDFaOCiohkZSHgbdgC5n45FOFiJWDHnnR7AxF2Gse3rFf0RsgnXMxqNwxSUgRIPzDbm6XILzUZRneTnI91KbBKEQ7F17c2mcFVzAcBZeE9uIB1pmrqbeAuP594EsPig4mwsU4cX2VQ+T51GijyitrDMEze85hk=,iv:StAPgU03SuO4NO2jxVPrp+1nlEnOHIz1fRNB69pJNjw=,tag:11japplXfa1ojHi2bVTdsQ==,type:str]
+    version: 3.13.3

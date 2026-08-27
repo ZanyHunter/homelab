@@ -16,6 +16,7 @@ chart_versions = {
   ingress_nginx  = "4.11.2"
   cert_manager   = "1.15.1"
   argocd         = "7.3.7"
+  argocd_apps    = "2.0.5"
   csi_driver_nfs = "4.13.4"
 }
 
@@ -23,6 +24,13 @@ nfs_storage = {
   server = "truenas.thepugh.family"
   share  = "/mnt/Main/k8s-dev"
 }
+
+gitops = {
+  repo_url = "https://github.com/ZanyHunter/homelab.git"
+  revision = "main"
+}
+
+ksops_version = "4.5.1"
 
 k8s_nodes = {
   "k8s-ctrl-00" = {

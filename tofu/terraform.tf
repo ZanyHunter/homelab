@@ -17,8 +17,13 @@ terraform {
       version = "~> 0.8.1"
     }
     time = {
-      source = "hashicorp/time"
+      source  = "hashicorp/time"
       version = "~> 0.13.1"
+    }
+    sops = {
+      source  = "carlpett/sops"
+      version = "~> 1.1.0"
     }
   }
 }
+

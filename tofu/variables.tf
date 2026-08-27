@@ -53,21 +53,3 @@ variable "cluster" {
   })
 }
 
-variable "proxmox_provider" {
-  type = object({
-    endpoint = string
-    insecure = bool
-    username = string
-    password = string
-  })
-  sensitive = true
-}
-
-variable "unifi_provider" {
-  type = object({
-    api_key        = string
-    api_url        = string
-    allow_insecure = bool
-  })
-  sensitive = true
-}

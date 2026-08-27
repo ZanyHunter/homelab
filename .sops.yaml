@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: tofu/secrets\.enc\.yaml$
+    age: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5

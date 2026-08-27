@@ -1,0 +1,8 @@
+[book]
+title = "ZanyHunter's Homelab"
+description = "Infrastructure-as-Code documentation for ZanyHunter's homelab"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/ZanyHunter/homelab"
+edit-url-template = "https://github.com/ZanyHunter/homelab/edit/main/docs/{path}"

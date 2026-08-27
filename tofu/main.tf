@@ -1,10 +1,15 @@
 locals {
   # Calculate total number of usable IPs (excluding network and broadcast)
   total_k8s_ips = pow(2, 32 - tonumber(split("/", var.network_cidr)[1])) - 2
-  # Generate the virtual IP for the K8s cluster
-  k8s_virtual_ip = cidrhost(var.network_cidr, 2)
+  # The cluster's floating control-plane VIP, consumed by control-plane.yaml.tftpl.
+  # Talos claims this address via etcd leader election once a control plane's etcd is
+  # up, so it must NOT be used as the bootstrap-time endpoint below (see first_control_plane_ip).
+  k8s_virtual_ip = var.cluster.endpoint
   # Generate list of usable IPs
   usable_k8s_ips = [for i in range(2, local.total_k8s_ips + 1) : cidrhost(var.network_cidr, i)]
+  # A real, already-reachable control-plane node IP for one-shot Terraform-provider
+  # calls (bootstrap, kubeconfig fetch) that can't depend on the VIP existing yet.
+  first_control_plane_ip = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0] if v.role == "controlplane"][0]
 }
 
 resource "unifi_network" "this" {
@@ -87,6 +92,7 @@ data "talos_machine_configuration" "this" {
       node_name    = each.value.proxmox_node
       cluster_name = var.cluster.proxmox_cluster
       image        = data.talos_image_factory_urls.this.urls.installer
+      vip_ip       = local.k8s_virtual_ip
     })
     ] : [
     templatefile("${path.module}/worker.yaml.tftpl", {
@@ -176,8 +182,8 @@ resource "talos_machine_configuration_apply" "this" {
 }
 
 resource "talos_machine_bootstrap" "this" {
-  node                 = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0] if v.role == "controlplane"][0]
-  endpoint             = var.cluster.endpoint
+  node                 = local.first_control_plane_ip
+  endpoint             = local.first_control_plane_ip
   client_configuration = talos_machine_secrets.this.client_configuration
 
   depends_on = [talos_machine_configuration_apply.this]
@@ -202,8 +208,8 @@ resource "talos_cluster_kubeconfig" "this" {
     talos_machine_bootstrap.this,
     data.talos_cluster_health.this
   ]
-  node                 = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0] if v.role == "controlplane"][0]
-  endpoint             = var.cluster.endpoint
+  node                 = local.first_control_plane_ip
+  endpoint             = local.first_control_plane_ip
   client_configuration = talos_machine_secrets.this.client_configuration
   timeouts = {
     read = "1m"

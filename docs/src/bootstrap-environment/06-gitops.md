@@ -1,12 +1,12 @@
 # 7. GitOps: App-of-Apps and Encrypted Secrets
 
-ArgoCD is bootstrapped by Tofu (`tofu/argocd.tf`), but the applications it manages live in git, under this repo's `apps/` directory, not in Tofu. This page documents how that wiring works and how to add to it.
+ArgoCD is bootstrapped by Tofu (part of the `core-addons` unit, `tofu/modules/core-addons/main.tf` — see [Terragrunt Units](./10-terragrunt-units.md)), but the applications it manages live in git, under this repo's `apps/` directory, not in Tofu. This page documents how that wiring works and how to add to it.
 
 ---
 
 ## App-of-apps
 
-An ArgoCD `ApplicationSet` (`helm_release.argocd_apps` in `tofu/gitops.tf`, installed via argo-helm's `argocd-apps` chart) watches `apps/*` in this repo at the revision pinned by `var.gitops.revision` (`main` for the `dev` cluster). Its git directory generator turns each direct subdirectory of `apps/` into its own ArgoCD `Application`, named after the directory, synced automatically (`prune` + `selfHeal`) into a same-named namespace.
+An ArgoCD `ApplicationSet` (`helm_release.argocd_apps` in `tofu/modules/core-addons/main.tf`, installed via argo-helm's `argocd-apps` chart) watches `apps/*` in this repo at the revision pinned by `var.gitops.revision` (`main` for the `dev` cluster). Its git directory generator turns each direct subdirectory of `apps/` into its own ArgoCD `Application`, named after the directory, synced automatically (`prune` + `selfHeal`) into a same-named namespace.
 
 **To add a new app**: create a new directory under `apps/`, e.g. `apps/my-app/`, with a `kustomization.yaml` (and whatever manifests/generators it needs) at its root. Commit and push. No Tofu change, no `kubectl apply`, no `argocd app create` — the next time the ApplicationSet's generator runs (or immediately, since ArgoCD also reacts to webhook/poll events), a new `Application` named `my-app` appears and syncs on its own.
 
@@ -16,7 +16,7 @@ An ArgoCD `ApplicationSet` (`helm_release.argocd_apps` in `tofu/gitops.tf`, inst
 
 ## ksops: encrypted manifests under apps/
 
-ArgoCD's repo-server has [ksops](https://github.com/viaduct-ai/kustomize-sops) installed (patched in via `helm_release.argocd`'s values in `tofu/argocd.tf`: an init container copies the `ksops`/`kustomize` binaries into the repo-server, overriding the built-in `kustomize`), and is handed the same age private key already used for `tofu/secrets.enc.yaml` (mounted from a `kubernetes_secret.sops_age_key`, itself sourced from `~/.config/sops/age/keys.txt` — see `CLAUDE.md`'s "Secrets management"). This means any `kustomization.yaml` under `apps/` can reference a `ksops` generator to decrypt SOPS-encrypted files at sync time, the same way `tofu/secrets.enc.yaml` gets decrypted at plan time.
+ArgoCD's repo-server has [ksops](https://github.com/viaduct-ai/kustomize-sops) installed (patched in via `helm_release.argocd`'s values in `tofu/modules/core-addons/main.tf`: an init container copies the `ksops`/`kustomize` binaries into the repo-server, overriding the built-in `kustomize`), and is handed the same age private key already used for `tofu/secrets.enc.yaml` (mounted from a `kubernetes_secret.sops_age_key`, itself sourced from `~/.config/sops/age/keys.txt` — see `CLAUDE.md`'s "Secrets management"). This means any `kustomization.yaml` under `apps/` can reference a `ksops` generator to decrypt SOPS-encrypted files at sync time, the same way `tofu/secrets.enc.yaml` gets decrypted at plan time.
 
 **To add a new encrypted secret for an app**:
 

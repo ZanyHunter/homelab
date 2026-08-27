@@ -1,13 +1,13 @@
 # 9. Single Sign-On (Keycloak)
 
-[Keycloak](https://www.keycloak.org/) is the identity provider for homelab services, backed by a dedicated Postgres instance. Both are Tofu-managed (`tofu/sso.tf`), along with the `homelab` realm and its clients — via the [`keycloak` Terraform provider](https://registry.terraform.io/providers/keycloak/keycloak/latest/docs), the same "talk to the app's own API declaratively" pattern already used for `unifi_network.this`.
+[Keycloak](https://www.keycloak.org/) is the identity provider for homelab services, backed by a dedicated Postgres instance. Both are Tofu-managed, split across two Terragrunt units (see [Terragrunt Units](./10-terragrunt-units.md)): `keycloak-infra` (`tofu/modules/keycloak-infra/`) stands up Postgres and Keycloak itself, and `keycloak-realm` (`tofu/modules/keycloak-realm/`) manages the `homelab` realm and its clients via the [`keycloak` Terraform provider](https://registry.terraform.io/providers/keycloak/keycloak/latest/docs) — the same "talk to the app's own API declaratively" pattern already used for `unifi_network.this`.
 
 ---
 
 ## What's deployed
 
-- **Postgres**: a hand-rolled single-instance `StatefulSet` (not a chart — see the comment at the top of `tofu/sso.tf` for why), on the same NFS-backed `StorageClass` as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed `StorageClass` ever exists.
-- **Keycloak**: the [codecentric/keycloakx](https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx) chart, reachable at `https://keycloak.k8s.thepugh.family`. Chosen over Bitnami's chart for the same pinned-version reason as MinIO (see `tofu/backup.tf`).
+- **Postgres**: a hand-rolled single-instance `StatefulSet` (not a chart — see the comment at the top of `tofu/modules/keycloak-infra/main.tf` for why), on the same NFS-backed `StorageClass` as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed `StorageClass` ever exists (#28).
+- **Keycloak**: the [codecentric/keycloakx](https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx) chart, reachable at `https://keycloak.k8s.thepugh.family`. Chosen over Bitnami's chart for the same pinned-version reason as MinIO (see `tofu/modules/backup/main.tf`).
 - **Realm**: `homelab`, with a bootstrap admin account (`admin` / a Tofu-generated password — `kubectl get secret -n keycloak keycloak-admin-credentials`) for the Keycloak console itself, separate from the realm's own users.
 - **A forward-auth demo**: [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) in front of a minimal `whoami` echo server, at `https://sso-demo.k8s.thepugh.family`. This exists to prove the Keycloak wiring works end-to-end, and doubles as the copy-paste template for real apps that need forward-auth (see below) — it's a living reference, not a one-off smoke test that gets torn down.
 
@@ -36,21 +36,15 @@ Visit `https://sso-demo.k8s.thepugh.family` from a browser on the LAN — it red
 No forward-auth proxy needed — configure the app directly against the realm:
 
 - **Issuer URL**: `https://keycloak.k8s.thepugh.family/realms/homelab`
-- **Client ID/secret**: create a new `keycloak_openid_client` resource in `tofu/sso.tf` (copy `keycloak_openid_client.oauth2_proxy` as a starting point — `access_type = "CONFIDENTIAL"`, `standard_flow_enabled = true`, and the app's actual callback URL in `valid_redirect_uris`).
+- **Client ID/secret**: create a new `keycloak_openid_client` resource in `tofu/modules/keycloak-realm/main.tf` (copy `keycloak_openid_client.oauth2_proxy` as a starting point — `access_type = "CONFIDENTIAL"`, `standard_flow_enabled = true`, and the app's actual callback URL in `valid_redirect_uris`).
 
 ### Apps without native OIDC support (e.g. Grocy)
 
-Copy the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` pattern from `tofu/sso.tf`'s `helm_release.oauth2_proxy` and `kubernetes_ingress_v1.whoami`. Two things to change from the demo:
+Copy the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` pattern from `tofu/modules/keycloak-realm/main.tf`'s `helm_release.oauth2_proxy` and `kubernetes_ingress_v1.whoami`. Two things to change from the demo:
 
 1. **The client secret should be ksops-encrypted, not Tofu-generated.** The demo's `oauth2_proxy` client is Tofu-managed end-to-end because it exists purely to prove the wiring, not as a real app — but a real app's per-client secret belongs in that app's `apps/<app>/` directory under ArgoCD's management (see `docs/src/bootstrap-environment/06-gitops.md`), the same way `apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml` keeps its one sensitive field encrypted. Create the Keycloak client with an explicit `client_secret` (a `random_password`, as the demo does), then commit that value ksops-encrypted under the app's own directory rather than only in Tofu state.
 2. **One oauth2-proxy per protected app** (or a shared one, if several apps can tolerate a shared session cookie domain) — the demo's `sso-demo` namespace/hostname pairing is illustrative, not something to reuse directly.
 
-## Known bootstrap quirk
+## No bootstrap quirk anymore
 
-On a from-scratch cluster rebuild, the very first `tofu apply` will fail to configure the `keycloak` provider — its admin password isn't known yet (it's generated by a `random_password` resource in the same apply). This is expected, not a bug: run
-
-```bash
-tofu apply -target=time_sleep.wait_for_keycloak
-```
-
-once to get Keycloak up and its admin password into state, then a normal `tofu apply` completes the rest (realm, clients, the demo). Every apply after the first works normally with no targeting needed.
+This used to need a manual two-phase apply on a from-scratch rebuild: the `keycloak` provider authenticates with an admin password generated in the same apply, which the old single flat module couldn't resolve in one pass. Splitting `keycloak-infra` and `keycloak-realm` into separate Terragrunt units fixed this structurally — `keycloak-realm`'s `dependency` block on `keycloak-infra` explicitly disallows mock outputs at apply time, so `terragrunt run --all apply` blocks until Keycloak has genuinely started and its real admin password exists before generating the `keycloak` provider block with it. See [Terragrunt Units](./10-terragrunt-units.md). A from-scratch rebuild is a single `terragrunt run --all apply` from `tofu/live/dev/`, same as everything else — no targeting, no special first-apply step.

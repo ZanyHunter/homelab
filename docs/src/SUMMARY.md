@@ -14,4 +14,5 @@
 - [8. Backup and Restore](./bootstrap-environment/07-backup-restore.md)
 - [9. Single Sign-On (Keycloak)](./bootstrap-environment/08-sso.md)
 - [10. Remote Tofu State](./bootstrap-environment/09-remote-state.md)
+- [11. Terragrunt Units and Multi-Environment Layout](./bootstrap-environment/10-terragrunt-units.md)
 

@@ -52,6 +52,7 @@ variable "chart_versions" {
     ingress_nginx  = string
     cert_manager   = string
     argocd         = string
+    argocd_apps    = string
     csi_driver_nfs = string
   })
 }
@@ -62,5 +63,18 @@ variable "nfs_storage" {
     server = string
     share  = string
   })
+}
+
+variable "gitops" {
+  description = "Git repository ArgoCD's app-of-apps ApplicationSet watches under the `apps/` directory. Each cluster (dev/prod) can track a different revision of the same repo (e.g. `main` vs. a release branch) without needing a separate fork."
+  type = object({
+    repo_url = string
+    revision = string
+  })
+}
+
+variable "ksops_version" {
+  description = "Pinned viaductoss/ksops image tag used to install the ksops/kustomize binaries into ArgoCD's repo-server, so it can decrypt SOPS-encrypted manifests under `apps/`. Plain numbers.periods only, no leading \"v\" — same convention as chart_versions, kept as its own variable since this is a container image tag, not a Helm chart version."
+  type        = string
 }
 

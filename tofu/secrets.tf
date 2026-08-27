@@ -17,5 +17,4 @@ locals {
   }
 
   cloudflare_api_token = data.sops_file.secrets.data["cloudflare_api_token"]
-  acme_email           = data.sops_file.secrets.data["acme_email"]
 }

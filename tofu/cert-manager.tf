@@ -35,55 +35,8 @@ resource "kubernetes_secret" "cloudflare_api_token" {
   type = "Opaque"
 }
 
-resource "time_sleep" "wait_for_cert_manager" {
-  depends_on      = [helm_release.cert_manager]
-  create_duration = "30s"
-}
-
-resource "terraform_data" "cert_manager_issuers" {
-  depends_on = [
-    time_sleep.wait_for_cert_manager,
-    kubernetes_secret.cloudflare_api_token
-  ]
-
-  input = talos_cluster_kubeconfig.this.kubeconfig_raw
-
-  provisioner "local-exec" {
-    command = <<EOT
-echo "${self.input}" > kubeconfig.tmp
-kubectl --kubeconfig kubeconfig.tmp apply -f - <<EOF
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: ${local.acme_email}
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-    - dns01:
-        cloudflare:
-          apiTokenSecretRef:
-            name: cloudflare-api-token
-            key: api-token
-EOF
-rm -f kubeconfig.tmp
-EOT
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<EOT
-echo "${self.input}" > kubeconfig.tmp
-kubectl --kubeconfig kubeconfig.tmp delete --ignore-not-found -f - <<EOF
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-EOF
-rm -f kubeconfig.tmp
-EOT
-  }
-}
+# The letsencrypt-prod and letsencrypt-staging ClusterIssuers themselves are
+# managed by ArgoCD now (apps/cluster-addons/), not Tofu — see
+# docs/src/bootstrap-environment/06-gitops.md. This Secret stays here because
+# it's sourced from tofu/secrets.enc.yaml (the Cloudflare API token), and the
+# ClusterIssuers' dns01.cloudflare.apiTokenSecretRef just references it by name.

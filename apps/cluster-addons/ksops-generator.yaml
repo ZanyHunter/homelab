@@ -1,0 +1,11 @@
+apiVersion: viaduct.ai/v1
+kind: ksops
+metadata:
+  name: cluster-addons-secrets
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: ksops
+files:
+  - ./letsencrypt-prod-issuer.enc.yaml
+  - ./letsencrypt-staging-issuer.enc.yaml

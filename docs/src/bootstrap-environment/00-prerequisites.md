@@ -13,4 +13,5 @@ On your local bootstrap machine, ensure you have the following:
 
 - Ubuntu
 - OpenTofu
+- Terragrunt
 - This repo cloned

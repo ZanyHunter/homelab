@@ -56,11 +56,23 @@ variable "chart_versions" {
     csi_driver_nfs = string
     minio          = string
     velero         = string
+    keycloak       = string
+    oauth2_proxy   = string
   })
 }
 
 variable "velero_plugin_for_aws_version" {
   description = "Pinned velero/velero-plugin-for-aws image tag — the S3-compatible object storage plugin Velero uses to talk to MinIO. Plain numbers.periods only, no leading \"v\" — same convention as ksops_version, kept as its own variable since this is a container image tag, not a Helm chart version."
+  type        = string
+}
+
+variable "postgres_version" {
+  description = "Pinned postgres:<version>-alpine image tag for Keycloak's hand-rolled backing database (no chart — a single-instance StatefulSet is simple enough that a pinnable community chart wasn't worth the dependency; see tofu/sso.tf). Major version only (e.g. \"16\")."
+  type        = string
+}
+
+variable "whoami_version" {
+  description = "Pinned traefik/whoami image tag for the SSO forward-auth demo (tofu/sso.tf) — a minimal echo-server proving the oauth2-proxy + Keycloak wiring end-to-end, and the template future apps needing forward-auth (Grocy, etc.) can copy. No leading \"v\"."
   type        = string
 }
 

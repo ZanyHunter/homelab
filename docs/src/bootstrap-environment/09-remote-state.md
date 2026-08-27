@@ -10,14 +10,17 @@ This replaced an earlier MinIO-on-the-cluster-hosted S3 backend (see PR history)
 
 ## Setting up the SMB mount (out-of-band, not Tofu-managed)
 
-From WSL, mount the NAS share onto `tofu/state/` before running any `tofu` command, e.g.:
+`tofu/state/` is gitignored, so a fresh clone won't have it at all — create the mount point first, then mount the NAS share onto it before running any `tofu` command:
 
 ```bash
+mkdir -p /home/hpugh/homelab/tofu/state
 sudo mount -t cifs //truenas.thepugh.family/<share> /home/hpugh/homelab/tofu/state \
   -o credentials=/path/to/smb-creds,uid=$(id -u),gid=$(id -g),vers=3.0
 ```
 
 (or the equivalent `/etc/fstab` entry for a persistent mount across WSL restarts). This is a per-machine setup step, not something `tofu apply` does — same category as installing `sops`/`age` or fetching the age key from KeePass.
+
+**Check the mount is actually live before running `tofu`.** If the share isn't mounted, `tofu/state/` is just an empty local directory — `tofu init`/`plan`/`apply` won't error, they'll silently create (or use) a fresh, empty local state file at that path instead of finding the real one. `mountpoint /home/hpugh/homelab/tofu/state` (exit code `0` means mounted) is a quick sanity check before trusting any `tofu plan` output.
 
 **Don't mount with the `nobrl` option.** Tofu's `local` backend locks state via `flock()`; Linux's CIFS client translates that into an SMB byte-range lock by default, which is what actually prevents two concurrent `tofu apply` runs from corrupting state — `nobrl` disables that translation and silently turns off locking.
 

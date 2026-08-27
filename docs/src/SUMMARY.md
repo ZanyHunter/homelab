@@ -13,4 +13,5 @@
 - [7. GitOps: App-of-Apps and Encrypted Secrets](./bootstrap-environment/06-gitops.md)
 - [8. Backup and Restore](./bootstrap-environment/07-backup-restore.md)
 - [9. Single Sign-On (Keycloak)](./bootstrap-environment/08-sso.md)
+- [10. Remote Tofu State](./bootstrap-environment/09-remote-state.md)
 

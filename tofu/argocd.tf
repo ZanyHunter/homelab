@@ -120,7 +120,8 @@ resource "helm_release" "argocd" {
   depends_on = [
     talos_cluster_kubeconfig.this,
     data.talos_cluster_health.this,
-    helm_release.ingress_nginx
+    helm_release.ingress_nginx,
+    kubernetes_secret.sops_age_key
   ]
   lifecycle {
     ignore_changes = [metadata]
@@ -146,6 +147,42 @@ resource "helm_release" "argocd" {
           }
           tls = true
         }
+      }
+    }),
+    # ksops: lets ArgoCD decrypt SOPS-encrypted manifests under apps/ at sync
+    # time. Patches the repo-server with the ksops/kustomize binaries (an
+    # init container copies them in, overriding the built-in kustomize) and
+    # mounts the same age key already used for tofu/secrets.enc.yaml so it
+    # can actually decrypt. See docs/src/bootstrap-environment/06-gitops.md.
+    yamlencode({
+      configs = {
+        cm = {
+          "kustomize.buildOptions" = "--enable-alpha-plugins --enable-exec"
+        }
+      }
+      repoServer = {
+        volumes = [
+          { name = "custom-tools", emptyDir = {} },
+          { name = "sops-age-key", secret = { secretName = kubernetes_secret.sops_age_key.metadata[0].name } }
+        ]
+        initContainers = [
+          {
+            name    = "install-ksops"
+            image   = "viaductoss/ksops:v${var.ksops_version}"
+            command = ["/usr/local/bin/ksops", "install", "--with-kustomize", "/custom-tools"]
+            volumeMounts = [
+              { name = "custom-tools", mountPath = "/custom-tools" }
+            ]
+          }
+        ]
+        volumeMounts = [
+          { name = "custom-tools", mountPath = "/usr/local/bin/kustomize", subPath = "kustomize" },
+          { name = "custom-tools", mountPath = "/usr/local/bin/ksops", subPath = "ksops" },
+          { name = "sops-age-key", mountPath = "/app/config/sops-age", readOnly = true }
+        ]
+        env = [
+          { name = "SOPS_AGE_KEY_FILE", value = "/app/config/sops-age/keys.txt" }
+        ]
       }
     })
   ]

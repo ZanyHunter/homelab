@@ -1,3 +1,12 @@
 creation_rules:
   - path_regex: tofu/secrets\.enc\.yaml$
     age: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
+
+  # ksops-decrypted manifests under apps/, applied by ArgoCD. Only the keys
+  # that actually carry sensitive values get encrypted (Secret data/stringData,
+  # and ClusterIssuer's ACME registration email — cert-manager has no
+  # secretRef indirection for that field) so the rest of each manifest stays
+  # human-readable in git.
+  - path_regex: apps/.*\.enc\.yaml$
+    encrypted_regex: "^(data|stringData|email)$"
+    age: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5

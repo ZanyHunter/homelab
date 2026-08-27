@@ -10,4 +10,5 @@
 - [4. Connect to Cluster](./bootstrap-environment/03-connect-to-cluster.md)
 - [5. DNS Configuration](./bootstrap-environment/04-dns-configuration.md)
 - [6. NFS Storage Access](./bootstrap-environment/05-nfs-storage-access.md)
+- [7. GitOps: App-of-Apps and Encrypted Secrets](./bootstrap-environment/06-gitops.md)
 

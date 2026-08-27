@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.38.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.15.0"
+    }
     proxmox = {
       source  = "bpg/proxmox"
       version = "~> 0.82.1"

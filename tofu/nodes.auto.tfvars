@@ -11,6 +11,19 @@ cluster = {
   proxmox_cluster = "homelab"
 }
 
+chart_versions = {
+  metallb        = "0.14.8"
+  ingress_nginx  = "4.11.2"
+  cert_manager   = "v1.15.1"
+  argocd         = "7.3.7"
+  csi_driver_nfs = "4.13.4"
+}
+
+nfs_storage = {
+  server = "truenas.thepugh.family"
+  share  = "/mnt/Main/k8s-dev"
+}
+
 k8s_nodes = {
   "k8s-ctrl-00" = {
     proxmox_node  = "pve-node-0"

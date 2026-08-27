@@ -45,3 +45,22 @@ variable "cluster" {
   })
 }
 
+variable "chart_versions" {
+  description = "Pinned Helm chart versions for cluster add-ons, so upgrades across dev/prod are deliberate rather than floating."
+  type = object({
+    metallb        = string
+    ingress_nginx  = string
+    cert_manager   = string
+    argocd         = string
+    csi_driver_nfs = string
+  })
+}
+
+variable "nfs_storage" {
+  description = "NFS server/share backing this cluster's default StorageClass. Each cluster (dev/prod) gets its own dedicated export — clusters do not share an NFS backend."
+  type = object({
+    server = string
+    share  = string
+  })
+}
+

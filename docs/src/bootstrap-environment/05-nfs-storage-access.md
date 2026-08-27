@@ -22,6 +22,12 @@ A dedicated NFS export exists for Kubernetes, separate from the NAS's other expo
 
 Root squash is disabled specifically because a dynamic NFS provisioner (planned for the storage/CSI issue) creates a new subdirectory per PersistentVolumeClaim and needs root to do so — the network-level restriction above is what keeps this export from being broadly accessible, not root-squash.
 
+### NFSv4 is required
+
+TrueNAS's NFS *service* (Services → NFS, separate from the per-share config above) must have NFSv4 enabled. Dynamic provisioning mounts a per-PVC subdirectory under this export rather than the export root, and that only works over NFSv4 — NFSv4's unified pseudo-filesystem lets a client mount any subdirectory of an export, while NFSv3's `mountd` protocol only accepts paths that are themselves an exact export.
+
+This was found the hard way while standing up `csi-driver-nfs` (see the storage/CSI issue): with NFSv4 disabled, unspecified version negotiation fell back to NFSv3, the export root mounted fine, but every subdirectory mount failed with `mount.nfs: Protocol not supported`. Enabling NFSv4 service-wide fixed it — no client-side `vers=` needs to be pinned once it's on.
+
 ---
 
 ## Verification

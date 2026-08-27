@@ -13,7 +13,7 @@ resource "helm_release" "metallb" {
   name       = "metallb"
   repository = "https://metallb.github.io/metallb"
   chart      = "metallb"
-  version    = "0.14.8"
+  version    = var.chart_versions.metallb
   namespace  = kubernetes_namespace.metallb_system.metadata[0].name
 
   depends_on = [
@@ -94,7 +94,7 @@ resource "helm_release" "ingress_nginx" {
   name       = "ingress-nginx"
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
-  version    = "4.11.2"
+  version    = var.chart_versions.ingress_nginx
   namespace  = kubernetes_namespace.ingress_nginx.metadata[0].name
 
   depends_on = [
@@ -114,7 +114,7 @@ resource "helm_release" "argocd" {
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
-  version    = "7.3.7"
+  version    = var.chart_versions.argocd
   namespace  = kubernetes_namespace.argocd.metadata[0].name
 
   depends_on = [

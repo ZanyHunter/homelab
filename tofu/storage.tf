@@ -15,7 +15,7 @@ resource "helm_release" "csi_driver_nfs" {
   name       = "csi-driver-nfs"
   repository = "https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts"
   chart      = "csi-driver-nfs"
-  version    = "4.13.4"
+  version    = var.chart_versions.csi_driver_nfs
   namespace  = kubernetes_namespace.csi_driver_nfs.metadata[0].name
 
   depends_on = [
@@ -24,9 +24,12 @@ resource "helm_release" "csi_driver_nfs" {
   ]
 }
 
-resource "kubernetes_storage_class" "nfs_dev" {
+resource "kubernetes_storage_class" "nfs" {
   metadata {
-    name = "nfs-dev"
+    # Named after the cluster (e.g. "nfs-dev", "nfs-prod") since this config is
+    # reused across clusters that each point at their own dedicated NFS export —
+    # see var.nfs_storage.
+    name = "nfs-${var.cluster.name}"
     annotations = {
       "storageclass.kubernetes.io/is-default-class" = "true"
     }
@@ -51,11 +54,12 @@ resource "kubernetes_storage_class" "nfs_dev" {
 
   # No subDir parameter: the driver creates one subdirectory per PV under this
   # share automatically, which is exactly what root-squash being disabled on
-  # /mnt/Main/k8s-dev (see docs/src/bootstrap-environment/05-nfs-storage-access.md)
-  # was for.
+  # the dev export (see docs/src/bootstrap-environment/05-nfs-storage-access.md)
+  # was for — the same should apply to whatever export var.nfs_storage points at
+  # for other clusters.
   parameters = {
-    server = "truenas.thepugh.family"
-    share  = "/mnt/Main/k8s-dev"
+    server = var.nfs_storage.server
+    share  = var.nfs_storage.share
   }
 
   depends_on = [helm_release.csi_driver_nfs]

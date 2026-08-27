@@ -37,20 +37,17 @@ resource "kubernetes_storage_class" "nfs_dev" {
   volume_binding_mode    = "Immediate"
   allow_volume_expansion = true
 
-  # nolock: the CSI driver's mount helper has no rpc.statd running to negotiate
-  # NFS locking, so a plain mount fails with "Protocol not supported" (same
-  # failure the manual reachability test hit before adding -o nolock there).
-  #
-  # No explicit nfsvers: this driver mounts a per-PV subdirectory under `share`,
+  # No mount_options: this driver mounts a per-PV subdirectory under `share`,
   # which only works over NFSv4 (NFSv4's unified pseudo-filesystem allows
   # mounting arbitrary subdirectories of an export; NFSv3's mountd only accepts
   # exact export paths). TrueNAS originally had NFSv4 disabled service-wide, so
-  # unspecified negotiation fell back to v3 and every subdirectory mount failed
-  # ("Protocol not supported" for an explicit vers=4 request too, since the
-  # server didn't speak v4 at all yet). Fixed by enabling NFSv4 on the NFS
-  # service in TrueNAS — auto-negotiation now picks v4, so no explicit vers= is
-  # needed here.
-  mount_options = ["nolock"]
+  # unspecified negotiation fell back to v3 and every subdirectory mount failed.
+  # Fixed by enabling NFSv4 on the NFS service in TrueNAS — auto-negotiation now
+  # picks v4.2, confirmed via a real mount showing "local_lock=none" (locks are
+  # sent to the server, not just held client-local) whether or not "nolock" is
+  # set — under NFSv3 that flag mattered (no rpc.statd was available inside the
+  # driver's container), but NFSv4 doesn't use NLM/rpc.statd at all, so it's a
+  # no-op now and left out rather than kept as misleading dead weight.
 
   # No subDir parameter: the driver creates one subdirectory per PV under this
   # share automatically, which is exactly what root-squash being disabled on

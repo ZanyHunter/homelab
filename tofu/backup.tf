@@ -55,10 +55,20 @@ resource "helm_release" "minio" {
           name   = var.backup.minio_bucket
           policy = "none"
           purge  = false
+        },
+        {
+          # Remote Tofu state (tofu/state-backend.tf) — a separate bucket so
+          # Velero and Tofu state don't share one, sharing the same MinIO
+          # instance/credentials otherwise.
+          name   = var.tofu_state_bucket
+          policy = "none"
+          purge  = false
         }
       ]
-      # No ingress/LoadBalancer: internal-only, reached in-cluster by Velero
-      # over ClusterIP (the chart default).
+      # No LoadBalancer: Velero reaches this in-cluster over ClusterIP. The S3
+      # API port does get an Ingress (tofu/state-backend.tf) so the local
+      # `tofu` client can reach it as a remote state backend; the admin
+      # console port is not exposed.
     })
   ]
 

@@ -86,6 +86,11 @@ variable "backup" {
   })
 }
 
+variable "tofu_state_bucket" {
+  description = "Name of the MinIO bucket (see tofu/backup.tf's minio instance) dedicated to this cluster's remote Tofu state — separate from var.backup.minio_bucket so Velero and Tofu state don't share a bucket. Environment-specific in case a future prod cluster's MinIO ever needs distinct naming."
+  type        = string
+}
+
 variable "nfs_storage" {
   description = "NFS server/share backing this cluster's default StorageClass. Each cluster (dev/prod) gets its own dedicated export — clusters do not share an NFS backend."
   type = object({

@@ -20,8 +20,8 @@ The Tofu config is also meant to be **reusable across multiple cluster environme
 - Talos Linux, provisioned as Proxmox VMs via the `siderolabs/talos` and `bpg/proxmox` Tofu providers.
 - 6 nodes today: `k8s-ctrl-00/01/02` (control plane) + `k8s-node-00/01/02` (worker), one of each role per Proxmox node — see `tofu/nodes.auto.tfvars`.
 - Cluster name `dev`, endpoint `192.168.160.16` — a Talos-managed floating VIP shared across the 3 control planes (not any single node's address), so the control plane stays reachable if one control-plane node is down.
-- Bootstrap add-ons installed via Helm from Tofu (not yet handed off to ArgoCD as an app-of-apps): MetalLB (LB pool `192.168.160.5-8`, `192.168.160.12-14`), ingress-nginx, cert-manager (+ `letsencrypt-prod` ClusterIssuer via Cloudflare DNS-01), ArgoCD (HA, exposed at `argocd.k8s.thepugh.family`).
-- **Gap**: ArgoCD is running but nothing points it at application manifests yet. When we start deploying real workloads (Immich, etc.), decide on an app-of-apps repo structure.
+- Bootstrap add-ons installed via Helm from Tofu: MetalLB, ingress-nginx, cert-manager, ArgoCD (HA, exposed at `argocd.k8s.thepugh.family`). Cluster-level *config* objects that used to be applied by Tofu `terraform_data`/`local-exec` provisioners — the MetalLB `IPAddressPool`/`L2Advertisement` (LB pool `192.168.160.5-8`, `192.168.160.12-14`) and the `letsencrypt-prod`/`letsencrypt-staging` cert-manager `ClusterIssuer`s — are GitOps-managed now instead; see the app-of-apps entry below.
+- **App-of-apps**: an ArgoCD `ApplicationSet` (`tofu/gitops.tf`, `var.gitops` for repo/revision) auto-discovers one `Application` per directory under this repo's `apps/`, so adding a new app is "add a directory under `apps/`, push" — no Tofu change, no manual `kubectl`/`argocd` command. `apps/cluster-addons/` is the cluster-level-config directory mentioned above; real workloads (Immich, etc.) will each get their own `apps/<app>/` directory when they land. Detailed docs: `docs/src/bootstrap-environment/06-gitops.md`.
 
 ## Toolchain
 
@@ -40,6 +40,7 @@ Provider credentials (Proxmox, Unifi, Cloudflare) live encrypted at `tofu/secret
 - **The age private key** lives at `~/.config/sops/age/keys.txt` on this machine (mode 600) — that's the default lookup path for both `sops` and the Terraform provider. It is **not** in git and never should be.
 - **Disaster recovery for the key itself**: the private key is backed up in the user's KeePass file, which is itself stored offsite separately from this repo. If this machine is lost, recover the key from KeePass and place it back at `~/.config/sops/age/keys.txt` before running `tofu` commands.
 - **Design note**: this is a single age key covering all secrets (Proxmox, Unifi, Cloudflare) — an honor-system boundary, not a technical one. We considered splitting Unifi/Cloudflare into a separately-keyed file so Claude could be structurally prevented from touching them, and decided against it: the user has a fresh full Unifi backup, so the blast radius of an honor-system violation is a few minutes of restore time. Revisit this if that risk tolerance changes.
+- **GitOps secrets (ksops)**: ArgoCD's repo-server also has this same age key, mounted as a `kubernetes_secret` in the `argocd` namespace (`tofu/gitops.tf`), so it can decrypt SOPS-encrypted manifests under `apps/` at sync time via [ksops](https://github.com/viaduct-ai/kustomize-sops). This means the raw private key now lives in one additional place beyond this machine + KeePass: as a live Kubernetes Secret in-cluster. Accepted for the same reason as the single-key design above (dev cluster, single operator); revisit alongside that note if the risk tolerance changes. See `docs/src/bootstrap-environment/06-gitops.md` for how to add a new encrypted secret this way.
 
 ## Standing permissions & guardrails
 
@@ -74,7 +75,7 @@ Worth revisiting as this matures beyond "dev, half-baked":
 
 - **No remote Tofu state backend** — state is local-only (`tofu/terraform.tfstate`, gitignored). Fine for now with one operator; revisit before this becomes multi-operator or holds real workloads.
 - **No CI** — no automated `tofu plan`/`validate` on PRs yet. Worth adding once the branch/PR workflow is in regular use.
-- **ArgoCD has no app-of-apps wired up** — see Kubernetes cluster section above.
+- **App-of-apps has no real workloads yet** — the ApplicationSet (see Kubernetes cluster section above) currently only manages `apps/cluster-addons/`. No app directory exists yet for Immich/Paperless-ngx/etc.
 - **NAS is not IaC-managed** — manual today.
 - **Single age key covers all secrets** — see Secrets management design note above.
 - **No actual mechanism for running two environments from this config yet** — environment-specific values are variablized (see "What this repo is" above), but there's still one flat root module and one local state file. Nothing today lets `tofu apply` stand up a second, independent cluster (e.g. prod) from the same config without clobbering dev's state. Needs a decision (Tofu workspaces vs. per-environment tfvars+state directories) before a prod cluster actually gets built.
@@ -84,3 +85,4 @@ Worth revisiting as this matures beyond "dev, half-baked":
 - Chose SOPS + age over a NAS-hosted secrets store (e.g. Vault/MinIO) specifically because the user wanted secrets to survive a NAS-down disaster; encrypted secrets committed to git satisfy that, since any clone of the repo has the ciphertext, and only the age key (KeePass-backed, offsite) is the recovery-critical piece.
 - Migrated `tofu/secrets.auto.tfvars` (plaintext, gitignored, single point of failure) to `tofu/secrets.enc.yaml` + `carlpett/sops` provider — see commit `1625bc3`.
 - Decided against the `@claude` GitHub App/Action integration for now, in favor of GitHub Issues as backlog + live-session tasking — see Tasking workflow above for the reasoning (local secrets/LAN access it can't replicate).
+- Bootstrapped the ArgoCD app-of-apps ApplicationSet and wired ksops into the repo-server for GitOps-managed secrets, migrating the MetalLB pool and cert-manager `ClusterIssuer`s off Tofu `terraform_data`/`local-exec` in the process — see PR #22 (closed issues #6, #7). ksops/SOPS-in-ArgoCD was chosen over External Secrets Operator/Vault specifically to avoid running and securing a new component, extending the same age-key pattern already used for `tofu/secrets.enc.yaml`.

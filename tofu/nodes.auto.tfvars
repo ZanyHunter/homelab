@@ -18,6 +18,17 @@ chart_versions = {
   argocd         = "7.3.7"
   argocd_apps    = "2.0.5"
   csi_driver_nfs = "4.13.4"
+  minio          = "5.4.0"
+  velero         = "12.1.0"
+}
+
+velero_plugin_for_aws_version = "1.14.2"
+
+backup = {
+  schedule           = "0 3 * * *"
+  ttl                = "720h" # 30 days
+  minio_bucket       = "velero"
+  minio_storage_size = "50Gi"
 }
 
 nfs_storage = {

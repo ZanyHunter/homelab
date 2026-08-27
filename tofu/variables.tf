@@ -54,6 +54,23 @@ variable "chart_versions" {
     argocd         = string
     argocd_apps    = string
     csi_driver_nfs = string
+    minio          = string
+    velero         = string
+  })
+}
+
+variable "velero_plugin_for_aws_version" {
+  description = "Pinned velero/velero-plugin-for-aws image tag — the S3-compatible object storage plugin Velero uses to talk to MinIO. Plain numbers.periods only, no leading \"v\" — same convention as ksops_version, kept as its own variable since this is a container image tag, not a Helm chart version."
+  type        = string
+}
+
+variable "backup" {
+  description = "Velero/MinIO cluster backup tuning — schedule, retention, and MinIO's own storage size. Environment-specific since dev/prod will want different retention and sizing; MinIO's data volume lives on the same nfs_storage-backed StorageClass as everything else."
+  type = object({
+    schedule           = string # cron expression for the daily Velero Schedule
+    ttl                = string # Velero backup retention, a Go duration string (e.g. "720h")
+    minio_bucket       = string
+    minio_storage_size = string # PVC size for MinIO's NFS-backed data volume
   })
 }
 

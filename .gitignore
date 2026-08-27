@@ -2,3 +2,4 @@ secrets.auto.tfvars
 */.terraform/
 *.tfstate*
 .claude/settings.local.json
+tofu/backend.hcl

@@ -35,14 +35,6 @@ variable "k8s_nodes" {
   }
 }
 
-variable "k8s-control-resources" {
-  type = object({
-    cpu_cores           = number
-    memory_dedicated_mb = number
-    disk_size_gb        = number
-  })
-}
-
 variable "cluster" {
   type = object({
     name            = string

@@ -10,14 +10,14 @@ Infrastructure-as-Code for zanyhunter's homelab. The goal is disaster recovery: 
 
 - **Compute**: 3 physical Proxmox nodes (`pve-node-0/1/2`) in a hyperconverged cluster (`homelab`) using Ceph for storage (`ceph-1` datastore).
 - **Storage**: 1 NFS NAS for service data (Immich, etc.). Not yet under IaC management — provisioned/configured manually today. Revisit if it should be brought into Tofu or get its own IaC story.
-- **Network**: Unifi-managed. The K8s cluster lives on VLAN 1601, subnet `192.168.160.0/28`, gateway `192.168.160.1`, domain `k8s.thepugh.family` (see `tofu/main.tf`). Local DNS resolution for that domain is a wildcard record in the Unifi controller pointing at the MetalLB ingress IP — documented in `docs/src/bootstrap-environment/04-dns-configuration.md`.
+- **Network**: Unifi-managed. The K8s cluster lives on VLAN 1601, subnet `192.168.160.0/27` (expanded from a `/28` once that filled up — see issue #3), gateway `192.168.160.1`, domain `k8s.thepugh.family` (see `tofu/main.tf`). Local DNS resolution for that domain is a wildcard record in the Unifi controller pointing at the MetalLB ingress IP — documented in `docs/src/bootstrap-environment/04-dns-configuration.md`.
 - **Real external domain**: `thepugh.family`, managed in Cloudflare. cert-manager uses a Cloudflare API token (DNS Zone Edit scope) for ACME DNS-01 challenges — this is the one credential in this repo with blast radius outside the homelab.
 
 ## Kubernetes cluster
 
 - Talos Linux, provisioned as Proxmox VMs via the `siderolabs/talos` and `bpg/proxmox` Tofu providers.
 - 6 nodes today: `k8s-ctrl-00/01/02` (control plane) + `k8s-node-00/01/02` (worker), one of each role per Proxmox node — see `tofu/nodes.auto.tfvars`.
-- Cluster name `dev`, endpoint `192.168.160.2`.
+- Cluster name `dev`, endpoint `192.168.160.16` — a Talos-managed floating VIP shared across the 3 control planes (not any single node's address), so the control plane stays reachable if one control-plane node is down.
 - Bootstrap add-ons installed via Helm from Tofu (not yet handed off to ArgoCD as an app-of-apps): MetalLB (LB pool `192.168.160.5-8`, `192.168.160.12-14`), ingress-nginx, cert-manager (+ `letsencrypt-prod` ClusterIssuer via Cloudflare DNS-01), ArgoCD (HA, exposed at `argocd.k8s.thepugh.family`).
 - **Gap**: ArgoCD is running but nothing points it at application manifests yet. When we start deploying real workloads (Immich, etc.), decide on an app-of-apps repo structure.
 
@@ -27,7 +27,7 @@ Infrastructure-as-Code for zanyhunter's homelab. The goal is disaster recovery: 
 - **sops** + **age** — secrets encryption, see below. Both installed locally.
 - **gh CLI** — installed and authenticated as ZanyHunter over HTTPS. Used for the branch/PR workflow (see Git workflow below).
 - **mdBook** — installed (`~/.cargo/bin/mdbook`). Docs source is `docs/src/`; the built site `docs/book/` is gitignored (not committed) — run `mdbook build docs` locally to preview, no need to commit output.
-- **kubectl** — cluster access from whatever machine has network reachability to `192.168.160.0/28`. Note: not every environment this session runs in has that reachability (a sandboxed Bash tool may route through NAT with no path to the homelab LAN) — if `kubectl`/`ping` to homelab IPs times out, that's an environment limitation, not a cluster problem. Don't loop-retry; say so.
+- **kubectl** — this session's Bash environment has confirmed LAN reachability to `192.168.160.0/27` (verified via `ping` to a control-plane node and the gateway, 2026-08-27) — don't assume otherwise. If `ping`/`kubectl` fail, check first rather than declaring an environment limitation: the cluster's CA/certs regenerate on every from-scratch rebuild, so a cached `~/.kube/config` from before a rebuild will fail TLS verification even though the network path is fine — fetch a current one with `tofu output -raw kube_config` (from `tofu/`) rather than assuming a stale kubeconfig is still valid.
 
 ## Secrets management
 

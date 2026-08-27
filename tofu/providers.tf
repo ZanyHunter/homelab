@@ -28,3 +28,16 @@ provider "helm" {
   }
 }
 
+# Password grant against the built-in admin-cli client, using the same
+# bootstrap admin credentials Keycloak itself is given (tofu/sso.tf) — avoids
+# a chicken-and-egg problem of needing a dedicated service-account client
+# before Tofu can manage anything. Every keycloak_* resource still needs its
+# own depends_on on Keycloak actually being up (see tofu/sso.tf) since this
+# provider block has no direct reference forcing that ordering.
+provider "keycloak" {
+  client_id = "admin-cli"
+  username  = "admin"
+  password  = random_password.keycloak_admin_password.result
+  url       = "https://keycloak.k8s.thepugh.family"
+}
+

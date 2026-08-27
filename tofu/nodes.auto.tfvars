@@ -20,9 +20,13 @@ chart_versions = {
   csi_driver_nfs = "4.13.4"
   minio          = "5.4.0"
   velero         = "12.1.0"
+  keycloak       = "7.3.0"
+  oauth2_proxy   = "10.7.0"
 }
 
 velero_plugin_for_aws_version = "1.14.2"
+postgres_version              = "16"
+whoami_version                = "1.12.0"
 
 backup = {
   schedule           = "0 3 * * *"

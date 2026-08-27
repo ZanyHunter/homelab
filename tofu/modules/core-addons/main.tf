@@ -94,6 +94,17 @@ resource "helm_release" "ingress_nginx" {
   version    = var.chart_versions.ingress_nginx
   namespace  = kubernetes_namespace.ingress_nginx.metadata[0].name
 
+  # Helm's default wait behavior blocks until this LoadBalancer Service gets
+  # an external IP — which on a from-scratch bootstrap it never will in time,
+  # since MetalLB's IPAddressPool is GitOps-managed (apps/cluster-addons/)
+  # and ArgoCD (below, depends on this release) hasn't even been created yet
+  # to sync it. Discovered via a real from-scratch destroy/recreate: on an
+  # already-running cluster this never mattered, since the Service already
+  # had an IP carried forward from before. MetalLB assigns the real IP
+  # asynchronously once ArgoCD syncs the pool, same eventual-consistency
+  # pattern already relied on for cert-manager ClusterIssuers.
+  wait = false
+
   depends_on = [helm_release.metallb]
 }
 

@@ -40,7 +40,7 @@ resource "helm_release" "minio" {
       existingSecret = kubernetes_secret.minio_credentials.metadata[0].name
       persistence = {
         enabled      = true
-        storageClass = kubernetes_storage_class.nfs.metadata[0].name
+        storageClass = var.nfs_storage_class_name
         size         = var.backup.minio_storage_size
       }
       # Chart default is a 16Gi memory *request* (sized for distributed mode)
@@ -63,7 +63,6 @@ resource "helm_release" "minio" {
   ]
 
   depends_on = [
-    kubernetes_storage_class.nfs,
     kubernetes_secret.minio_credentials,
   ]
 }

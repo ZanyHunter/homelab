@@ -1,5 +1,6 @@
 secrets.auto.tfvars
-*/.terraform/
+**/.terraform/
+**/.terragrunt-cache/
 *.tfstate*
 .claude/settings.local.json
 tofu/state/

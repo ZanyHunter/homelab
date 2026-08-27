@@ -35,8 +35,6 @@ backup = {
   minio_storage_size = "50Gi"
 }
 
-tofu_state_bucket = "tofu-state"
-
 nfs_storage = {
   server = "truenas.thepugh.family"
   share  = "/mnt/Main/k8s-dev"

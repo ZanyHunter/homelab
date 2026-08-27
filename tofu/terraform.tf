@@ -38,32 +38,23 @@ terraform {
     }
   }
 
-  # Remote state on the MinIO instance from tofu/backup.tf (see
-  # tofu/state-backend.tf for the Ingress exposing it, and
-  # docs/src/bootstrap-environment/09-remote-state.md for the full picture).
-  # Bucket/key are hardcoded literals, not variables — backend blocks are
-  # evaluated before any variables/resources are known, so they can't
-  # reference var.tofu_state_bucket or var.cluster.name even though both
-  # exist. Credentials come from -backend-config (tofu/backend.hcl,
-  # gitignored — see backend.hcl.example) rather than being hardcoded here.
-  backend "s3" {
-    bucket = "tofu-state"
-    key    = "dev/terraform.tfstate"
-    region = "us-east-1" # arbitrary — MinIO doesn't validate AWS regions
-
-    endpoints = {
-      s3 = "https://minio.k8s.thepugh.family"
-    }
-    use_path_style              = true
-    skip_credentials_validation = true
-    skip_region_validation      = true
-    skip_metadata_api_check     = true
-    skip_requesting_account_id  = true
-    # Native conditional-write locking (no DynamoDB-style lock table needed) —
-    # requires MinIO to support conditional PUT (If-None-Match), verified
-    # against the deployed RELEASE.2024-12-18T13-15-44Z by testing two
-    # concurrent applies.
-    use_lockfile = true
+  # Remote state via a plain local-backend path, deliberately NOT managed by
+  # this Tofu config — the directory this points at is meant to be an SMB
+  # mount of a share on the NAS, set up out-of-band (see
+  # docs/src/bootstrap-environment/09-remote-state.md). This sidesteps two
+  # problems a cluster-hosted backend (the MinIO-on-k8s approach originally
+  # here) would have: state storage no longer depends on infrastructure this
+  # config itself creates/destroys (no "destroying the resource that backs
+  # your own state" chicken-and-egg on a full teardown), and no new external
+  # dependency (cloud object storage) is introduced either.
+  #
+  # `path` is a hardcoded literal, not a variable — backend blocks are
+  # evaluated before any variables/resources are known. The "dev/" prefix is
+  # there so a future prod cluster's state can live alongside dev's on the
+  # same share without colliding, once #21 gives it its own Tofu config to
+  # hardcode a "prod/" path in.
+  backend "local" {
+    path = "state/dev/terraform.tfstate"
   }
 }
 

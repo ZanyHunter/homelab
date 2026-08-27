@@ -1,30 +1,11 @@
 locals {
-  # Calculate total number of usable IPs (excluding network and broadcast)
-  total_k8s_ips = pow(2, 32 - tonumber(split("/", var.network_cidr)[1])) - 2
   # The cluster's floating control-plane VIP, consumed by control-plane.yaml.tftpl.
   # Talos claims this address via etcd leader election once a control plane's etcd is
   # up, so it must NOT be used as the bootstrap-time endpoint below (see first_control_plane_ip).
   k8s_virtual_ip = var.cluster.endpoint
-  # Generate list of usable IPs
-  usable_k8s_ips = [for i in range(2, local.total_k8s_ips + 1) : cidrhost(var.network_cidr, i)]
   # A real, already-reachable control-plane node IP for one-shot Terraform-provider
   # calls (bootstrap, kubeconfig fetch) that can't depend on the VIP existing yet.
   first_control_plane_ip = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0] if v.role == "controlplane"][0]
-}
-
-resource "unifi_network" "this" {
-  name         = "K8s-Cluster-Prod"
-  purpose      = "corporate"
-  dhcp_enabled = false
-  # dhcp_lease = 3600
-  # dhcp_start = cidrhost(var.network_cidr, 2)
-  # dhcp_stop = cidrhost(var.network_cidr, local.total_k8s_ips)
-
-  domain_name = "k8s.thepugh.family"
-  # internet_access_enabled = false
-  # network_isolation_enabled = true
-  subnet  = var.network_cidr
-  vlan_id = var.vlan_id
 }
 
 data "talos_image_factory_extensions_versions" "this" {
@@ -73,7 +54,7 @@ resource "talos_machine_secrets" "this" {
 }
 
 data "talos_client_configuration" "this" {
-  cluster_name         = "dev"
+  cluster_name         = var.cluster.name
   client_configuration = talos_machine_secrets.this.client_configuration
   nodes                = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0]]
   endpoints            = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0] if v.role == "controlplane"]
@@ -165,8 +146,6 @@ resource "proxmox_virtual_environment_vm" "nodes" {
       }
     }
   }
-
-  # depends_on = [unifi_network.this]
 }
 
 resource "talos_machine_configuration_apply" "this" {
@@ -214,19 +193,4 @@ resource "talos_cluster_kubeconfig" "this" {
   timeouts = {
     read = "1m"
   }
-}
-
-output "talosctl_config" {
-  value     = data.talos_client_configuration.this.talos_config
-  sensitive = true
-}
-
-output "kube_config" {
-  value     = talos_cluster_kubeconfig.this.kubeconfig_raw
-  sensitive = true
-}
-
-output "machine_config" {
-  value     = data.talos_machine_configuration.this
-  sensitive = true
 }

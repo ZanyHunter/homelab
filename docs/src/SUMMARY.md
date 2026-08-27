@@ -9,4 +9,5 @@
 - [3. Deploy Kubernetes Cluster](./bootstrap-environment/02-deploy-k8s-cluster.md)
 - [4. Connect to Cluster](./bootstrap-environment/03-connect-to-cluster.md)
 - [5. DNS Configuration](./bootstrap-environment/04-dns-configuration.md)
+- [6. NFS Storage Access](./bootstrap-environment/05-nfs-storage-access.md)
 

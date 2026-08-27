@@ -6,6 +6,8 @@ Guidance for Claude Code working in this repository. Read this before making cha
 
 Infrastructure-as-Code for zanyhunter's homelab. The goal is disaster recovery: everything needed to stand up equivalent infrastructure on fresh hardware should be reconstructable from this repo plus the age private key (kept in KeePass, see Secrets below). Nothing here currently hosts real user data — the Kubernetes cluster is dev-only — but the Cloudflare DNS token controls a real, internet-facing domain, so treat that boundary seriously even though the cluster itself is disposable.
 
+The Tofu config is also meant to be **reusable across multiple cluster environments (dev today, a future prod) for years to come** — and dev/prod will not share infrastructure (each gets its own NFS backend, for instance). Environment-specific values (Helm chart versions, the NFS storage server/share, etc.) belong in object-typed variables in `tofu/variables.tf` (see `cluster`, `chart_versions`, `nfs_storage`) with real values in `tofu/nodes.auto.tfvars`, not hardcoded in resource blocks — when adding a new add-on or resource with a version string or environment-specific setting, variablize it the same way rather than hardcoding it "for now."
+
 ## Physical & network topology
 
 - **Compute**: 3 physical Proxmox nodes (`pve-node-0/1/2`) in a hyperconverged cluster (`homelab`) using Ceph for storage (`ceph-1` datastore).
@@ -75,6 +77,7 @@ Worth revisiting as this matures beyond "dev, half-baked":
 - **ArgoCD has no app-of-apps wired up** — see Kubernetes cluster section above.
 - **NAS is not IaC-managed** — manual today.
 - **Single age key covers all secrets** — see Secrets management design note above.
+- **No actual mechanism for running two environments from this config yet** — environment-specific values are variablized (see "What this repo is" above), but there's still one flat root module and one local state file. Nothing today lets `tofu apply` stand up a second, independent cluster (e.g. prod) from the same config without clobbering dev's state. Needs a decision (Tofu workspaces vs. per-environment tfvars+state directories) before a prod cluster actually gets built.
 
 ## History / key decisions
 

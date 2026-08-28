@@ -29,6 +29,18 @@ kubectl get secret -n keycloak sso-demo-user-credentials -o jsonpath='{.data.pas
 
 Visit `https://sso-demo.k8s.thepugh.family` from a browser on the LAN — it redirects through Keycloak login, then lands on the `whoami` page showing the request oauth2-proxy forwarded, including `X-Auth-Request-User`/`X-Auth-Request-Email` headers identifying who logged in.
 
+## Management apps: ArgoCD and Grafana
+
+Both authenticate through Keycloak (`tofu/modules/core-addons/main.tf`'s `helm_release.argocd`, `tofu/modules/observability/main.tf`'s `helm_release.kube_prometheus_stack`) using their own native OIDC support — no oauth2-proxy needed, the same "Apps with native OIDC support" pattern documented below. Local admin login is disabled on both (`admin.enabled: "false"` for ArgoCD, `auth.basic.enabled: false` for Grafana — the latter needed alongside `auth.disable_login_form` since that alone still leaves basic-auth reachable via direct API calls).
+
+**Access is group-based, not tied to any specific person.** A `platform-admins` Keycloak group (`tofu/modules/keycloak-realm/main.tf`'s `keycloak_group.platform_admins`) is the only thing either app's RBAC checks — ArgoCD's `policy.csv` is `g, platform-admins, role:admin`, Grafana's `role_attribute_path` checks `contains(groups[*], 'platform-admins')`. Nothing in the Tofu code names a real user. **To grant someone admin access to ArgoCD/Grafana**: create (or use an existing) account in Keycloak's admin console (`https://keycloak.k8s.thepugh.family`), open it, go to the **Groups** tab, and **Join Group** → `platform-admins`. Group membership itself isn't Tofu-managed, by design — see "Upstream identity federation" below for the reasoning.
+
+Under the hood, this needs a `groups` claim in the token, which isn't included by default — `keycloak_openid_client_scope.groups` is a reusable custom client scope with a `keycloak_openid_group_membership_protocol_mapper` (configured with `full_path = false`, so the claim is the plain group name rather than `/platform-admins`), attached to both clients as an *optional* scope (`keycloak_openid_client_optional_scopes`) rather than a default one — both apps already explicitly request it (ArgoCD's `requestedScopes`, Grafana's `scopes` config), so making it default too would only risk fighting Keycloak's own built-in default-scope list for no benefit.
+
+**Break-glass recovery**: both local admin credentials still exist (`kubectl get secret -n argocd argocd-secret -o jsonpath='{.data.admin\.password}' | base64 -d`; `kubectl get secret -n monitoring grafana-admin-credentials -o jsonpath='{.data.admin-password}' | base64 -d`) — if Keycloak itself is ever unreachable, flip `admin.enabled`/`auth.basic.enabled` back in Tofu and reapply to regain local access, then flip them off again once Keycloak's back.
+
+**A real gotcha found live**: the ArgoCD chart ships a default `configs.cm.url` value of `https://argocd.example.com` — this is what ArgoCD actually uses to build its OIDC `redirect_uri` (not the incoming request's `Host` header), so leaving it unset produces a real "Invalid redirect URL" rejection from Keycloak on every login attempt. Set explicitly to `https://argocd.k8s.thepugh.family` in `configs.cm`.
+
 ## Adding a real app
 
 ### Apps with native OIDC support (e.g. Immich, Paperless-ngx)
@@ -44,6 +56,12 @@ Copy the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` pattern from `tofu/mo
 
 1. **The client secret should be ksops-encrypted, not Tofu-generated.** The demo's `oauth2_proxy` client is Tofu-managed end-to-end because it exists purely to prove the wiring, not as a real app — but a real app's per-client secret belongs in that app's `apps/<app>/` directory under ArgoCD's management (see `docs/src/bootstrap-environment/06-gitops.md`), the same way `apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml` keeps its one sensitive field encrypted. Create the Keycloak client with an explicit `client_secret` (a `random_password`, as the demo does), then commit that value ksops-encrypted under the app's own directory rather than only in Tofu state.
 2. **One oauth2-proxy per protected app** (or a shared one, if several apps can tolerate a shared session cookie domain) — the demo's `sso-demo` namespace/hostname pairing is illustrative, not something to reuse directly.
+
+## Upstream identity federation (deferred)
+
+Brokering an upstream identity provider (e.g. Google) through Keycloak — so a real login could use an existing Google account instead of a Keycloak-local password — was considered as part of #32 and deliberately deferred, not implemented. Local Keycloak accounts are sufficient for a single-operator homelab today, and deferring avoids standing up a Google Cloud OAuth app/credentials for no immediate benefit. This is also why group membership (see above) is managed by hand rather than via a Tofu `keycloak_user` resource: with accounts staying local for now, there's no real automation to gain by managing them declaratively, and doing so would mean putting a real person's identity into this repo's code.
+
+Revisit if/when more real users need access (e.g. family members) — at that point it means a Keycloak `keycloak_identity_provider` resource (or realm identity-provider config) plus a Google Cloud OAuth app/credentials.
 
 ## No bootstrap quirk anymore
 

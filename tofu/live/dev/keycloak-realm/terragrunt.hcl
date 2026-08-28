@@ -18,10 +18,10 @@ dependency "talos_cluster" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     kubernetes_client_configuration = {
-      host                   = "https://mock:6443"
-      client_certificate     = "bW9jaw=="
-      client_key             = "bW9jaw=="
-      ca_certificate         = "bW9jaw=="
+      host               = "https://mock:6443"
+      client_certificate = "bW9jaw=="
+      client_key         = "bW9jaw=="
+      ca_certificate     = "bW9jaw=="
     }
   }
 }

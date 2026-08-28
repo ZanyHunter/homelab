@@ -124,6 +124,16 @@ resource "kubernetes_namespace" "argocd" {
   }
 }
 
+# SSO (#32): ArgoCD's own native OIDC support (no Dex/oauth2-proxy needed) —
+# this secret is generated here, in the unit that consumes it, and passed
+# downstream to keycloak-realm to create the matching keycloak_openid_client.
+# See the comment on the argocd_oidc_client_secret output for why the
+# dependency runs in this direction.
+resource "random_password" "argocd_oidc_client_secret" {
+  length  = 32
+  special = false
+}
+
 resource "helm_release" "argocd" {
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
@@ -160,6 +170,48 @@ resource "helm_release" "argocd" {
             "cert-manager.io/cluster-issuer"               = "letsencrypt-prod"
           }
           tls = true
+        }
+      }
+      configs = {
+        cm = {
+          # The chart's own default ("https://argocd.example.com") is what
+          # ArgoCD actually uses to build its OIDC redirect_uri (not the
+          # incoming request's Host header) — left unset, Keycloak correctly
+          # rejects the callback as not matching keycloak_openid_client.argocd's
+          # valid_redirect_uris (#32, found live as a real login attempt).
+          url = "https://argocd.k8s.thepugh.family"
+          # Local admin disabled (#32) only after a real Keycloak login was
+          # verified live through the oidc.config below — recoverable by
+          # flipping this back to "true" + reapplying, same break-glass story
+          # as every other Tofu-managed credential in this repo.
+          "admin.enabled" = "false"
+          # requestedScopes includes "groups" so RBAC below can match on
+          # Keycloak group membership rather than a hardcoded per-person
+          # identity — see keycloak-realm's keycloak_openid_client_scope.groups.
+          "oidc.config" = yamlencode({
+            name            = "Keycloak"
+            issuer          = "https://keycloak.k8s.thepugh.family/realms/homelab"
+            clientID        = "argocd"
+            clientSecret    = "$oidc.keycloak.clientSecret"
+            requestedScopes = ["openid", "profile", "email", "groups"]
+          })
+        }
+        # Adds a key to argocd-secret without owning the whole object — keeps
+        # the client secret out of the plaintext argocd-cm ConfigMap that
+        # oidc.config above lives in.
+        secret = {
+          extra = {
+            "oidc.keycloak.clientSecret" = random_password.argocd_oidc_client_secret.result
+          }
+        }
+        rbac = {
+          # Group-based, not tied to any specific person's identity: anyone
+          # in the "platform-admins" Keycloak group gets admin. Real accounts
+          # and their group membership are managed by hand in Keycloak's
+          # admin console (see docs/src/bootstrap-environment/08-sso.md), not
+          # in Tofu.
+          "policy.csv" = "g, platform-admins, role:admin"
+          "scopes"     = "[groups]"
         }
       }
     }),
@@ -500,7 +552,9 @@ resource "kubernetes_network_policy" "allow_webhook_ingress" {
   }
 }
 
-# cert-manager, argocd's repo-server (git clone over HTTPS), and (below)
+# cert-manager, argocd's repo-server (git clone over HTTPS), argocd-server's
+# OIDC calls to Keycloak's external hostname (#32 — resolves back through
+# ingress-nginx's LoadBalancer IP, within this 0.0.0.0/0 range), and (below)
 # ingress-nginx's outbound proxying all need real internet egress.
 resource "kubernetes_network_policy" "allow_internet_egress" {
   for_each = {

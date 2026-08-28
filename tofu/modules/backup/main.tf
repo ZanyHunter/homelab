@@ -371,3 +371,29 @@ resource "kubernetes_network_policy" "minio_allow_velero_ingress" {
     }
   }
 }
+
+# Prometheus's additionalScrapeConfigs job (tofu/modules/observability)
+# scrapes Velero's own metrics endpoint directly.
+resource "kubernetes_network_policy" "velero_allow_monitoring_ingress" {
+  metadata {
+    name      = "allow-monitoring-ingress"
+    namespace = kubernetes_namespace.velero.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "monitoring" }
+        }
+      }
+      ports {
+        port     = "8085"
+        protocol = "TCP"
+      }
+    }
+  }
+}

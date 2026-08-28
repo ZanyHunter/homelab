@@ -84,6 +84,11 @@ resource "helm_release" "metallb" {
 resource "kubernetes_namespace" "ingress_nginx" {
   metadata {
     name = "ingress-nginx"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
   }
 }
 
@@ -111,6 +116,11 @@ resource "helm_release" "ingress_nginx" {
 resource "kubernetes_namespace" "argocd" {
   metadata {
     name = "argocd"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
   }
 }
 
@@ -177,6 +187,16 @@ resource "helm_release" "argocd" {
             volumeMounts = [
               { name = "custom-tools", mountPath = "/custom-tools" }
             ]
+            # Only ever copies two binaries into an emptyDir — no real
+            # privilege needed. Found live that this was the one gap keeping
+            # the argocd namespace off "restricted" PSA (#31).
+            securityContext = {
+              allowPrivilegeEscalation = false
+              runAsNonRoot             = true
+              runAsUser                = 65534
+              capabilities             = { drop = ["ALL"] }
+              seccompProfile           = { type = "RuntimeDefault" }
+            }
           }
         ]
         volumeMounts = [
@@ -196,6 +216,11 @@ resource "helm_release" "argocd" {
 resource "kubernetes_namespace" "cert_manager" {
   metadata {
     name = "cert-manager"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
   }
 }
 
@@ -321,4 +346,311 @@ resource "helm_release" "argocd_apps" {
     kubernetes_namespace.metallb_system,
     kubernetes_secret.cloudflare_api_token,
   ]
+}
+
+# --- NetworkPolicies: default-deny + only the traffic each namespace
+# actually needs (#31) ---------------------------------------------------
+locals {
+  # cluster-addons isn't a Tofu-managed namespace (ArgoCD's app-of-apps
+  # creates it via CreateNamespace=true — see the ApplicationSet above), but
+  # it already exists by the time this unit applies and holds no pods, so a
+  # default-deny here is a harmless, zero-risk way to prove the base pattern
+  # applies cleanly before it ever matters.
+  core_addons_namespaces = {
+    csi_driver_nfs = kubernetes_namespace.csi_driver_nfs.metadata[0].name
+    metallb_system = kubernetes_namespace.metallb_system.metadata[0].name
+    ingress_nginx  = kubernetes_namespace.ingress_nginx.metadata[0].name
+    argocd         = kubernetes_namespace.argocd.metadata[0].name
+    cert_manager   = kubernetes_namespace.cert_manager.metadata[0].name
+    cluster_addons = "cluster-addons"
+  }
+}
+
+resource "kubernetes_network_policy" "default_deny_all" {
+  for_each = local.core_addons_namespaces
+
+  metadata {
+    name      = "default-deny-all"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+  }
+}
+
+resource "kubernetes_network_policy" "allow_dns_egress" {
+  for_each = local.core_addons_namespaces
+
+  metadata {
+    name      = "allow-dns-egress"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "kube-system" }
+        }
+      }
+      ports {
+        port     = "53"
+        protocol = "UDP"
+      }
+      ports {
+        port     = "53"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+resource "kubernetes_network_policy" "allow_same_namespace" {
+  for_each = local.core_addons_namespaces
+
+  metadata {
+    name      = "allow-same-namespace"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+
+    ingress {
+      from {
+        pod_selector {}
+      }
+    }
+    egress {
+      to {
+        pod_selector {}
+      }
+    }
+  }
+}
+
+# csi-driver-nfs, metallb-system, argocd (application-controller), and
+# cert-manager (+ its webhook, via the CRD conversion path) all watch/write
+# Kubernetes objects directly.
+resource "kubernetes_network_policy" "allow_apiserver_egress" {
+  for_each = {
+    for k, v in local.core_addons_namespaces : k => v
+    if contains(["csi_driver_nfs", "metallb_system", "argocd", "cert_manager"], k)
+  }
+
+  metadata {
+    name      = "allow-apiserver-egress"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "10.96.0.1/32"
+        }
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# The apiserver calls admission/conversion webhooks directly from a
+# control-plane node's real IP, not from a pod — no podSelector to match,
+# hence an ipBlock over the node subnet. Needed by cert-manager-webhook and
+# metallb-webhook-service specifically.
+resource "kubernetes_network_policy" "allow_webhook_ingress" {
+  for_each = {
+    for k, v in local.core_addons_namespaces : k => v
+    if contains(["metallb_system", "cert_manager"], k)
+  }
+
+  metadata {
+    name      = "allow-webhook-ingress"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        ip_block {
+          cidr = "192.168.160.0/27"
+        }
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# cert-manager, argocd's repo-server (git clone over HTTPS), and (below)
+# ingress-nginx's outbound proxying all need real internet egress.
+resource "kubernetes_network_policy" "allow_internet_egress" {
+  for_each = {
+    for k, v in local.core_addons_namespaces : k => v
+    if contains(["cert_manager", "argocd"], k)
+  }
+
+  metadata {
+    name      = "allow-internet-egress"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "0.0.0.0/0"
+        }
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Prometheus's additionalScrapeConfigs job (tofu/modules/observability)
+# scrapes cert-manager's own metrics endpoint directly.
+resource "kubernetes_network_policy" "cert_manager_allow_monitoring_ingress" {
+  metadata {
+    name      = "allow-monitoring-ingress"
+    namespace = kubernetes_namespace.cert_manager.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "monitoring" }
+        }
+      }
+      ports {
+        port     = "9402"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# ingress-nginx is the cluster's actual entry point: real external traffic
+# (from anywhere on the LAN, via the MetalLB LoadBalancer IP) lands here, not
+# just other pods — an empty ingress "from" means "allow from any source".
+resource "kubernetes_network_policy" "ingress_nginx_allow_external_ingress" {
+  metadata {
+    name      = "allow-external-ingress"
+    namespace = kubernetes_namespace.ingress_nginx.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+
+    ingress {
+      ports {
+        port     = "80"
+        protocol = "TCP"
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# ingress-nginx's whole job is proxying to backend Services scattered across
+# every namespace in the cluster (today: argocd, keycloak, sso-demo,
+# monitoring; more as real apps land under apps/) — enumerating each one
+# here would need updating every time a new app gets an Ingress, so this
+# scopes to the pod network CIDR broadly rather than per-namespace.
+resource "kubernetes_network_policy" "ingress_nginx_allow_backend_egress" {
+  metadata {
+    name      = "allow-backend-egress"
+    namespace = kubernetes_namespace.ingress_nginx.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "10.244.0.0/16"
+        }
+      }
+    }
+  }
+}
+
+# csi-driver-nfs's controller/node-plugin pods talk to the NFS server
+# directly (mount/provisioning calls) — external to the cluster, and not
+# worth pinning exact NFSv4/rpcbind ports for the same reason the backup
+# unit's velero/cert-manager internet-egress rules stay port-scoped-only
+# rather than IP-scoped.
+resource "kubernetes_network_policy" "argocd_allow_ingress_nginx" {
+  metadata {
+    name      = "allow-ingress-nginx"
+    namespace = kubernetes_namespace.argocd.metadata[0].name
+  }
+
+  spec {
+    pod_selector {
+      match_labels = { "app.kubernetes.io/name" = "argocd-server" }
+    }
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "ingress-nginx" }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_network_policy" "csi_driver_nfs_allow_server_egress" {
+  metadata {
+    name      = "allow-nfs-server-egress"
+    namespace = kubernetes_namespace.csi_driver_nfs.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "0.0.0.0/0"
+        }
+      }
+    }
+  }
 }

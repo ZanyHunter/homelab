@@ -10,6 +10,11 @@
 resource "kubernetes_namespace" "keycloak" {
   metadata {
     name = "keycloak"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
   }
 }
 
@@ -66,12 +71,32 @@ resource "kubernetes_stateful_set_v1" "keycloak_postgres" {
       }
 
       spec {
+        security_context {
+          run_as_non_root = true
+          # postgres:alpine's actual "postgres" user — confirmed live via the
+          # existing data directory's on-disk ownership (drwx------, uid 70),
+          # not the Debian-image UID 999 convention this image doesn't use.
+          run_as_user = 70
+        }
+
         container {
           name  = "postgres"
           image = "postgres:${var.postgres_version}-alpine"
 
           port {
             container_port = 5432
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 70
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
           }
 
           env {
@@ -218,6 +243,23 @@ resource "helm_release" "keycloak" {
           memory = "768Mi"
         }
       }
+      securityContext = {
+        runAsUser                = 1000
+        runAsNonRoot             = true
+        allowPrivilegeEscalation = false
+        capabilities             = { drop = ["ALL"] }
+        seccompProfile           = { type = "RuntimeDefault" }
+      }
+      dbchecker = {
+        securityContext = {
+          runAsUser                = 1000
+          runAsGroup               = 1000
+          runAsNonRoot             = true
+          allowPrivilegeEscalation = false
+          capabilities             = { drop = ["ALL"] }
+          seccompProfile           = { type = "RuntimeDefault" }
+        }
+      }
       ingress = {
         enabled          = true
         ingressClassName = "nginx"
@@ -253,4 +295,93 @@ resource "helm_release" "keycloak" {
 resource "time_sleep" "wait_for_keycloak" {
   depends_on      = [helm_release.keycloak]
   create_duration = "45s"
+}
+
+# --- NetworkPolicies: default-deny + only the traffic this namespace
+# actually needs (#31) ---------------------------------------------------
+resource "kubernetes_network_policy" "default_deny_all" {
+  metadata {
+    name      = "default-deny-all"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+  }
+}
+
+resource "kubernetes_network_policy" "allow_dns_egress" {
+  metadata {
+    name      = "allow-dns-egress"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "kube-system" }
+        }
+      }
+      ports {
+        port     = "53"
+        protocol = "UDP"
+      }
+      ports {
+        port     = "53"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Keycloak <-> Postgres, both in this namespace.
+resource "kubernetes_network_policy" "allow_same_namespace" {
+  metadata {
+    name      = "allow-same-namespace"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+
+    ingress {
+      from {
+        pod_selector {}
+      }
+    }
+    egress {
+      to {
+        pod_selector {}
+      }
+    }
+  }
+}
+
+# ingress-nginx -> Keycloak's web UI/OIDC endpoints.
+resource "kubernetes_network_policy" "allow_ingress_nginx" {
+  metadata {
+    name      = "allow-ingress-nginx"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+  }
+
+  spec {
+    pod_selector {
+      match_labels = { "app.kubernetes.io/name" = "keycloakx" }
+    }
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "ingress-nginx" }
+        }
+      }
+    }
+  }
 }

@@ -21,21 +21,24 @@ locals {
   }
 
   chart_versions = {
-    metallb        = "0.14.8"
-    ingress_nginx  = "4.11.2"
-    cert_manager   = "1.15.1"
-    argocd         = "7.3.7"
-    argocd_apps    = "2.0.5"
-    csi_driver_nfs = "4.13.4"
-    minio          = "5.4.0"
-    velero         = "12.1.0"
-    keycloak       = "7.3.0"
-    oauth2_proxy   = "10.7.0"
+    metallb               = "0.14.8"
+    ingress_nginx         = "4.11.2"
+    cert_manager          = "1.15.1"
+    argocd                = "7.3.7"
+    argocd_apps           = "2.0.5"
+    csi_driver_nfs        = "4.13.4"
+    minio                 = "5.4.0"
+    velero                = "12.1.0"
+    keycloak              = "7.3.0"
+    oauth2_proxy          = "10.7.0"
+    kube_prometheus_stack = "88.6.0"
+    loki                  = "7.3.0"
+    alloy                 = "1.12.1"
   }
 
   velero_plugin_for_aws_version = "1.14.2"
-  postgres_version               = "16"
-  whoami_version                 = "1.12.0"
+  postgres_version              = "16"
+  whoami_version                = "1.12.0"
 
   backup = {
     schedule           = "0 3 * * *"

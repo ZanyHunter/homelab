@@ -15,7 +15,7 @@ terraform {
 dependency "talos_cluster" {
   config_path = "../talos-cluster"
 
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     kubernetes_client_configuration = {
       host                   = "https://mock:6443"
@@ -30,11 +30,18 @@ dependency "talos_cluster" {
 # — this is the fix for the old `-target=time_sleep.wait_for_keycloak`
 # two-phase bootstrap. A `run --all apply` blocks until keycloak-infra has
 # genuinely applied and produced a real, known admin_password before this
-# unit's `keycloak` provider block gets generated with it.
+# unit's `keycloak` provider block gets generated with it. "destroy" IS
+# allowed to mock, though: discovered live that without it, destroying (or
+# even just running `state list` against) a downstream unit hard-fails with
+# "Unknown variable: dependency" the moment an upstream unit has no real
+# outputs yet — either never applied, or already destroyed itself. Mocking
+# on destroy is safe (a unit with nothing real to destroy never actually
+# invokes the provider), and reverse-DAG ordering means a unit that DOES
+# have real resources to destroy always still has its upstream intact.
 dependency "keycloak_infra" {
   config_path = "../keycloak-infra"
 
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     admin_password = "mock-password-not-used-at-apply"
   }

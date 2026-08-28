@@ -15,7 +15,7 @@ terraform {
 dependency "network" {
   config_path = "../network"
 
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     vlan_id = 0
   }

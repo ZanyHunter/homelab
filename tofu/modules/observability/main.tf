@@ -381,3 +381,212 @@ resource "helm_release" "alloy" {
 
   depends_on = [helm_release.loki]
 }
+
+# --- NetworkPolicies: default-deny + only the traffic this namespace
+# actually needs (#31). PSA already stays at "privileged" above — node-
+# exporter (hostNetwork/hostPID) and Alloy (hostPath log mounts) can't run
+# under baseline/restricted at all, so there's no PSA tightening to do here
+# beyond what's already justified. ------------------------------------------
+resource "kubernetes_network_policy" "default_deny_all" {
+  metadata {
+    name      = "default-deny-all"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+  }
+}
+
+resource "kubernetes_network_policy" "allow_dns_egress" {
+  metadata {
+    name      = "allow-dns-egress"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "kube-system" }
+        }
+      }
+      ports {
+        port     = "53"
+        protocol = "UDP"
+      }
+      ports {
+        port     = "53"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Prometheus <-> Alertmanager <-> Grafana <-> Loki <-> kube-state-metrics <->
+# node-exporter <-> Alloy <-> the operator, all in this one namespace.
+resource "kubernetes_network_policy" "allow_same_namespace" {
+  metadata {
+    name      = "allow-same-namespace"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+
+    ingress {
+      from {
+        pod_selector {}
+      }
+    }
+    egress {
+      to {
+        pod_selector {}
+      }
+    }
+  }
+}
+
+# ingress-nginx -> Grafana.
+resource "kubernetes_network_policy" "allow_ingress_nginx" {
+  metadata {
+    name      = "allow-ingress-nginx"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {
+      match_labels = { "app.kubernetes.io/name" = "grafana" }
+    }
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "ingress-nginx" }
+        }
+      }
+    }
+  }
+}
+
+# prometheus-operator/kube-state-metrics/Prometheus itself all talk to the
+# apiserver directly (CRD/Endpoint/Pod watches, service discovery).
+resource "kubernetes_network_policy" "allow_apiserver_egress" {
+  metadata {
+    name      = "allow-apiserver-egress"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "10.96.0.1/32"
+        }
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Prometheus scrapes kubelet (+ cAdvisor, same port) directly on every
+# node's real IP — this is real cluster traffic, not covered by any
+# namespace/pod selector since kubelet isn't a pod.
+resource "kubernetes_network_policy" "allow_kubelet_egress" {
+  metadata {
+    name      = "allow-kubelet-egress"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "192.168.160.0/27"
+        }
+      }
+      ports {
+        port     = "10250"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# The additionalScrapeConfigs jobs in this unit's own Prometheus config
+# (cert-manager:9402, velero:8085) — see the additionalScrapeConfigs comment
+# above. Ingress is added on the cert-manager/velero side by their own units.
+resource "kubernetes_network_policy" "allow_scrape_targets_egress" {
+  metadata {
+    name      = "allow-scrape-targets-egress"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "cert-manager" }
+        }
+      }
+      ports {
+        port     = "9402"
+        protocol = "TCP"
+      }
+    }
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "velero" }
+        }
+      }
+      ports {
+        port     = "8085"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Alertmanager -> Discord webhook.
+resource "kubernetes_network_policy" "allow_internet_egress" {
+  metadata {
+    name      = "allow-internet-egress"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        ip_block {
+          cidr = "0.0.0.0/0"
+        }
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}

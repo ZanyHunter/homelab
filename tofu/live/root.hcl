@@ -3,8 +3,9 @@ locals {
 
   # Verbatim port of the old flat tofu/secrets.tf, generated only into units
   # that actually need decrypted credentials (see each unit's terragrunt.hcl)
-  # — backup/keycloak-infra/keycloak-realm never get this, so their state
-  # never contains Proxmox/Unifi/Cloudflare credentials.
+  # — network/talos-cluster/core-addons/observability get this, the rest
+  # (backup/keycloak-infra/keycloak-realm) never do, so their state never
+  # contains Proxmox/Unifi/Cloudflare/Discord credentials.
   secrets_tf = <<-EOF
     data "sops_file" "secrets" {
       source_file = "${local.repo_root}/tofu/secrets.enc.yaml"
@@ -25,6 +26,8 @@ locals {
       }
 
       cloudflare_api_token = data.sops_file.secrets.data["cloudflare_api_token"]
+
+      discord_alert_webhook = data.sops_file.secrets.data["discord_alert_webhook"]
     }
   EOF
 

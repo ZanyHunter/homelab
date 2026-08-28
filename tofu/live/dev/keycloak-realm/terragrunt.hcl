@@ -47,6 +47,31 @@ dependency "keycloak_infra" {
   }
 }
 
+# SSO for ArgoCD/Grafana (#32): both client secrets are generated in the unit
+# that actually consumes them (core-addons/observability), not here — same
+# "apply excluded from mock_outputs_allowed_terraform_commands" reasoning as
+# keycloak_infra above, and the same reason this unit now depends on
+# core-addons directly (previously only transitive via keycloak_infra) and on
+# observability (a genuinely new ordering constraint — it was an unordered
+# sibling of keycloak-infra/keycloak-realm before this).
+dependency "core_addons" {
+  config_path = "../core-addons"
+
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs = {
+    argocd_oidc_client_secret = "mock-secret-not-used-at-apply"
+  }
+}
+
+dependency "observability" {
+  config_path = "../observability"
+
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs = {
+    grafana_oidc_client_secret = "mock-secret-not-used-at-apply"
+  }
+}
+
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite"
@@ -84,5 +109,7 @@ inputs = {
   chart_versions = {
     oauth2_proxy = include.env.locals.chart_versions.oauth2_proxy
   }
-  whoami_version = include.env.locals.whoami_version
+  whoami_version             = include.env.locals.whoami_version
+  argocd_oidc_client_secret  = dependency.core_addons.outputs.argocd_oidc_client_secret
+  grafana_oidc_client_secret = dependency.observability.outputs.grafana_oidc_client_secret
 }

@@ -58,6 +58,93 @@ resource "keycloak_user" "demo" {
   }
 }
 
+# --- SSO for management apps (ArgoCD, Grafana) — #32 -------------------------
+# Access control is group-based, not tied to any specific person's identity:
+# nothing below names a real user. Real accounts and their membership in
+# platform-admins are created/managed by hand in Keycloak's admin console
+# after the fact (https://keycloak.k8s.thepugh.family) — see
+# docs/src/bootstrap-environment/08-sso.md.
+resource "keycloak_group" "platform_admins" {
+  realm_id = keycloak_realm.homelab.id
+  name     = "platform-admins"
+}
+
+# Keycloak doesn't include group membership in a token by default — this is
+# a reusable client scope (rather than a per-client mapper) so any future
+# app needing group-based RBAC can attach it the same way.
+resource "keycloak_openid_client_scope" "groups" {
+  realm_id = keycloak_realm.homelab.id
+  name     = "groups"
+}
+
+resource "keycloak_openid_group_membership_protocol_mapper" "groups" {
+  realm_id        = keycloak_realm.homelab.id
+  client_scope_id = keycloak_openid_client_scope.groups.id
+  name            = "group-membership"
+  claim_name      = "groups"
+  # Just the group name (e.g. "platform-admins"), not the full "/platform-admins"
+  # path, so RBAC rules in ArgoCD/Grafana can match on a plain string.
+  full_path = false
+}
+
+resource "keycloak_openid_client" "argocd" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "argocd"
+  name      = "ArgoCD"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = var.argocd_oidc_client_secret
+
+  valid_redirect_uris = ["https://argocd.k8s.thepugh.family/auth/callback"]
+  web_origins         = ["+"]
+}
+
+# keycloak_openid_client_optional_scopes is authoritative over the whole
+# optional-scopes list, not additive — the first 4 entries are Keycloak's own
+# built-in optional scopes (present on every client by default), repeated
+# here only because adding "groups" means fully replacing the list.
+resource "keycloak_openid_client_optional_scopes" "argocd" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.argocd.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
+resource "keycloak_openid_client" "grafana" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "grafana"
+  name      = "Grafana"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = var.grafana_oidc_client_secret
+
+  valid_redirect_uris = ["https://grafana.k8s.thepugh.family/login/generic_oauth"]
+  web_origins         = ["+"]
+}
+
+resource "keycloak_openid_client_optional_scopes" "grafana" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.grafana.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste
 # template for real apps that need forward-auth (Grocy, etc. — see

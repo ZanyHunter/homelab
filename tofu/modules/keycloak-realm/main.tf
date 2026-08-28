@@ -67,6 +67,11 @@ resource "keycloak_user" "demo" {
 resource "kubernetes_namespace" "sso_demo" {
   metadata {
     name = "sso-demo"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
   }
 }
 
@@ -199,6 +204,17 @@ resource "kubernetes_deployment" "whoami" {
               memory = "16Mi"
             }
           }
+          security_context {
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 65534
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
         }
       }
     }
@@ -257,4 +273,116 @@ resource "kubernetes_ingress_v1" "whoami" {
   }
 
   depends_on = [helm_release.oauth2_proxy]
+}
+
+# --- NetworkPolicies: default-deny + only the traffic this namespace
+# actually needs (#31) ---------------------------------------------------
+resource "kubernetes_network_policy" "default_deny_all" {
+  metadata {
+    name      = "default-deny-all"
+    namespace = kubernetes_namespace.sso_demo.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+  }
+}
+
+resource "kubernetes_network_policy" "allow_dns_egress" {
+  metadata {
+    name      = "allow-dns-egress"
+    namespace = kubernetes_namespace.sso_demo.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "kube-system" }
+        }
+      }
+      ports {
+        port     = "53"
+        protocol = "UDP"
+      }
+      ports {
+        port     = "53"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+resource "kubernetes_network_policy" "allow_same_namespace" {
+  metadata {
+    name      = "allow-same-namespace"
+    namespace = kubernetes_namespace.sso_demo.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+
+    ingress {
+      from {
+        pod_selector {}
+      }
+    }
+    egress {
+      to {
+        pod_selector {}
+      }
+    }
+  }
+}
+
+# ingress-nginx -> both oauth2-proxy (the /oauth2 path, and its own
+# auth-url subrequest for whoami's Ingress) and whoami (the "/" path).
+resource "kubernetes_network_policy" "allow_ingress_nginx_ingress" {
+  metadata {
+    name      = "allow-ingress-nginx-ingress"
+    namespace = kubernetes_namespace.sso_demo.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "ingress-nginx" }
+        }
+      }
+    }
+  }
+}
+
+# oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the *external*
+# keycloak.k8s.thepugh.family hostname, which resolves back through
+# ingress-nginx's LoadBalancer IP rather than directly to the keycloak
+# namespace — so this is the egress rule that actually matters here, not a
+# direct sso-demo -> keycloak one.
+resource "kubernetes_network_policy" "allow_ingress_nginx_egress" {
+  metadata {
+    name      = "allow-ingress-nginx-egress"
+    namespace = kubernetes_namespace.sso_demo.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "ingress-nginx" }
+        }
+      }
+    }
+  }
 }

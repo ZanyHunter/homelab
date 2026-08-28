@@ -34,6 +34,34 @@ resource "kubernetes_secret" "grafana_admin_credentials" {
   type = "Opaque"
 }
 
+# SSO (#32): Grafana's own native OIDC support (auth.generic_oauth, no
+# oauth2-proxy sidecar needed) — this secret is generated here, in the unit
+# that consumes it, and passed downstream to keycloak-realm to create the
+# matching keycloak_openid_client. See the comment on the
+# grafana_oidc_client_secret output for why the dependency runs in this
+# direction.
+resource "random_password" "grafana_oidc_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Kept in its own Secret (sourced into the pod via envValueFrom below) rather
+# than inline in the "grafana.ini" values block, so the client secret doesn't
+# end up in the plaintext-rendered grafana.ini ConfigMap — same reasoning as
+# grafana-admin-credentials/MinIO/Velero already isolating credentials this way.
+resource "kubernetes_secret" "grafana_oidc_credentials" {
+  metadata {
+    name      = "grafana-oidc-credentials"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  data = {
+    client-secret = random_password.grafana_oidc_client_secret.result
+  }
+
+  type = "Opaque"
+}
+
 # Any Deployment/StatefulSet control-plane taint tolerated here so
 # node-exporter and Alloy actually land on all 6 nodes, control planes
 # included — both charts default to no tolerations at all, which would
@@ -211,6 +239,51 @@ resource "helm_release" "kube_prometheus_stack" {
           userKey        = "admin-user"
           passwordKey    = "admin-password"
         }
+        # Sources the OIDC client secret from its own Secret rather than
+        # inlining it in "grafana.ini" below, which renders into a plaintext
+        # ConfigMap — grafana.ini references it back via $__env{}. Map keyed
+        # by env var name (not a list) — see chart's templates/_pod.tpl.
+        envValueFrom = {
+          GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET = {
+            secretKeyRef = {
+              name = kubernetes_secret.grafana_oidc_credentials.metadata[0].name
+              key  = "client-secret"
+            }
+          }
+        }
+        "grafana.ini" = {
+          server = {
+            root_url = "https://grafana.k8s.thepugh.family"
+          }
+          auth = {
+            # Hides the local-login UI so normal users go through Keycloak.
+            disable_login_form = true
+          }
+          "auth.basic" = {
+            # Local admin disabled (#32) only after a real Keycloak login was
+            # verified live through auth.generic_oauth below — this is what
+            # actually blocks the local admin login (disable_login_form alone
+            # still leaves basic-auth reachable via direct API calls).
+            # Recoverable by flipping this back + reapplying, same
+            # break-glass story as every other Tofu-managed credential here.
+            enabled = false
+          }
+          "auth.generic_oauth" = {
+            enabled       = true
+            name          = "Keycloak"
+            client_id     = "grafana"
+            client_secret = "$__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}"
+            # "groups" so role_attribute_path below can match on Keycloak
+            # group membership rather than a hardcoded per-person identity —
+            # see keycloak-realm's keycloak_openid_client_scope.groups.
+            scopes              = "openid email profile groups"
+            auth_url            = "https://keycloak.k8s.thepugh.family/realms/homelab/protocol/openid-connect/auth"
+            token_url           = "https://keycloak.k8s.thepugh.family/realms/homelab/protocol/openid-connect/token"
+            api_url             = "https://keycloak.k8s.thepugh.family/realms/homelab/protocol/openid-connect/userinfo"
+            role_attribute_path = "contains(groups[*], 'platform-admins') && 'Admin' || 'Viewer'"
+            allow_sign_up       = true
+          }
+        }
         persistence = {
           enabled          = true
           storageClassName = var.nfs_storage_class_name
@@ -248,6 +321,7 @@ resource "helm_release" "kube_prometheus_stack" {
 
   depends_on = [
     kubernetes_secret.grafana_admin_credentials,
+    kubernetes_secret.grafana_oidc_credentials,
   ]
 }
 
@@ -566,7 +640,9 @@ resource "kubernetes_network_policy" "allow_scrape_targets_egress" {
   }
 }
 
-# Alertmanager -> Discord webhook.
+# Alertmanager -> Discord webhook, and Grafana's OIDC calls to Keycloak's
+# external hostname (#32 — resolves back through ingress-nginx's LoadBalancer
+# IP, within this 0.0.0.0/0 range).
 resource "kubernetes_network_policy" "allow_internet_egress" {
   metadata {
     name      = "allow-internet-egress"

@@ -5,6 +5,21 @@
 resource "kubernetes_namespace" "minio" {
   metadata {
     name = "minio"
+    labels = {
+      # The main minio Deployment itself passes "restricted" cleanly with the
+      # explicit containerSecurityContext below, but the chart's post-install
+      # Job (makeBucketJob/makeUserJob, creates the bucket/root user) has its
+      # own separate securityContext value that only exposes {enabled,
+      # runAsUser, runAsGroup} — no way to set the allowPrivilegeEscalation/
+      # capabilities/seccompProfile "restricted" also requires. PSA applies
+      # namespace-wide, so the whole namespace stays at "baseline" (still a
+      # real improvement over the previous unrestricted default) rather than
+      # patching around the chart's limited values schema for a Job that
+      # only runs once at install/upgrade time.
+      "pod-security.kubernetes.io/enforce" = "baseline"
+      "pod-security.kubernetes.io/audit"   = "baseline"
+      "pod-security.kubernetes.io/warn"    = "baseline"
+    }
   }
 }
 
@@ -50,6 +65,12 @@ resource "helm_release" "minio" {
           memory = "512Mi"
         }
       }
+      containerSecurityContext = {
+        allowPrivilegeEscalation = false
+        capabilities             = { drop = ["ALL"] }
+        runAsNonRoot             = true
+        seccompProfile           = { type = "RuntimeDefault" }
+      }
       buckets = [
         {
           name   = var.backup.minio_bucket
@@ -77,6 +98,34 @@ resource "helm_release" "minio" {
 resource "kubernetes_namespace" "velero" {
   metadata {
     name = "velero"
+    labels = {
+      # Same story as minio above: the main Deployment (+ its
+      # velero-plugin-for-aws initContainer) passes "restricted" cleanly with
+      # the explicit securityContext below, but the chart's pre-upgrade
+      # "velero-upgrade-crds" hook Job doesn't expose a securityContext value
+      # at all — its image's default user is a non-numeric name ("cnb"),
+      # which the kubelet can't verify as non-root without an explicit
+      # runAsUser it has no way to set here. Namespace-wide PSA stays at
+      # "baseline" because of that one hook Job.
+      "pod-security.kubernetes.io/enforce" = "baseline"
+      "pod-security.kubernetes.io/audit"   = "baseline"
+      "pod-security.kubernetes.io/warn"    = "baseline"
+    }
+  }
+}
+
+locals {
+  velero_container_security_context = {
+    allowPrivilegeEscalation = false
+    capabilities             = { drop = ["ALL"] }
+    runAsNonRoot             = true
+    # Required alongside runAsNonRoot: the velero image's default user is a
+    # non-numeric name ("cnb", a Cloud Native Buildpacks convention), and the
+    # kubelet can't verify a non-numeric user is actually non-root without an
+    # explicit numeric runAsUser — found live as a CreateContainerConfigError
+    # on the chart's velero-upgrade-crds pre-upgrade hook Job.
+    runAsUser      = 1000
+    seccompProfile = { type = "RuntimeDefault" }
   }
 }
 
@@ -115,8 +164,10 @@ resource "helm_release" "velero" {
           volumeMounts = [
             { name = "plugins", mountPath = "/target" }
           ]
+          securityContext = local.velero_container_security_context
         }
       ]
+      containerSecurityContext = local.velero_container_security_context
       credentials = {
         useSecret      = true
         existingSecret = kubernetes_secret.velero_minio_credentials.metadata[0].name
@@ -159,4 +210,164 @@ resource "helm_release" "velero" {
     helm_release.minio,
     kubernetes_secret.velero_minio_credentials,
   ]
+}
+
+# --- NetworkPolicies: default-deny + only the traffic each namespace
+# actually needs (#31) ---------------------------------------------------
+locals {
+  backup_namespaces = {
+    minio  = kubernetes_namespace.minio.metadata[0].name
+    velero = kubernetes_namespace.velero.metadata[0].name
+  }
+}
+
+resource "kubernetes_network_policy" "default_deny_all" {
+  for_each = local.backup_namespaces
+
+  metadata {
+    name      = "default-deny-all"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+  }
+}
+
+resource "kubernetes_network_policy" "allow_dns_egress" {
+  for_each = local.backup_namespaces
+
+  metadata {
+    name      = "allow-dns-egress"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "kube-system" }
+        }
+      }
+      ports {
+        port     = "53"
+        protocol = "UDP"
+      }
+      ports {
+        port     = "53"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Same-namespace pod-to-pod traffic (e.g. minio's own post-install "make
+# bucket" Job talking to the minio Deployment's Service) — found live that
+# without this, that Job hangs forever with no obvious error, just a stuck
+# 0/1 "Running" post-upgrade hook. Applied to every namespace by default
+# rather than judged case-by-case per pod, since a helper Job/sidecar's
+# same-namespace traffic need is easy to miss ahead of time.
+resource "kubernetes_network_policy" "allow_same_namespace" {
+  for_each = local.backup_namespaces
+
+  metadata {
+    name      = "allow-same-namespace"
+    namespace = each.value
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+
+    ingress {
+      from {
+        pod_selector {}
+      }
+    }
+    egress {
+      to {
+        pod_selector {}
+      }
+    }
+  }
+}
+
+# velero's controller reads/writes Kubernetes objects directly.
+resource "kubernetes_network_policy" "velero_allow_apiserver_egress" {
+  metadata {
+    name      = "allow-apiserver-egress"
+    namespace = kubernetes_namespace.velero.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        # The in-cluster kubernetes.default.svc ClusterIP is stable and has
+        # no pod selector to match against, hence an ipBlock instead.
+        ip_block {
+          cidr = "10.96.0.1/32"
+        }
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# velero -> minio (backupStorageLocation), and the matching ingress side.
+resource "kubernetes_network_policy" "velero_allow_minio_egress" {
+  metadata {
+    name      = "allow-minio-egress"
+    namespace = kubernetes_namespace.velero.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = kubernetes_namespace.minio.metadata[0].name }
+        }
+      }
+      ports {
+        port     = "9000"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+resource "kubernetes_network_policy" "minio_allow_velero_ingress" {
+  metadata {
+    name      = "allow-velero-ingress"
+    namespace = kubernetes_namespace.minio.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = kubernetes_namespace.velero.metadata[0].name }
+        }
+      }
+      ports {
+        port     = "9000"
+        protocol = "TCP"
+      }
+    }
+  }
 }

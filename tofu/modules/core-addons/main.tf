@@ -125,9 +125,6 @@ resource "helm_release" "argocd" {
     helm_release.ingress_nginx,
     kubernetes_secret.sops_age_key
   ]
-  lifecycle {
-    ignore_changes = [metadata]
-  }
 
   values = [
     yamlencode({

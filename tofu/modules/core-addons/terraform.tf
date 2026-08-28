@@ -16,5 +16,10 @@ terraform {
       source  = "carlpett/sops"
       version = "~> 1.1.0"
     }
+    # ArgoCD's OIDC client secret (#32) — random_password.argocd_oidc_client_secret.
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6.0"
+    }
   }
 }

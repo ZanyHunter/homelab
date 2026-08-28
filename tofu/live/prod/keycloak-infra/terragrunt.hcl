@@ -15,7 +15,7 @@ terraform {
 dependency "talos_cluster" {
   config_path = "../talos-cluster"
 
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     kubernetes_client_configuration = {
       host                   = "https://mock:6443"
@@ -29,7 +29,7 @@ dependency "talos_cluster" {
 dependency "core_addons" {
   config_path = "../core-addons"
 
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     nfs_storage_class_name = "mock-nfs"
   }

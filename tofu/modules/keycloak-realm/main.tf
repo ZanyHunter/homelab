@@ -148,6 +148,11 @@ resource "helm_release" "oauth2_proxy" {
           # cluster-issuer annotation, to avoid two Certificates racing to
           # manage one Secret.
           "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+          # oauth2-proxy's session cookie bundles Keycloak's access/ID/refresh
+          # tokens, which routinely exceeds ingress-nginx's default proxy
+          # buffer size — found live as a real "upstream sent too big header"
+          # 502 on /oauth2/callback, not a transient issue.
+          "nginx.ingress.kubernetes.io/proxy-buffer-size" = "16k"
         }
         tls = [
           {

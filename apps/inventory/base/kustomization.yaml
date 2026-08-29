@@ -6,6 +6,7 @@ resources:
   - data-pvc.yaml
   - network-policies.yaml
   - homebox.yaml
+  - homebox-oidc-config.yaml
 
 generators:
   - ksops-generator.yaml

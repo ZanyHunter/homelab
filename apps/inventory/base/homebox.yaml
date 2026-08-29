@@ -70,7 +70,7 @@ spec:
             - name: HBOX_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: homebox-config
+                  name: homebox-oidc-config
                   key: oidc-client-secret
             - name: HBOX_AUTH_API_KEY_PEPPER
               valueFrom:

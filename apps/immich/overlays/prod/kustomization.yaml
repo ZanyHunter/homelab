@@ -22,10 +22,10 @@ replacements:
       fieldPath: data.keycloak-hostname
     targets:
       - select:
-          kind: Secret
+          kind: ExternalSecret
           name: immich-config
         fieldPaths:
-          - stringData.immich-config\.yaml
+          - spec.target.template.data.immich-config\.yaml
         options:
           delimiter: "/"
           index: 2

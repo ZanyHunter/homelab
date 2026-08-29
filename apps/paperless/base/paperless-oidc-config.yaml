@@ -1,0 +1,32 @@
+# Mirrors keycloak-realm's kubernetes_secret.paperless_oidc_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# (apps/cluster-addons/base/) — automatically stays current across a
+# keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
+# terragrunt output/hand-carry step (#42). paperless-config.enc.yaml stays
+# ksops-encrypted for secret-key/admin-password, which have no Tofu
+# counterpart. __KEYCLOAK_HOSTNAME__ is still a placeholder token here —
+# substituted per-environment by overlays/{dev,prod}/kustomization.yaml's
+# replacements:, retargeted from the old plain Secret to this ExternalSecret's
+# spec.target.template.data field. See docs/src/bootstrap-environment/06-gitops.md.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: paperless-oidc-config
+  namespace: paperless
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: paperless-oidc-config
+    template:
+      engineVersion: v2
+      data:
+        socialaccount-providers: |
+          {"openid_connect": {"APPS": [{"provider_id": "keycloak", "name": "Keycloak", "client_id": "paperless", "secret": "{{ .clientSecret }}", "settings": {"server_url": "https://__KEYCLOAK_HOSTNAME__/realms/homelab"}}], "SCOPE": ["openid", "profile", "email", "groups"]}}
+  data:
+    - secretKey: clientSecret
+      remoteRef:
+        key: paperless-oidc-client-secret
+        property: client-secret

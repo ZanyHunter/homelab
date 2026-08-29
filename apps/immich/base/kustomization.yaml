@@ -7,6 +7,7 @@ resources:
   - postgres.yaml
   - network-policies.yaml
   - immich.yaml
+  - immich-config-externalsecret.yaml
 
 generators:
   - ksops-generator.yaml

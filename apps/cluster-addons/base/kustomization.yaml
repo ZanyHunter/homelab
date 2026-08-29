@@ -4,6 +4,8 @@ kind: Kustomization
 resources:
   - metallb-ipaddresspool.yaml
   - metallb-l2advertisement.yaml
+  - keycloak-secrets-rbac.yaml
+  - keycloak-secrets-clusterstore.yaml
 
 generators:
   - ksops-generator.yaml

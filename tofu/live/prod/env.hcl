@@ -58,6 +58,7 @@ locals {
     kube_prometheus_stack = "88.6.0"
     loki                  = "7.3.0"
     alloy                 = "1.12.1"
+    external_secrets      = "2.10.0"
   }
 
   velero_plugin_for_aws_version = "1.14.2"

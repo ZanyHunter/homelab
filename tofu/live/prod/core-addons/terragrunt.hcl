@@ -68,6 +68,7 @@ inputs = {
     cert_manager   = include.env.locals.chart_versions.cert_manager
     argocd         = include.env.locals.chart_versions.argocd
     argocd_apps    = include.env.locals.chart_versions.argocd_apps
+    external_secrets = include.env.locals.chart_versions.external_secrets
   }
   ksops_version = include.env.locals.ksops_version
   nfs_storage   = include.env.locals.nfs_storage

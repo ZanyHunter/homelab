@@ -58,6 +58,7 @@ inputs = {
   cluster_name = include.env.locals.cluster.name
   chart_versions = {
     csi_driver_nfs = include.env.locals.chart_versions.csi_driver_nfs
+    ceph_csi_rbd   = include.env.locals.chart_versions.ceph_csi_rbd
     metallb        = include.env.locals.chart_versions.metallb
     ingress_nginx  = include.env.locals.chart_versions.ingress_nginx
     cert_manager   = include.env.locals.chart_versions.cert_manager
@@ -67,6 +68,10 @@ inputs = {
   ksops_version = include.env.locals.ksops_version
   nfs_storage   = include.env.locals.nfs_storage
   gitops        = include.env.locals.gitops
-  domain_name   = include.env.locals.domain_name
-  ingress_ip    = include.env.locals.ingress_ip
+  ceph          = include.env.locals.ceph
+  # Same name as the pool (client.<pool_name>) — see the CephX bootstrap
+  # command in docs/src/bootstrap-environment.
+  ceph_rbd_client_id = include.env.locals.ceph.pool_name
+  domain_name        = include.env.locals.domain_name
+  ingress_ip         = include.env.locals.ingress_ip
 }

@@ -89,6 +89,7 @@ Worth revisiting as this matures beyond "dev, half-baked":
 - **App-of-apps has no real workloads yet** — the ApplicationSet (see Kubernetes cluster section above) currently only manages `apps/cluster-addons/`. No app directory exists yet for Immich/Paperless-ngx/etc.
 - **NAS is not IaC-managed** — manual today.
 - **Single age key covers all secrets** — see Secrets management design note above.
+- **Nothing is public-facing yet, but the plan for when it is now exists**: `docs/src/bootstrap-environment/14-public-ingress.md` (#33) is a ready-to-execute design doc + onboarding runbook for exposing an app via Cloudflare Tunnel — outbound-only, no port-forward, Keycloak's admin console staying internal/VPN-only permanently by construction (an allowlist-only `/realms/homelab/*` tunnel route, never a wildcard one). Not implemented — no live tunnel, no Cloudflare account changes — until a real app is ready to go public; implementing it needs widening the Cloudflare API token's scope, which is an ask-first change per the guardrail above.
 
 ## History / key decisions
 

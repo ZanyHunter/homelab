@@ -1,0 +1,18 @@
+# changedetection.io's /datastore holds per-watch UUID directories, each
+# with a frequently-appended history.txt index plus snapshot files — Ceph-
+# backed rather than NFS for the same locking-correctness reasoning as this
+# repo's SQLite-based apps (see
+# docs/src/bootstrap-environment/13-ceph-storage.md), even though this
+# isn't a SQL database itself.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: changedetection-data
+  namespace: changedetection
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ceph-rbd-dev
+  resources:
+    requests:
+      storage: 5Gi

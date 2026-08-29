@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: paperless-config
+    namespace: paperless
+stringData:
+    secret-key: ENC[AES256_GCM,data:E5WWDtT0XKSdZ/Po6o+DxdjYYpt8QGaLNTa34Fu3DjQxjxU9HJU9vLmS3W/nctcXesXpRgaMykgvSyQ+YBs=,iv:DHuuGNwjqJyze2JKab9uawF4mc0AQObZalfeF2DUSJk=,tag:4nt1pauKQ8RgUXEMO2zosQ==,type:str]
+    socialaccount-providers: ENC[AES256_GCM,data:mlIAP0RxM1zo8OXboEZ8u3QoxMwQ4NYqGEJigpvX9CvRx5M9WdmC7ie8buJR/oyuWBO3mYAk9OlwKer/W5EdX1+BZNI8xU3KHa0RuO8T3fNn4cSF4c5hMJ7qKHDKzklFFgTqKFTEZ5Z4S9jT+YNQ6WceodKvRNSzIUSuqmCWnLMy556jx/FLUmhKQNof1Ad7HKsB7VqyL8aNN6KI/WgT1inQICVsdDvpTekXldQZELMM89uOj3brCLqWrIGaxhFoQ8UaeCzfue3DzroeQFd8T4Q4tHd4NbMbC3o28bXocNz1dnDhLd4EeOWQuonnQCMcJgeAL5cqnJy6GwtLJO6v1rc4YcR3yg225dezCVINJDwcXF0ggS/PuW3OgQ1A,iv:qkyCvFFRqNxYL/4NG61lwyOgQ9cYX/N/o/6+49hqnCk=,tag:bfiuTE4VSltlW8F5+9b5dg==,type:str]
+type: Opaque
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBiRUFTUCtiVlA5cDdiYUxF
+            ZnhWT01qak5xcVdzWXFDK0pyQVg0SlBqU3lZCjdKQ3cwMnNQNXVxYUFzbGphVVJ1
+            Q0ZPRWxCdEtUZzVERFpjQTdTNWdOTVkKLS0tIDQ3eVEzNHFKanhOZlBxZkQ5N2xB
+            MFNwK0QrS29MaXRjQU5jaFJraTBMRkUKBBl/JeY81xUgwJXXUaheNvW/hiLaLadm
+            zKmKFKtzuxlAmgO2s/CfmUAwK+r2xH+RjcSc1g7PKzz0iMaAvjKtRQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
+    encrypted_regex: ^(data|stringData|email)$
+    lastmodified: "2026-08-29T16:07:51Z"
+    mac: ENC[AES256_GCM,data:Y9e86MzYUFpmHb2EgUDQIoPgxLJyywRNqj6q6sjcHMtlkOf0noKk1en2XPE1I+PZbn30jPSyuSIUI5fAOhLvcg9egwr4M4t9MdnBPy/UhbZ6UtpNjY6Fz0AgwqiMVawhFTRrKUxykUNexaSs4g63f95ns8+lRpttI29uo4Jvpi8=,iv:OomSlp8mXYFClP2i8P/hsibwKgxoajgL0gsoh7qfe/Y=,tag:rjsDimwTibUEI8794rtGAQ==,type:str]
+    version: 3.13.3

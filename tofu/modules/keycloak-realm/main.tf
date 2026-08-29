@@ -226,9 +226,150 @@ resource "keycloak_openid_user_client_role_protocol_mapper" "immich_role" {
   multivalued                 = false
 }
 
+# --- Five more real apps under apps/, same "generated here, hand-carried
+# into a ksops-encrypted Secret under that app's own apps/<app>/ directory"
+# shape as Immich above. See docs/src/bootstrap-environment/16-self-hosted-apps.md.
+
+resource "random_password" "actual_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Actual Budget's OIDC support (ACTUAL_OPENID_* env vars) computes its own
+# callback from ACTUAL_OPENID_SERVER_HOSTNAME — no separate role/admin
+# concept to wire (the server has one shared login, not per-user roles).
+resource "keycloak_openid_client" "actual" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "actual"
+  name      = "Actual Budget"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.actual_client_secret.result
+
+  valid_redirect_uris = ["https://actual.${var.domain_name}/openid/callback"]
+  web_origins         = ["+"]
+}
+
+resource "random_password" "paperless_client_secret" {
+  length  = 32
+  special = false
+}
+
+# provider_id "keycloak" (set in PAPERLESS_SOCIALACCOUNT_PROVIDERS's APPS
+# list, apps/paperless/paperless-config.enc.yaml) drives django-allauth's
+# generic openid_connect callback path — confirmed against
+# allauth/socialaccount/providers/openid_connect/urls.py, not guessed: it's
+# /accounts/oidc/<provider_id>/login/callback/, keyed off provider_id, not
+# the provider's static "openid_connect" id.
+resource "keycloak_openid_client" "paperless" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "paperless"
+  name      = "Paperless-ngx"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.paperless_client_secret.result
+
+  valid_redirect_uris = ["https://paperless.${var.domain_name}/accounts/oidc/keycloak/login/callback/"]
+  web_origins         = ["+"]
+}
+
+# platform-admins -> Django superuser, via paperless-ngx's own
+# PAPERLESS_SOCIALACCOUNT_SYNC_GROUPS_SYNC_SUPERUSER_GROUP, which matches
+# against the same reusable "groups" claim (plain group name, e.g.
+# "platform-admins") already used for ArgoCD/Grafana's RBAC below — no
+# client-role gymnastics needed here the way Immich's oauth.roleClaim
+# required, since paperless-ngx matches on group *name* directly rather than
+# needing a single-valued custom claim.
+resource "keycloak_openid_client_optional_scopes" "paperless" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.paperless.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
+resource "random_password" "vaultwarden_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Vaultwarden's SSO only gates account login, not vault decryption (still a
+# separate client-side master password regardless) — no group/role wiring
+# needed. Its own /admin panel is gated by a static ADMIN_TOKEN instead,
+# generated directly into apps/vaultwarden/vaultwarden-config.enc.yaml, not
+# a Keycloak concept.
+resource "keycloak_openid_client" "vaultwarden" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "vaultwarden"
+  name      = "Vaultwarden"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.vaultwarden_client_secret.result
+
+  valid_redirect_uris = ["https://vaultwarden.${var.domain_name}/identity/connect/oidc-signin"]
+  web_origins         = ["+"]
+}
+
+resource "random_password" "homebox_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Homebox's admin/ownership model is per-household (the first user of a
+# household becomes its owner), not a single app-wide admin role — nothing
+# analogous to Immich's platform-admins->admin mapping to wire here.
+resource "keycloak_openid_client" "homebox" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "homebox"
+  name      = "Homebox"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.homebox_client_secret.result
+
+  valid_redirect_uris = ["https://inventory.${var.domain_name}/api/v1/users/login/oidc/callback"]
+  web_origins         = ["+"]
+}
+
+# changedetection.io has no native OIDC support (confirmed: only a single
+# shared password, no IdP integration) — this client is oauth2-proxy acting
+# as forward-auth in front of it, the same copy-paste shape as the sso-demo
+# client below, just for a real app instead of the demo/whoami target.
+resource "random_password" "changedetection_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "changedetection_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "changedetection-oauth2-proxy"
+  name      = "oauth2-proxy (changedetection.io forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.changedetection_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://changedetection.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste
-# template for real apps that need forward-auth (Grocy, etc. — see
+# template for real apps that need forward-auth (changedetection.io above is
+# the first real one to actually use it — see
 # docs/src/bootstrap-environment/08-sso.md). Kept as a living reference
 # rather than torn down after verification, since future app integrations
 # will want something to copy.

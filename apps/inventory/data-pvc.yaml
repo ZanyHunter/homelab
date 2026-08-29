@@ -1,0 +1,17 @@
+# Homebox (inventory management) — SQLite (WAL mode) in a single data
+# directory, the documented default for a small install. Ceph-backed, not
+# NFS, for the same file-locking-correctness reason as every other
+# SQLite-on-Kubernetes app in this repo (see
+# docs/src/bootstrap-environment/13-ceph-storage.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: homebox-data
+  namespace: inventory
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ceph-rbd-dev
+  resources:
+    requests:
+      storage: 2Gi

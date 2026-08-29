@@ -35,3 +35,13 @@ variable "gitops" {
     revision = string
   })
 }
+
+variable "domain_name" {
+  type        = string
+  description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives ArgoCD's ingress hostname and OIDC issuer/redirect URL. See tofu/modules/network/variables.tf's domain_name for the full picture."
+}
+
+variable "ingress_ip" {
+  type        = string
+  description = "Static IP ingress-nginx's LoadBalancer Service is pinned to (metallb.universe.tf/loadBalancerIPs), matching the network unit's wildcard DNS record target exactly. See tofu/modules/network/variables.tf's ingress_ip for why this is static rather than MetalLB-assigned."
+}

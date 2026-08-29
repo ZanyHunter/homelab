@@ -110,6 +110,22 @@ resource "helm_release" "ingress_nginx" {
   # pattern already relied on for cert-manager ClusterIssuers.
   wait = false
 
+  values = [
+    yamlencode({
+      controller = {
+        service = {
+          annotations = {
+            # Pins this Service to a fixed address instead of letting
+            # MetalLB assign whatever's free in the pool (#10) — the
+            # network unit's wildcard DNS record points at this exact same
+            # var.ingress_ip, so it needs to be stable.
+            "metallb.universe.tf/loadBalancerIPs" = var.ingress_ip
+          }
+        }
+      }
+    })
+  ]
+
   depends_on = [helm_release.metallb]
 }
 
@@ -158,12 +174,7 @@ resource "helm_release" "argocd" {
         ingress = {
           enabled          = true
           ingressClassName = "nginx"
-          # Hardcoded literal, matching every other ingress hostname in this
-          # repo (keycloak/sso-demo) — none derive from a per-environment
-          # domain variable yet. Real multi-environment support needs this
-          # solved properly (tracked under #26/Terragrunt); out of scope for
-          # this round, which only wires the VLAN/subnet through per-env.
-          hostname = "argocd.k8s.thepugh.family"
+          hostname         = "argocd.${var.domain_name}"
           annotations = {
             "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP"
             "nginx.ingress.kubernetes.io/ssl-redirect"     = "true"
@@ -179,7 +190,7 @@ resource "helm_release" "argocd" {
           # incoming request's Host header) — left unset, Keycloak correctly
           # rejects the callback as not matching keycloak_openid_client.argocd's
           # valid_redirect_uris (#32, found live as a real login attempt).
-          url = "https://argocd.k8s.thepugh.family"
+          url = "https://argocd.${var.domain_name}"
           # Local admin disabled (#32) only after a real Keycloak login was
           # verified live through the oidc.config below — recoverable by
           # flipping this back to "true" + reapplying, same break-glass story
@@ -190,7 +201,7 @@ resource "helm_release" "argocd" {
           # identity — see keycloak-realm's keycloak_openid_client_scope.groups.
           "oidc.config" = yamlencode({
             name            = "Keycloak"
-            issuer          = "https://keycloak.k8s.thepugh.family/realms/homelab"
+            issuer          = "https://keycloak.${var.domain_name}/realms/homelab"
             clientID        = "argocd"
             clientSecret    = "$oidc.keycloak.clientSecret"
             requestedScopes = ["openid", "profile", "email", "groups"]

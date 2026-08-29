@@ -35,4 +35,5 @@ inputs = {
   vlan_id      = include.env.locals.vlan_id
   domain_name  = include.env.locals.domain_name
   network_name = include.env.locals.network_name
+  ingress_ip   = include.env.locals.ingress_ip
 }

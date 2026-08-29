@@ -20,7 +20,12 @@ variable "vlan_id" {
 
 variable "domain_name" {
   type        = string
-  description = "Local DNS domain for this cluster (e.g. k8s.thepugh.family) — set as the Unifi network's domain_name, resolved LAN-wide via a wildcard record pointed at the MetalLB ingress IP (see docs/src/bootstrap-environment/04-dns-configuration.md)."
+  description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives every ingress hostname/OIDC redirect URI across every unit, and is set as the Unifi network's own domain_name here. Resolved LAN-wide via a Tofu-managed wildcard DNS record (unifi_dns_record.wildcard_ingress, this unit) pointed at var.ingress_ip. See docs/src/bootstrap-environment/04-dns-configuration.md."
+}
+
+variable "ingress_ip" {
+  type        = string
+  description = "Static IP the wildcard DNS record points at — also what core-addons pins ingress-nginx's LoadBalancer Service to (metallb.universe.tf/loadBalancerIPs), rather than letting MetalLB assign it dynamically. Kept static (an env.hcl literal both units read directly) specifically so this unit doesn't need a Tofu dependency on core-addons, which applies after it in the DAG."
 }
 
 variable "network_name" {

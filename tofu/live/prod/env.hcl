@@ -101,6 +101,12 @@ locals {
   cloudflare_account_id = "7eee532c0b49dbdd2f93dcb13de9df7a"
   cloudflare_zone_id    = "f57b43e69b149c9be3483b4452f483d4"
   cloudflared_version   = "2026.8.2"
+  # No suffix needed — prod's own domain_name is already the bare apex, so
+  # there's no Universal SSL coverage gap to work around (unlike dev's
+  # "-dev" suffix — see the comment on public_hostnames in
+  # core-addons/main.tf).
+  public_apex_domain     = "thepugh.family"
+  public_hostname_suffix = ""
 
   # No real public apps yet — prod stays a placeholder like everything else
   # here (see CLAUDE.md's Dev/prod separation).

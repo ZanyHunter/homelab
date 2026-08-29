@@ -77,11 +77,21 @@ variable "cloudflared_version" {
 }
 
 variable "public_apps" {
-  description = "Apps exposed publicly via the Cloudflare Tunnel (#33/#39). Each entry becomes a full-hostname allowlist route (<hostname>.<domain_name>) forwarded to ingress-nginx, plus a matching public DNS record. Empty list (the default) means the tunnel and cloudflared exist but route nothing yet."
+  description = "Apps exposed publicly via the Cloudflare Tunnel (#33/#39). Each entry's public hostname is <hostname><public_hostname_suffix>.<public_apex_domain> (NOT <hostname>.<domain_name> — see public_hostname_suffix), forwarded to ingress-nginx with the Host header rewritten back to <hostname>.<domain_name> so it still matches the app's existing internal Ingress/cert. Empty list (the default) means the tunnel and cloudflared exist but route nothing yet."
   type = list(object({
-    hostname = string # subdomain only, e.g. "photos" -> photos.<domain_name>
+    hostname = string # subdomain only, e.g. "photos" -> photos<public_hostname_suffix>.<public_apex_domain>
   }))
   default = []
+}
+
+variable "public_apex_domain" {
+  description = "The real external domain's bare apex (thepugh.family) — public hostnames live directly under this, not under domain_name, since Cloudflare's free Universal SSL only covers one subdomain level (*.thepugh.family) and domain_name (e.g. dev.thepugh.family) is already one level deep. Same value for every environment — it's the one real domain this repo manages in Cloudflare."
+  type        = string
+}
+
+variable "public_hostname_suffix" {
+  description = "Appended to each var.public_apps hostname (and \"keycloak\") before public_apex_domain, so dev and prod don't collide on the same public hostname for the same app — e.g. \"-dev\" for dev (photos-dev.thepugh.family), \"\" for prod (photos.thepugh.family, since prod's own domain_name is already the bare apex with no coverage gap to work around)."
+  type        = string
 }
 
 variable "public_keycloak_realm" {

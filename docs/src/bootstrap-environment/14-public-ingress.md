@@ -1,6 +1,6 @@
 # 15. Public Ingress via Cloudflare Tunnel
 
-This is live — [Immich](./15-immich.md) (`photos.dev.thepugh.family`) is the first real app exposed publicly through it, split out of the [public exposure readiness checklist](https://github.com/ZanyHunter/homelab/issues/33) (#33). This page doubles as the reusable runbook for onboarding the *next* public app: everything below describes the actual deployed shape, not a plan waiting to be executed.
+This is live — [Immich](./15-immich.md) (public: `photos-dev.thepugh.family`, internal: `photos.dev.thepugh.family`) is the first real app exposed publicly through it, split out of the [public exposure readiness checklist](https://github.com/ZanyHunter/homelab/issues/33) (#33). This page doubles as the reusable runbook for onboarding the *next* public app: everything below describes the actual deployed shape, not a plan waiting to be executed.
 
 ---
 
@@ -21,9 +21,19 @@ existing ClusterIP Service → the app's existing Ingress → the app's Service/
 
 The tunnel is a second *path* into the same front door, not a parallel ingress stack. Once traffic reaches `cloudflared`, it hits ingress-nginx's ClusterIP Service exactly the way LAN traffic hits its LoadBalancer Service today — same Ingress objects, same cert-manager certs, same per-namespace NetworkPolicies. Nothing about how an app is exposed internally changes when it also becomes reachable publicly.
 
+## Public hostnames live one level under the real apex, not under `domain_name`
+
+**Found live**, on the very first real app: Cloudflare's free Universal SSL certificate only covers one subdomain level (`*.thepugh.family`) — it does *not* cover a two-levels-deep hostname like `photos.dev.thepugh.family` (which is `*.dev.thepugh.family` from the wildcard's point of view). A hostname built from `domain_name` gets no valid edge certificate at all: the browser sees a raw TLS handshake failure (`ERR_SSL_VERSION_OR_CYPHER_MISMATCH` in Chrome) before any request reaches the tunnel — plain HTTP still "works" in the sense of reaching Cloudflare's edge, just with nothing to negotiate TLS with. This is a Cloudflare edge-certificate limitation, unrelated to Full (strict)'s origin-cert validation above — see "Authentication" below for why those are two genuinely separate TLS legs.
+
+The fix, rather than paying for [Advanced Certificate Manager](https://developers.cloudflare.com/ssl/edge-certificates/advanced-certificate-manager/) (~$10/month/zone) to cover deeper subdomains: **public hostnames live one level under the real apex** (`public_apex_domain`, `thepugh.family` for every environment) instead of under `domain_name`, with a `public_hostname_suffix` (`-dev` for dev, empty for prod, since prod's own `domain_name` is already the bare apex with no coverage gap) so dev and prod never collide on the same public hostname for the same app. `photos` becomes `photos-dev.thepugh.family` publicly, while `photos.dev.thepugh.family` keeps working exactly as before for LAN/VPN access and is still what cert-manager issues a certificate for and what ingress-nginx's Ingress object actually matches.
+
+The tunnel's ingress rule reconciles the two: it matches on the *public* hostname, but rewrites `origin_request.http_host_header`/`origin_server_name` back to the app's real *internal* hostname before forwarding to ingress-nginx — see `local.public_hostnames` in `tofu/modules/core-addons/main.tf`. Without that rewrite, ingress-nginx would see the public hostname on the wire, find no matching Ingress rule, and fail to route at all. The practical effect: the URL you'd bookmark differs slightly depending on whether you're on the LAN/VPN or not — a real, accepted tradeoff for staying on Cloudflare's free tier rather than a $10/month recurring cost for something a naming convention solves for free.
+
 ## TLS: Full (strict)
 
 Cloudflare's strictest mode validates that the origin (ingress-nginx) presents a certificate that's both trusted and hostname-matching — no self-signed or expired certs accepted. This is effectively free here: cert-manager already issues real Let's Encrypt certs via DNS-01 for every hostname, so the "you need a publicly-trusted origin cert" requirement Full (strict) usually forces on people is already satisfied.
+
+**This is not the same thing as "serving cert-manager's cert to the browser."** A Tunnel means TLS terminates twice, not once: browser ↔ Cloudflare's edge (Cloudflare's own certificate — see the Universal SSL section below for why that leg has its own coverage rules) and, separately, `cloudflared` ↔ origin (cert-manager's certificate, which is what Full (strict) actually validates). The browser never talks to `cloudflared` or ingress-nginx directly, so there's no way to make cert-manager's certificate the one the browser itself sees — that's inherent to proxying through Cloudflare at all, not a gap in this setup specifically.
 
 The real tradeoff is operational, not security: Full (strict) **fails closed**. If a cert-manager renewal ever hiccups (an ACME rate limit, a transient DNS-01 failure), public traffic gets a hard `526` error until it's fixed, rather than silently falling back to an unverified connection. That's the right trade — a loud outage beats a silent security gap — but it does mean a cert problem becomes public-facing-visible immediately, worth knowing going in rather than discovering live.
 
@@ -64,7 +74,7 @@ All in the **`core-addons`** unit, alongside ingress-nginx/cert-manager — the 
 Immich (`photos`) was the first app through this — its `env.hcl` entry and the Keycloak realm route are the worked example. Exposing the *next* app publicly is:
 
 1. **Confirm prerequisites**: the app already works internally — a real Ingress, a cert-manager-issued cert, and NetworkPolicies scoped for it (see [NetworkPolicies and Pod Security Admission](./12-network-policies.md)).
-2. **Add one entry** to `env.hcl`'s `public_apps` variable: the public hostname (matching `{ hostname = "photos" }`'s shape).
+2. **Add one entry** to `env.hcl`'s `public_apps` variable: `{ hostname = "<app>" }`. Its public hostname is derived automatically as `<app><public_hostname_suffix>.<public_apex_domain>` — no need to compute that by hand.
 3. **If this is the first public app that needs Keycloak login** (it already isn't, since Immich already added it): add the one `/realms/homelab/*`-only route for `keycloak.<domain>` alongside it (see "Keycloak admin" above) — otherwise skip this step entirely.
 4. `terragrunt apply` in `core-addons`.
 5. **Verify from outside the LAN/VPN** (mobile data, not a laptop still on Wi-Fi): the app's hostname loads end-to-end, and `keycloak.<domain>/admin` and anything else not explicitly allowlisted does *not* resolve through the tunnel. Internal/VPN access to everything, including Keycloak's admin console, should be completely unaffected throughout.

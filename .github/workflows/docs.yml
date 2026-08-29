@@ -97,4 +97,4 @@ jobs:
         with:
           source-dir: docs/book
           preview-branch: gh-pages
-          pages-base-url: https://zanylights.com/homelab/
+          pages-base-url: zanylights.com/homelab

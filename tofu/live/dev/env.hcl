@@ -6,7 +6,18 @@ locals {
   # state around but doesn't change what's actually deployed to Unifi
   # without separate sign-off. Worth fixing in its own small change later.
   network_name = "K8s-Cluster-Prod"
-  domain_name  = "k8s.thepugh.family"
+  # Drives every ingress hostname and OIDC redirect URI in the codebase
+  # (core-addons/keycloak-infra/keycloak-realm/observability all read this
+  # directly, no Terragrunt dependency wiring needed) — the "k8s" subdomain
+  # scheme is retired (#10), replaced by one suffix per environment.
+  domain_name = "dev.thepugh.family"
+  # Static, not the MetalLB-assigned live value, specifically so the
+  # network unit's wildcard DNS record (#10) doesn't need a Tofu dependency
+  # on core-addons (which applies after network in the DAG — a cycle
+  # otherwise). core-addons pins ingress-nginx's Service to this exact IP
+  # via the metallb.universe.tf/loadBalancerIPs annotation instead of
+  # letting MetalLB assign it dynamically. Already what's live today.
+  ingress_ip = "192.168.160.5"
 
   cluster = {
     name = "dev"

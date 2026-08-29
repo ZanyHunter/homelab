@@ -10,7 +10,14 @@ locals {
   network_cidr = "192.168.161.0/27" # placeholder — not yet an allocated subnet
   vlan_id      = 1602               # placeholder — not yet an allocated VLAN
   network_name = "K8s-Cluster-Prod"
-  domain_name  = "k8s.thepugh.family" # placeholder — would collide with dev's ingress hostnames if both were ever live; needs a real decision
+  # The real domain, bare apex — no longer collides with dev now that dev
+  # moved to its own dev.thepugh.family suffix (#10). Drives every ingress
+  # hostname/OIDC redirect URI the same way dev's does.
+  domain_name = "thepugh.family"
+  # Placeholder — needs a real IP reserved in prod's own (not-yet-real)
+  # MetalLB pool once this environment is actually stood up. See dev's
+  # env.hcl for why this needs to be static rather than MetalLB-assigned.
+  ingress_ip = "192.168.161.5" # placeholder — not yet an allocated/reserved IP
 
   cluster = {
     name            = "prod"

@@ -79,9 +79,11 @@ inputs = {
   domain_name        = include.env.locals.domain_name
   ingress_ip         = include.env.locals.ingress_ip
 
-  cloudflare_account_id = include.env.locals.cloudflare_account_id
-  cloudflare_zone_id    = include.env.locals.cloudflare_zone_id
-  cloudflared_version   = include.env.locals.cloudflared_version
-  public_apps           = include.env.locals.public_apps
-  public_keycloak_realm = include.env.locals.public_keycloak_realm
+  cloudflare_account_id  = include.env.locals.cloudflare_account_id
+  cloudflare_zone_id     = include.env.locals.cloudflare_zone_id
+  cloudflared_version    = include.env.locals.cloudflared_version
+  public_apps            = include.env.locals.public_apps
+  public_keycloak_realm  = include.env.locals.public_keycloak_realm
+  public_apex_domain     = include.env.locals.public_apex_domain
+  public_hostname_suffix = include.env.locals.public_hostname_suffix
 }

@@ -108,6 +108,13 @@ locals {
   cloudflare_account_id = "7eee532c0b49dbdd2f93dcb13de9df7a"
   cloudflare_zone_id    = "f57b43e69b149c9be3483b4452f483d4"
   cloudflared_version   = "2026.8.2"
+  # Public hostnames live one level under this apex (Cloudflare's free
+  # Universal SSL only covers *.thepugh.family, not *.dev.thepugh.family —
+  # see the comment on public_hostnames in core-addons/main.tf), with a
+  # "-dev" suffix so dev and prod never collide on the same public hostname
+  # for the same app.
+  public_apex_domain     = "thepugh.family"
+  public_hostname_suffix = "-dev"
 
   # Apps exposed publicly via the Cloudflare Tunnel (#33/#39) — see
   # docs/src/bootstrap-environment/14-public-ingress.md's onboarding runbook.

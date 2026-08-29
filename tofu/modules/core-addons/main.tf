@@ -883,6 +883,20 @@ data "cloudflare_zero_trust_tunnel_cloudflared_token" "this" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this.id
 }
 
+# Public hostnames live one level under public_apex_domain (thepugh.family),
+# not under domain_name (dev.thepugh.family) — Cloudflare's free Universal
+# SSL only covers *.thepugh.family (one level), not *.dev.thepugh.family
+# (two), so a hostname built from domain_name gets no valid edge certificate
+# at all and every browser sees a raw TLS handshake failure before any
+# request reaches the tunnel. Found live: photos.dev.thepugh.family worked
+# over plain HTTP but failed HTTPS with ERR_SSL_VERSION_OR_CYPHER_MISMATCH.
+# public_hostname_suffix keeps dev/prod from colliding on the same public
+# hostname for the same app once prod is real.
+locals {
+  public_hostnames = { for app in var.public_apps : app.hostname => "${app.hostname}${var.public_hostname_suffix}.${var.public_apex_domain}" }
+  keycloak_public_hostname = "keycloak${var.public_hostname_suffix}.${var.public_apex_domain}"
+}
+
 # Remote-managed ingress rules — allowlist only, evaluated top to bottom,
 # first match wins. Each var.public_apps entry forwards its whole hostname;
 # Keycloak (var.public_keycloak_realm) gets exactly one path-scoped route for
@@ -899,7 +913,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
     ingress = concat(
       [
         for app in var.public_apps : {
-          hostname = "${app.hostname}.${var.domain_name}"
+          hostname = local.public_hostnames[app.hostname]
           # https:// + origin_server_name, not a plain http:// shortcut:
           # cloudflared validates ingress-nginx's real cert-manager-issued
           # cert before forwarding (Full-strict-equivalent for the
@@ -907,9 +921,12 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
           # section on why that's free here and worth doing properly).
           service = "https://ingress-nginx-controller.${kubernetes_namespace.ingress_nginx.metadata[0].name}.svc.cluster.local:443"
           origin_request = {
-            # Without an explicit Host header, ingress-nginx would see the
-            # internal service DNS name instead of the real hostname and
-            # fail to route to the right backend Ingress at all.
+            # Rewritten back to the app's real *internal* hostname
+            # (<hostname>.<domain_name>) — not the public one above —
+            # since that's what ingress-nginx's existing Ingress/cert-
+            # manager Certificate for this app actually matches. Without
+            # this, ingress-nginx would see the public hostname (no
+            # matching Ingress rule) instead and fail to route at all.
             http_host_header   = "${app.hostname}.${var.domain_name}"
             origin_server_name = "${app.hostname}.${var.domain_name}"
           }
@@ -917,7 +934,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
       ],
       var.public_keycloak_realm ? [
         {
-          hostname = "keycloak.${var.domain_name}"
+          hostname = local.keycloak_public_hostname
           path     = "^/realms/homelab/.*"
           service  = "https://ingress-nginx-controller.${kubernetes_namespace.ingress_nginx.metadata[0].name}.svc.cluster.local:443"
           origin_request = {
@@ -936,10 +953,10 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
 # to cfargotunnel.com with nothing behind it). Same zone/DNS-Edit scope
 # cert-manager's DNS-01 already uses — no new token permission needed here.
 resource "cloudflare_dns_record" "public_apps" {
-  for_each = { for app in var.public_apps : app.hostname => app }
+  for_each = local.public_hostnames
 
   zone_id = var.cloudflare_zone_id
-  name    = "${each.value.hostname}.${var.domain_name}"
+  name    = each.value
   type    = "CNAME"
   content = "${cloudflare_zero_trust_tunnel_cloudflared.this.id}.cfargotunnel.com"
   proxied = true
@@ -950,7 +967,7 @@ resource "cloudflare_dns_record" "keycloak_public" {
   count = var.public_keycloak_realm ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = "keycloak.${var.domain_name}"
+  name    = local.keycloak_public_hostname
   type    = "CNAME"
   content = "${cloudflare_zero_trust_tunnel_cloudflared.this.id}.cfargotunnel.com"
   proxied = true

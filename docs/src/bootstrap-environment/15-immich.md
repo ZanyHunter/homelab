@@ -2,11 +2,8 @@
 
 [Immich](https://immich.app/) is the first real workload deployed under `apps/` — proving out the app-of-apps GitOps pattern (`docs/src/bootstrap-environment/06-gitops.md`) for something beyond cluster add-ons, and the first real app exposed publicly via the Cloudflare Tunnel design in [Public Ingress](./14-public-ingress.md). Reachable at:
 
-```
-https://photos.dev.thepugh.family
-```
-
-both on the LAN/VPN (via the existing internal wildcard DNS) and from the public internet (via the tunnel).
+- **LAN/VPN**: `https://photos.dev.thepugh.family` (the existing internal wildcard DNS, unchanged)
+- **Public internet**: `https://photos-dev.thepugh.family` (a different hostname than the internal one — see "Public access" below for why)
 
 ---
 
@@ -48,7 +45,7 @@ The secret is retrieved once (`terragrunt output -raw immich_oidc_client_secret`
 
 ## Public access
 
-`env.hcl`'s `public_apps` includes `{ hostname = "photos" }` and `public_keycloak_realm = true` — Immich is the app that first needed the Keycloak `/realms/homelab/*` allowlist route described in `docs/src/bootstrap-environment/14-public-ingress.md`. Nothing Immich-specific was needed beyond that one `env.hcl` entry; the Cloudflare Tunnel routes `photos.dev.thepugh.family` to ingress-nginx exactly like every other app.
+`env.hcl`'s `public_apps` includes `{ hostname = "photos" }` and `public_keycloak_realm = true` — Immich is the app that first needed both the Keycloak `/realms/homelab/*` allowlist route *and* the public/internal hostname split, both described in `docs/src/bootstrap-environment/14-public-ingress.md`. Nothing Immich-specific was needed beyond that one `env.hcl` entry; `cloudflared` routes `photos-dev.thepugh.family` to ingress-nginx with the Host header rewritten back to `photos.dev.thepugh.family` exactly like every other app.
 
 ## Verification
 
@@ -57,4 +54,4 @@ kubectl get pvc -n immich
 kubectl get pods -n immich
 ```
 
-Confirms the DB PVC bound on `ceph-rbd-dev` and the media PVC bound on `nfs-dev`, not just that pods exist. A real login (not just "the OAuth button appears") is the actual bar: visiting `https://photos.dev.thepugh.family` should redirect through Keycloak and land back in Immich authenticated, both from the LAN/VPN and from a real external network (mobile data) — the latter is the one check this repo's own tooling can't perform itself, since this session's environment resolves `dev.thepugh.family` internally regardless of which DNS resolver is queried.
+Confirms the DB PVC bound on `ceph-rbd-dev` and the media PVC bound on `nfs-dev`, not just that pods exist. A real login (not just "the OAuth button appears") is the actual bar: visiting `https://photos.dev.thepugh.family` (LAN/VPN) or `https://photos-dev.thepugh.family` (public) should redirect through Keycloak and land back in Immich authenticated — the public path is the one check this repo's own tooling can't perform itself, since this session's environment resolves `*.dev.thepugh.family` internally regardless of which DNS resolver is queried, so it has to be confirmed from a real external network.

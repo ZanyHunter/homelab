@@ -12,7 +12,18 @@ Metrics, logs, and alerting are handled by [kube-prometheus-stack](https://githu
 
 - **Prometheus** (via the Prometheus Operator) scrapes cluster/node metrics and evaluates alerting rules. Retention is 15 days on a 20Gi NFS-backed PVC.
 - **Alertmanager** routes firing alerts to a Discord webhook.
-- **Grafana**, reachable at `https://grafana.dev.thepugh.family` (`admin` / a Tofu-generated password in the `grafana-admin-credentials` Secret, `monitoring` namespace). Ships with the chart's own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo.
+
+**Grafana** (`admin` / a Tofu-generated password in the `grafana-admin-credentials` Secret, `monitoring` namespace). Ships with the chart's own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo. Reachable at:
+
+{{#tabs global="domain" }}
+{{#tab name="Production" }}
+`https://grafana.thepugh.family`
+{{#endtab }}
+{{#tab name="Development" }}
+`https://grafana.dev.thepugh.family`
+{{#endtab }}
+{{#endtabs }}
+
 - **node-exporter** and **kube-state-metrics** — bundled with the chart, give node-level and Kubernetes-object-level metrics respectively.
 - **Loki**, deployment mode `SingleBinary` (the chart's own term for what's now generally called "Monolithic" mode) — right-sized for homelab log volume, storing chunks on a 20Gi NFS-backed PVC rather than requiring an S3-compatible backend.
 - **Grafana Alloy**, a DaemonSet on every node (including control planes — see "Talos control-plane taint" below) shipping every pod's container logs into Loki, labeled by namespace/pod/container. The current, maintained log-shipping agent — Promtail is deprecated upstream.

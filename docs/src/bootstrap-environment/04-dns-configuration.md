@@ -12,9 +12,22 @@ Every ingress hostname in this repo (ArgoCD, Keycloak, Grafana, sso-demo, and an
 
 ## Verification
 
+{{#tabs global="domain" }}
+{{#tab name="Production" }}
+
+```bash
+dig +short 'argocd.thepugh.family' @<unifi-gateway-ip>
+```
+
+{{#endtab }}
+{{#tab name="Development" }}
+
 ```bash
 dig +short 'argocd.dev.thepugh.family' @<unifi-gateway-ip>
 ```
+
+{{#endtab }}
+{{#endtabs }}
 
 Should return the pinned `ingress_ip` value. Any new service deployed under `apps/<app>/` resolves automatically under the same wildcard — no DNS step needed, ever, matching the app-of-apps "just add a directory, push" model.
 

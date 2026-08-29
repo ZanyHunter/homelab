@@ -95,6 +95,19 @@ locals {
     revision = "main" # would likely want a release branch instead, once real
   }
 
+  # Same zone (thepugh.family) as dev's cloudflare_zone_id, since prod's
+  # domain_name is the real apex itself rather than a subdomain — same
+  # account/zone, just the one Cloudflare account this repo has.
+  cloudflare_account_id = "7eee532c0b49dbdd2f93dcb13de9df7a"
+  cloudflare_zone_id    = "f57b43e69b149c9be3483b4452f483d4"
+  cloudflared_version   = "2026.8.2"
+
+  # No real public apps yet — prod stays a placeholder like everything else
+  # here (see CLAUDE.md's Dev/prod separation).
+  public_apps           = []
+  public_keycloak_realm = false
+
+
   ksops_version = "4.5.1"
 
   # Placeholder — a real prod node topology hasn't been decided (issue #21:

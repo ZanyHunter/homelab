@@ -51,6 +51,10 @@ generate "provider" {
         cluster_ca_certificate = base64decode("${dependency.talos_cluster.outputs.kubernetes_client_configuration.ca_certificate}")
       }
     }
+
+    provider "cloudflare" {
+      api_token = local.cloudflare_api_token
+    }
   EOF
 }
 
@@ -74,4 +78,10 @@ inputs = {
   ceph_rbd_client_id = include.env.locals.ceph.pool_name
   domain_name        = include.env.locals.domain_name
   ingress_ip         = include.env.locals.ingress_ip
+
+  cloudflare_account_id = include.env.locals.cloudflare_account_id
+  cloudflare_zone_id    = include.env.locals.cloudflare_zone_id
+  cloudflared_version   = include.env.locals.cloudflared_version
+  public_apps           = include.env.locals.public_apps
+  public_keycloak_realm = include.env.locals.public_keycloak_realm
 }

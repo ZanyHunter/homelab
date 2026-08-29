@@ -6,6 +6,29 @@ locals {
   # A real, already-reachable control-plane node IP for one-shot Terraform-provider
   # calls (bootstrap, kubeconfig fetch) that can't depend on the VIP existing yet.
   first_control_plane_ip = [for k, v in var.k8s_nodes : split("/", v.ip_address)[0] if v.role == "controlplane"][0]
+  # Any Proxmox node running Ceph can dispatch the pool API call — the pool
+  # itself is cluster-wide, not node-scoped. Reuses whichever Proxmox node
+  # already hosts one of this cluster's VMs rather than a separately-listed
+  # value, same reasoning as first_control_plane_ip above.
+  ceph_dispatch_node = [for k, v in var.k8s_nodes : v.proxmox_node][0]
+}
+
+# A dedicated pool within the existing Proxmox Ceph cluster (ceph-1 datastore,
+# already backing this cluster's own VM disks) — not new hardware, just a
+# second logical namespace within the same disks/cluster. Kept separate from
+# the pool VM disks live in so ceph-csi's CephX credential (core-addons) can
+# be scoped to touch only this pool, not VM storage (#28).
+resource "proxmox_ceph_pool" "k8s_rbd" {
+  node_name = local.ceph_dispatch_node
+  name      = var.ceph.pool_name
+
+  application       = "rbd"
+  size              = 3
+  min_size          = 2
+  pg_autoscale_mode = "on"
+  # Don't also register this as a generic Proxmox VM-disk storage target —
+  # this pool exists purely for Kubernetes RBD use via ceph-csi.
+  add_storages = false
 }
 
 data "talos_image_factory_extensions_versions" "this" {

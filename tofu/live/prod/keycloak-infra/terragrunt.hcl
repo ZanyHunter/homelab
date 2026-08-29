@@ -63,4 +63,5 @@ inputs = {
     keycloak = include.env.locals.chart_versions.keycloak
   }
   nfs_storage_class_name = dependency.core_addons.outputs.nfs_storage_class_name
+  domain_name            = include.env.locals.domain_name
 }

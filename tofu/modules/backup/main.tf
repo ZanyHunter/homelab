@@ -99,17 +99,19 @@ resource "kubernetes_namespace" "velero" {
   metadata {
     name = "velero"
     labels = {
-      # Same story as minio above: the main Deployment (+ its
-      # velero-plugin-for-aws initContainer) passes "restricted" cleanly with
-      # the explicit securityContext below, but the chart's pre-upgrade
-      # "velero-upgrade-crds" hook Job doesn't expose a securityContext value
-      # at all — its image's default user is a non-numeric name ("cnb"),
-      # which the kubelet can't verify as non-root without an explicit
-      # runAsUser it has no way to set here. Namespace-wide PSA stays at
-      # "baseline" because of that one hook Job.
-      "pod-security.kubernetes.io/enforce" = "baseline"
-      "pod-security.kubernetes.io/audit"   = "baseline"
-      "pod-security.kubernetes.io/warn"    = "baseline"
+      # The main Deployment (+ its velero-plugin-for-aws initContainer) and
+      # the chart's pre-upgrade "velero-upgrade-crds" hook Job would only need
+      # "baseline" (see the securityContext comments below for the hook Job's
+      # own gap) — but node-agent's DaemonSet (File System Backup, #28's
+      # follow-up: actual volume data, not just object definitions) genuinely
+      # needs host-level access to every pod's volume mount path
+      # (nodeAgent.podVolumePath, /var/lib/kubelet/pods) and runs as root by
+      # the chart's own default (nodeAgent.podSecurityContext.runAsUser: 0) —
+      # same category of need as metallb-system/csi-driver-nfs/monitoring/
+      # ceph-csi-rbd's node-level DaemonSets.
+      "pod-security.kubernetes.io/enforce" = "privileged"
+      "pod-security.kubernetes.io/audit"   = "privileged"
+      "pod-security.kubernetes.io/warn"    = "privileged"
     }
   }
 }
@@ -173,8 +175,32 @@ resource "helm_release" "velero" {
         existingSecret = kubernetes_secret.velero_minio_credentials.metadata[0].name
       }
       snapshotsEnabled = false
-      deployNodeAgent  = false
+      # File System Backup (kopia/restic) — actual volume *data*, not just
+      # Kubernetes object definitions, needed now that Ceph-backed PVCs exist
+      # (#28) and aren't otherwise covered by anything (Ceph's own
+      # replication protects against disk failure, not accidental/logical
+      # data loss; the NAS's offsite backup only ever covered NFS-backed
+      # data). Opt-in per-pod via the backup.velero.io/backup-volumes
+      # annotation (see keycloak-infra's Postgres StatefulSet) rather than
+      # defaultVolumesToFsBackup — deliberately not backing up every volume
+      # in the cluster (MinIO's own data, Loki chunks, Prometheus TSDB, etc.)
+      # by default, consistent with this repo's preference for explicit
+      # opt-in over broad defaults. Works identically regardless of which
+      # StorageClass a PVC uses, so it's one mechanism for both NFS- and
+      # Ceph-backed volumes rather than needing CSI snapshots as a second,
+      # Ceph-only mechanism.
+      deployNodeAgent = true
       configuration = {
+        # File System Backup's kopia repository writes its config under
+        # $HOME/udmrepo — with runAsUser=1000 and no matching /etc/passwd
+        # entry in the image, $HOME is unset, so kopia resolves that to the
+        # filesystem root and fails with "mkdir /udmrepo: permission denied".
+        # Found live on the very first real backup attempt after enabling
+        # File System Backup. /tmp is writable regardless of the container's
+        # non-root securityContext.
+        extraEnvVars = [
+          { name = "HOME", value = "/tmp" }
+        ]
         backupStorageLocation = [
           {
             name     = "default"

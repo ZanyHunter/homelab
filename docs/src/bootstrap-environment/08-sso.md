@@ -110,7 +110,7 @@ Under the hood, this needs a `groups` claim in the token, which isn't included b
 
 ### Apps with native OIDC support (e.g. Immich, Paperless-ngx)
 
-No forward-auth proxy needed — configure the app directly against the realm. [Immich](./15-immich.md) (`keycloak_openid_client.immich`, `tofu/modules/keycloak-realm/main.tf`) is the real worked example — copy its `valid_redirect_uris`/client shape for the next app, not `oauth2_proxy`'s (that one's Tofu-managed end-to-end specifically because it's a demo, not a real app — see the note below). Issuer URL:
+No forward-auth proxy needed — configure the app directly against the realm. [Immich](./15-immich.md) and the four apps in [Self-Hosted Apps](./16-self-hosted-apps.md) with native OIDC (Actual Budget, Paperless-ngx, Vaultwarden, Homebox) are the real worked examples — copy their `valid_redirect_uris`/client shape for the next app, not `oauth2_proxy`'s (that one's Tofu-managed end-to-end specifically because it's a demo, not a real app — see the note below). Issuer URL:
 
 {{#tabs global="domain" }}
 {{#tab name="Production" }}
@@ -123,9 +123,9 @@ No forward-auth proxy needed — configure the app directly against the realm. [
 
 **Client ID/secret**: create a new `keycloak_openid_client` resource in `tofu/modules/keycloak-realm/main.tf` (copy `keycloak_openid_client.immich` as a starting point — `access_type = "CONFIDENTIAL"`, `standard_flow_enabled = true`, and the app's actual callback URL(s) in `valid_redirect_uris`). Retrieve the generated secret once (a new sensitive output, following `immich_oidc_client_secret`'s pattern in `tofu/modules/keycloak-realm/outputs.tf`) and hand-carry it into that app's own ksops-encrypted config under `apps/<app>/` — real apps' secrets live in GitOps, not just Tofu state.
 
-### Apps without native OIDC support (e.g. Grocy)
+### Apps without native OIDC support (e.g. changedetection.io)
 
-Copy the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` pattern from `tofu/modules/keycloak-realm/main.tf`'s `helm_release.oauth2_proxy` and `kubernetes_ingress_v1.whoami`. Two things to change from the demo:
+Copy the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` pattern from `tofu/modules/keycloak-realm/main.tf`'s `helm_release.oauth2_proxy` and `kubernetes_ingress_v1.whoami` — [changedetection.io](./16-self-hosted-apps.md) (`apps/changedetection/oauth2-proxy.yaml`) is the real worked example, the first app to actually need this. Two things changed from the demo there:
 
 1. **The client secret should be ksops-encrypted, not Tofu-generated.** The demo's `oauth2_proxy` client is Tofu-managed end-to-end because it exists purely to prove the wiring, not as a real app — but a real app's per-client secret belongs in that app's `apps/<app>/` directory under ArgoCD's management (see `docs/src/bootstrap-environment/06-gitops.md`), the same way `apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml` keeps its one sensitive field encrypted. Create the Keycloak client with an explicit `client_secret` (a `random_password`, as the demo does), then commit that value ksops-encrypted under the app's own directory rather than only in Tofu state.
 2. **One oauth2-proxy per protected app** (or a shared one, if several apps can tolerate a shared session cookie domain) — the demo's `sso-demo` namespace/hostname pairing is illustrative, not something to reuse directly.

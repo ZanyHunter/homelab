@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: homebox-config
+    namespace: inventory
+stringData:
+    oidc-client-secret: ENC[AES256_GCM,data:jaazLBjRbfjxOOgQhF9YpZbxrBJ5ZQWXDdzXJQllFnk=,iv:VxADbnjhl0zOQaVQ+b21oRAfLjugYXSXZZpyIBxzzpg=,tag:3H2pB/PVIGMT6JBIcx3zzA==,type:str]
+    api-key-pepper: ENC[AES256_GCM,data:rl55OoQKaFhd/o9LQ+MWeXh+seOttUI1x42BWyFImdXan4a/gQ0GV43hWHabZZjlFastasnMYLwWw/hFozEZ,iv:nD0YqiRYe0zhLCeB/4BCJ7CHqOIPSp5vKi1bOMGlVkc=,tag:xAEOR5vF6NHzXPWf72324Q==,type:str]
+type: Opaque
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJYXE4ZmM5UVQ4cU1Xc3FR
+            cXYrM2VvUy8zZnVaU2UzMTFKeUQwMHI1b3hrCmZZS3JNNk8yRUdiMlIzNCtvYmtM
+            SUd2dGJod3NOeTE1NCt6LzNBdXRmNGsKLS0tIFRuSkREa0ZvL1VaS1YwY3dOY29U
+            VGZmakp6QlVoYXVkRytjcVpPcEN5ZHcK3oXm/W5jm46ummTe0Ji9SOptjHYYkC3u
+            JhBh4m6rj94LnaibAa9NLYdiqRK0a5nUDwcEVT3EC6yX1Ufi+ST2mA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
+    encrypted_regex: ^(data|stringData|email)$
+    lastmodified: "2026-08-29T16:07:50Z"
+    mac: ENC[AES256_GCM,data:qHnVEpfsQ3rPV4cHY9Cvcm6GagmlKmH3QKtL9XYs3mB0wmnSGeyZBz70cyFcS8rLPcJ2p13l1vQ3F2hpcAF4hUPjO9A3+zHzeaCDzUMO8+tacK6zfdVmM9tE3t9++yowotmOLfarvd/Rxh71P005oHb/G4n+Pc6COHSx8cC7gRg=,iv:tx4SDq1KPlFrw+wYcPXxRd8IPrWrI39RRXgonH/2DLc=,tag:F5dr2oXPcZiXBHlXoli5GQ==,type:str]
+    version: 3.13.3

@@ -1,0 +1,133 @@
+# Actual Budget — https://actualbudget.org/. Single-container sync server,
+# SQLite-based (no separate DB), OIDC-only login via native ACTUAL_OPENID_*
+# support (docs: https://actualbudget.org/docs/config/oauth-auth/) — fully
+# declared via env vars below, no manual web-UI setup step.
+#
+# actualbudget/actual-server's Alpine Dockerfile creates a uid/gid 1001
+# "actual" user and chowns /data to it, but has no USER directive — the
+# image runs as root by default despite that user existing. runAsUser: 1001
+# below is what actually engages it (confirmed against the Dockerfile at
+# tag v26.8.1, packages/sync-server/docker/alpine.Dockerfile).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: actual
+  namespace: actual
+spec:
+  replicas: 1
+  # RWO PVC: a rolling update would try to schedule the new pod before the
+  # old one releases the volume, deadlocking on a multi-attach error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: actual
+  template:
+    metadata:
+      labels:
+        app: actual
+    spec:
+      # Kubernetes auto-injects Docker-links-style <SVCNAME>_PORT env vars
+      # for every Service in the namespace unless this is false — collided
+      # live with Actual's own ACTUAL_PORT config key (the "actual" Service
+      # injects ACTUAL_PORT=tcp://<ip>:5006, a URI string, not a bare
+      # number), crashing convict's port-range validation on startup.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: actual
+          image: actualbudget/actual-server:26.8.1
+          ports:
+            - containerPort: 5006
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: ACTUAL_LOGIN_METHOD
+              value: openid
+            - name: ACTUAL_ALLOWED_LOGIN_METHODS
+              value: openid
+            - name: ACTUAL_OPENID_DISCOVERY_URL
+              value: https://__KEYCLOAK_HOSTNAME__/realms/homelab/.well-known/openid-configuration
+            - name: ACTUAL_OPENID_SERVER_HOSTNAME
+              value: https://__APP_HOSTNAME__
+            - name: ACTUAL_OPENID_CLIENT_ID
+              value: actual
+            - name: ACTUAL_OPENID_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: actual-oidc-credentials
+                  key: client-secret
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5006
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5006
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: actual-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: actual
+  namespace: actual
+spec:
+  selector:
+    app: actual
+  ports:
+    - port: 5006
+      targetPort: 5006
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: actual
+  namespace: actual
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: actual
+                port:
+                  number: 5006
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: actual-tls

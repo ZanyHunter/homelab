@@ -1,0 +1,122 @@
+# changedetection.io — https://github.com/dgtlmoon/changedetection.io. No
+# native OIDC/SSO (confirmed: only a single shared password, IdP-integration
+# feature request #375 open since 2022 with no implementation) — access is
+# gated entirely by oauth2-proxy forward-auth in oauth2-proxy.yaml, the same
+# copy-paste template already proven by the sso-demo reference deployment
+# (tofu/modules/keycloak-realm/main.tf). This Ingress has no ssl-redirect/
+# cert-manager annotations of its own — oauth2-proxy's Ingress (same host)
+# owns the actual Certificate, avoiding two Certificates racing over one
+# Secret, same as sso-demo/whoami.
+#
+# No built-in non-root user (no USER/adduser in the Dockerfile) and Ceph RBD
+# volumes are root-owned until fsGroup chowns them on mount — runAsUser/
+# fsGroup: 1000 is an arbitrary but consistent choice, same as Vaultwarden.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: changedetection
+  namespace: changedetection
+spec:
+  replicas: 1
+  # RWO PVC: a rolling update would try to schedule the new pod before the
+  # old one releases the volume, deadlocking on a multi-attach error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: changedetection
+  template:
+    metadata:
+      labels:
+        app: changedetection
+    spec:
+      # See apps/actual/actual.yaml's comment — defensive across every app
+      # here, not just the one that actually collided (Actual's ACTUAL_PORT).
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: changedetection
+          image: ghcr.io/dgtlmoon/changedetection.io:0.55.8
+          ports:
+            - containerPort: 5000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: BASE_URL
+              value: https://__APP_HOSTNAME__
+          volumeMounts:
+            - name: data
+              mountPath: /datastore
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: changedetection-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: changedetection
+  namespace: changedetection
+spec:
+  selector:
+    app: changedetection
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: changedetection
+  namespace: changedetection
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.changedetection.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__APP_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: changedetection
+                port:
+                  number: 5000
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: changedetection-tls

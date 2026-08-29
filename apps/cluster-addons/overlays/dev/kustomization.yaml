@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - env-values.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.lb-pool-range-1
+    targets:
+      - select:
+          kind: IPAddressPool
+        fieldPaths:
+          - spec.addresses.0
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.lb-pool-range-2
+    targets:
+      - select:
+          kind: IPAddressPool
+        fieldPaths:
+          - spec.addresses.1

@@ -231,7 +231,7 @@ resource "helm_release" "keycloak" {
       # inlined directly), not native lists — see chart's statefulset.yaml.
       extraEnv     = <<-EOT
         - name: KC_HOSTNAME
-          value: https://keycloak.k8s.thepugh.family
+          value: https://keycloak.${var.domain_name}
       EOT
       extraEnvFrom = <<-EOT
         - secretRef:
@@ -269,13 +269,13 @@ resource "helm_release" "keycloak" {
         }
         rules = [
           {
-            host  = "keycloak.k8s.thepugh.family"
+            host  = "keycloak.${var.domain_name}"
             paths = [{ path = "/", pathType = "Prefix" }]
           }
         ]
         tls = [
           {
-            hosts      = ["keycloak.k8s.thepugh.family"]
+            hosts      = ["keycloak.${var.domain_name}"]
             secretName = "keycloak-tls"
           }
         ]

@@ -49,6 +49,8 @@ Log in with username `admin` at:
 {{#endtab }}
 {{#endtabs }}
 
+**This admin console stays internal/VPN-only, permanently** — even once real apps go public. See [Public Ingress via Cloudflare Tunnel](./14-public-ingress.md): Keycloak never gets a wildcard tunnel route, only a narrowly-scoped `/realms/homelab/*` route once a public app actually needs OIDC login, so `/admin` stays unreachable from the internet by construction.
+
 ## Trying the forward-auth demo
 
 A test user (`demo`) already exists in the `homelab` realm:

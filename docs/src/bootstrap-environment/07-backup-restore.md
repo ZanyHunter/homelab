@@ -6,11 +6,9 @@ Cluster backups are handled by [Velero](https://velero.io/), backed by [MinIO](h
 
 ## What gets backed up
 
-Velero backs up Kubernetes **object definitions** — Deployments, Services, ConfigMaps, Secrets, the PVC/PV objects themselves, ArgoCD `Application`s, etc. — not raw file-level volume data. File-system backup (Velero's restic/kopia integration, `deployNodeAgent`) and CSI volume snapshots are both deliberately left disabled (`snapshotsEnabled = false`, `deployNodeAgent = false` in `tofu/modules/backup/main.tf`).
+Velero backs up Kubernetes **object definitions** — Deployments, Services, ConfigMaps, Secrets, the PVC/PV objects themselves, ArgoCD `Application`s, etc. For NFS-backed volumes, that's sufficient on its own: the PV objects Velero restores point back at the same underlying NFS-backed volumes, so any data already there comes along for the ride without Velero needing to move it itself — the NFS share also has its own offsite backup outside this repo's concern (see `CLAUDE.md`), so backing up the same bytes a second time through Velero would be redundant there.
 
-That's a deliberate scope decision, not an oversight: today, every workload's persistent data already lives on the NFS-backed `StorageClass` from the [storage](./05-nfs-storage-access.md) issue, and that NFS share has its own offsite backup outside this repo's concern (see `CLAUDE.md`). Backing up the same bytes a second time through Velero would be redundant. Revisit if a workload ever needs a non-NFS-backed volume.
-
-A restore, then, recreates namespaces, workloads, and their config/secrets — and since the PV objects Velero restores point back at the same underlying NFS-backed volumes, any data already on those volumes comes along for the ride without Velero needing to move it itself.
+That reasoning doesn't hold for Ceph-backed volumes (`ceph-rbd-<cluster_name>`, [added for databases](./13-ceph-storage.md), #28) — restoring the PV object alone doesn't restore *data* on a volume that isn't independently backed up elsewhere, and Ceph's own replication protects against disk failure, not accidental/logical data loss. **File System Backup** (Velero's kopia integration, `deployNodeAgent = true`) is enabled for exactly this: real volume data, not just object definitions. It's opt-in per-pod via the `backup.velero.io/backup-volumes: <volume-name>` annotation (see `keycloak-infra`'s Postgres `StatefulSet`) rather than backed up by default for every volume in the cluster — deliberately conservative, since MinIO's own data, Loki's chunks, Prometheus's TSDB, etc. don't need this. CSI volume snapshots (`snapshotsEnabled`) stay disabled — File System Backup already covers both StorageClasses with one mechanism, so a second Ceph-only mechanism wouldn't add anything.
 
 ## Schedule and retention
 
@@ -46,7 +44,11 @@ velero restore describe <restore-name>
 kubectl get all -n <namespace>
 ```
 
-This was verified end-to-end while standing up Velero: a namespace with a test `ConfigMap` was backed up, the namespace was deleted outright, and `velero restore create --from-backup ... --wait` brought the namespace and the `ConfigMap`'s data back correctly.
+This was verified end-to-end while standing up Velero: a namespace with a test `ConfigMap` was backed up, the namespace was deleted outright, and `velero restore create --from-backup ... --wait` brought the namespace and the `ConfigMap`'s data back correctly. Re-verified the same way after adding File System Backup (#28): a throwaway pod with real file data on a `ceph-rbd-dev` PVC, backed up, its whole namespace deleted outright, restored — the actual file content came back, not just the PVC object.
+
+### A real gotcha found live enabling File System Backup
+
+The first real backup attempt after flipping `deployNodeAgent = true` failed with `mkdir /udmrepo: permission denied`. Velero's kopia repository writes its config under `$HOME/udmrepo` — with the main Velero container's `runAsUser: 1000` and no matching `/etc/passwd` entry in the image, `$HOME` is unset, so kopia resolves that to the filesystem root, which a non-root UID can't write to. Fixed with an explicit `HOME=/tmp` env var (`configuration.extraEnvVars` in `tofu/modules/backup/main.tf`) — `/tmp` is writable regardless of the container's non-root securityContext. Also required moving the `velero` namespace's PSA level from `baseline` to `privileged`: `deployNodeAgent`'s DaemonSet needs real host-level access to every pod's volume mount path, same category of need as the other node-level DaemonSets in this cluster (MetalLB, csi-driver-nfs, node-exporter, ceph-csi-rbd).
 
 ### Restoring into a fresh cluster
 

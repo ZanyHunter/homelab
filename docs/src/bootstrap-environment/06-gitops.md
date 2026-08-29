@@ -110,3 +110,62 @@ kubectl get clusterissuers
 ```
 
 Both `letsencrypt-prod` and `letsencrypt-staging` should show `READY: True` — an ACME `ClusterIssuer` only reaches `Ready` after successfully registering an account with the ACME server using the decrypted `email`, which is a strong end-to-end signal that ksops decryption is working, not just that the manifest applied.
+
+## ExternalSecrets: for values Tofu also generates (#42)
+
+ksops is the right mechanism for any secret with no other source of truth — a Postgres password, an admin token, a cookie secret. It's the *wrong* mechanism for a value Tofu also independently generates and needs to keep matching, like a Keycloak OIDC client's `client_secret` (`random_password.*_client_secret` in `tofu/modules/keycloak-realm/main.tf`): a ksops-encrypted copy is a snapshot, not a live link, so a `keycloak-realm` destroy/recreate or a deliberate secret rotation regenerates the Tofu-side value with nothing updating the already-committed file — OIDC login for that app breaks silently until someone notices.
+
+**[External Secrets Operator](https://external-secrets.io/)** (`helm_release.external_secrets` in `tofu/modules/core-addons/main.tf`) closes this gap for exactly that subset of secrets, without introducing Vault or any new secrets-store *service* — its `kubernetes` provider just mirrors a Kubernetes Secret that already exists in one namespace out into another. The pattern mirrors this repo's existing "Tofu owns secret material + the namespace holding it, GitOps owns everything else" split:
+
+- **Tofu (`keycloak-realm`)** owns a `keycloak-secrets` namespace holding one plain `kubernetes_secret` per app, each with that app's live Keycloak client secret — the same shape as this unit's pre-existing `kubernetes_secret.oauth2_proxy_credentials` (the sso-demo forward-auth demo), just multiplied across the six real apps that need it.
+- **GitOps (`apps/cluster-addons/base/`)** owns the RBAC (`ServiceAccount`/`Role`/`RoleBinding`, read-only on Secrets in `keycloak-secrets` only) and a `ClusterSecretStore` pointing at it — no secret material in either, so no ksops encryption needed, same as the MetalLB `IPAddressPool`/`ClusterIssuer`s already living there.
+- **GitOps (`apps/<app>/base/`)** owns an `ExternalSecret` per app, replacing (or partially replacing) the ksops file that used to hold the client secret:
+
+  ```yaml
+  apiVersion: external-secrets.io/v1
+  kind: ExternalSecret
+  metadata:
+    name: actual-oidc-credentials
+    namespace: actual
+  spec:
+    refreshInterval: 1h
+    secretStoreRef:
+      name: keycloak-secrets
+      kind: ClusterSecretStore
+    target:
+      name: actual-oidc-credentials
+    data:
+      - secretKey: client-secret
+        remoteRef:
+          key: actual-oidc-client-secret
+          property: client-secret
+  ```
+
+**When a Secret co-locates a Tofu-generated key with one that has no Tofu counterpart** (e.g. Vaultwarden's `sso-client-secret` next to its `admin-token`), split it into two Secret objects rather than trying to make one mechanism own both: the Tofu-sourced key moves to a new `ExternalSecret`-produced Secret, the rest stays in a shrunk ksops file. Keep the *original* Secret name on whichever side keeps more keys, to minimize `secretKeyRef.name` edits in the Deployment.
+
+**When the secret is nested inside a larger structured document** (Immich's `immich-config.yaml`, Paperless-ngx's `PAPERLESS_SOCIALACCOUNT_PROVIDERS` JSON blob), use `spec.target.template` to render the whole document as a Go template, interpolating just the live field:
+
+```yaml
+target:
+  name: immich-config
+  template:
+    engineVersion: v2
+    data:
+      immich-config.yaml: |
+        oauth:
+          issuerUrl: "https://__KEYCLOAK_HOSTNAME__/realms/homelab"
+          clientSecret: "{{ .clientSecret }}"
+data:
+  - secretKey: clientSecret
+    remoteRef:
+      key: immich-oidc-client-secret
+      property: client-secret
+```
+
+This has a nice side effect for Immich specifically: the old ksops file encrypted the *entire* config document even though only one field was ever sensitive — the template makes everything else plain, reviewable YAML.
+
+**`replacements:` still works unchanged against these** — it operates on raw parsed YAML fieldpaths and doesn't care about resource `kind`, so a per-environment hostname substitution that used to target a plain `Secret`'s `stringData.<key>` retargets cleanly to an `ExternalSecret`'s `spec.target.template.data.<key>` (keeping any escaped-dot key syntax, e.g. `immich-config\.yaml`), with zero change to the substitution mechanism itself.
+
+**Verifying**: the repo-server `kustomize build` technique above only confirms the YAML is well-formed Kustomize input for an `ExternalSecret` — there's no decryption step to prove anymore, so it's a weaker check than it is for ksops. The real proof is live: `kubectl get externalsecret -n <app>` should show `STATUS: SecretSynced`, `READY: True`, and the resulting Secret's value should match `terragrunt output -raw <app>_oidc_client_secret` exactly (that Tofu output still exists for exactly this kind of break-glass check, even though nothing needs to hand-carry it anymore).
+
+**What ESO can actually reach**: its `ClusterSecretStore`'s RBAC scopes it to read-only on Secrets in the `keycloak-secrets` namespace and nowhere else — it has no access to `tofu/secrets.enc.yaml`, no access to any other namespace's Secrets, and no ability to write anything back into `keycloak-secrets`. See `CLAUDE.md`'s Secrets management section.

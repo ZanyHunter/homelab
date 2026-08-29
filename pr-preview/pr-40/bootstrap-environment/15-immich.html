@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-693ebb08.js";
+            window.path_to_searchindex_js = "../searchindex-37ed7046.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-498f9b97.js"></script>
@@ -182,11 +182,10 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="16-immich"><a class="header" href="#16-immich">16. Immich</a></h1>
-<p><a href="https://immich.app/">Immich</a> is the first real workload deployed under <code>apps/</code> — proving out the app-of-apps GitOps pattern (<code>docs/src/bootstrap-environment/06-gitops.md</code>) for something beyond cluster add-ons, and the first real app exposed publicly via the Cloudflare Tunnel design in <a href="./14-public-ingress.html">Public Ingress</a>. Reachable at:</p>
-<ul>
-<li><strong>LAN/VPN</strong>: <code>https://photos.dev.thepugh.family</code> (the existing internal wildcard DNS, unchanged)</li>
-<li><strong>Public internet</strong>: <code>https://photos-dev.thepugh.family</code> (a different hostname than the internal one — see “Public access” below for why)</li>
-</ul>
+<p><a href="https://immich.app/">Immich</a> is the first real workload deployed under <code>apps/</code> — proving out the app-of-apps GitOps pattern (<code>docs/src/bootstrap-environment/06-gitops.md</code>) for something beyond cluster add-ons. Reachable on the LAN/VPN at:</p>
+<pre><code>https://photos.dev.thepugh.family
+</code></pre>
+<p>It was also the first app to actually prove the Cloudflare Tunnel design in <a href="./14-public-ingress.html">Public Ingress</a> publicly — briefly reachable at <code>photos-dev.thepugh.family</code>, which surfaced two real gotchas (a Universal SSL coverage gap and a Keycloak <code>redirect_uri</code> mismatch, both documented there) before that exposure was deliberately torn back down. Only prod is meant to be publicly exposed long-term; see “Public access” below.</p>
 <hr>
 <h2 id="storage-split"><a class="header" href="#storage-split">Storage split</a></h2>
 <ul>
@@ -212,12 +211,12 @@
 <p>The secret is retrieved once (<code>terragrunt output -raw immich_oidc_client_secret</code> from <code>tofu/live/dev/keycloak-realm/</code>) and hand-carried into <code>apps/immich/immich-config.enc.yaml</code> — a ksops-encrypted <code>v1/Secret</code> (same mechanism already proven in <code>apps/cluster-addons/</code>) containing the full <code>immich-config.yaml</code> (note: <strong>YAML</strong>, not JSON — the chart mounts it at <code>IMMICH_CONFIG_FILE=/config/immich-config.yaml</code>) with the <code>oauth</code> block. Referenced via <code>immich.existingConfiguration: immich-config</code> / <code>immich.configurationKind: Secret</code> in the chart values, rather than threading the secret through the Kustomize helm-chart values pipeline directly.</p>
 <p><code>autoRegister: true</code> — any homelab Keycloak account can log into Immich on first OIDC login, matching how this is a personal/family photo app where Keycloak account creation itself is already the real gate (managed by hand in Keycloak’s admin console, same as every other real account in this repo).</p>
 <h2 id="public-access"><a class="header" href="#public-access">Public access</a></h2>
-<p><code>env.hcl</code>’s <code>public_apps</code> includes <code>{ hostname = "photos" }</code> and <code>public_keycloak_realm = true</code> — Immich is the app that first needed both the Keycloak <code>/realms/homelab/*</code> allowlist route <em>and</em> the public/internal hostname split, both described in <code>docs/src/bootstrap-environment/14-public-ingress.md</code>. Nothing Immich-specific was needed beyond that one <code>env.hcl</code> entry; <code>cloudflared</code> routes <code>photos-dev.thepugh.family</code> to ingress-nginx with the Host header rewritten back to <code>photos.dev.thepugh.family</code> exactly like every other app.</p>
+<p>Not enabled today — <code>dev</code>’s <code>env.hcl</code> has <code>public_ingress_enabled = false</code>, <code>public_apps = []</code>. It briefly was (<code>{ hostname = "photos" }</code>, <code>public_keycloak_realm = true</code>), which is exactly what proved the Cloudflare Tunnel mechanism end-to-end and surfaced both gotchas documented in <code>docs/src/bootstrap-environment/14-public-ingress.md</code> — that exposure was always meant to be temporary, since only prod is meant to be publicly exposed long-term and prod’s own <code>domain_name</code> (the bare apex) avoids the hostname-split complexity dev hit entirely. Immich’s own internal Ingress/hostname (<code>photos.dev.thepugh.family</code>) is completely unaffected either way — only the Cloudflare Tunnel’s routing to it was ever added or removed.</p>
 <h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
 <pre><code class="language-bash">kubectl get pvc -n immich
 kubectl get pods -n immich
 </code></pre>
-<p>Confirms the DB PVC bound on <code>ceph-rbd-dev</code> and the media PVC bound on <code>nfs-dev</code>, not just that pods exist. A real login (not just “the OAuth button appears”) is the actual bar: visiting <code>https://photos.dev.thepugh.family</code> (LAN/VPN) or <code>https://photos-dev.thepugh.family</code> (public) should redirect through Keycloak and land back in Immich authenticated — the public path is the one check this repo’s own tooling can’t perform itself, since this session’s environment resolves <code>*.dev.thepugh.family</code> internally regardless of which DNS resolver is queried, so it has to be confirmed from a real external network.</p>
+<p>Confirms the DB PVC bound on <code>ceph-rbd-dev</code> and the media PVC bound on <code>nfs-dev</code>, not just that pods exist. A real login (not just “the OAuth button appears”) is the actual bar: visiting <code>https://photos.dev.thepugh.family</code> should redirect through Keycloak and land back in Immich authenticated.</p>
 
                     </main>
 

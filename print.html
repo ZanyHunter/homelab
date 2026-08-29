@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0f02ef97.js";
+            window.path_to_searchindex_js = "searchindex-289e9ec9.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-3a51dd82.js"></script>
+        <script src="toc-dfc9ad3a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -456,6 +456,7 @@ kubectl get all -n &lt;namespace&gt;
 
 </div>
 
+<p><strong>This admin console stays internal/VPN-only, permanently</strong> — even once real apps go public. See <a href="#15-public-ingress-via-cloudflare-tunnel">Public Ingress via Cloudflare Tunnel</a>: Keycloak never gets a wildcard tunnel route, only a narrowly-scoped <code>/realms/homelab/*</code> route once a public app actually needs OIDC login, so <code>/admin</code> stays unreachable from the internet by construction.</p>
 <h2 id="trying-the-forward-auth-demo"><a class="header" href="#trying-the-forward-auth-demo">Trying the forward-auth demo</a></h2>
 <p>A test user (<code>demo</code>) already exists in the <code>homelab</code> realm:</p>
 <pre><code class="language-bash">kubectl get secret -n sso-demo sso-demo-user-credentials -o jsonpath='{.data.password}' | base64 -d
@@ -798,6 +799,58 @@ kubectl get ns -o custom-columns=NAME:.metadata.name,ENFORCE:.metadata.labels."p
 kubectl get pods -n ceph-csi-rbd
 </code></pre>
 <p>A real bound PVC that a pod can actually write to and read back from (not just a <code>StorageClass</code> object existing, and not just “the PVC bound” — a fresh RBD volume can still reject writes on a <code>fsGroup</code> mismatch, see above) confirms the whole chain — Ceph pool, CephX auth, ceph-csi, NetworkPolicy egress to the monitors — actually works end-to-end.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="15-public-ingress-via-cloudflare-tunnel"><a class="header" href="#15-public-ingress-via-cloudflare-tunnel">15. Public Ingress via Cloudflare Tunnel</a></h1>
+<p>Nothing in this cluster is public-facing today — everything lives behind ingress-nginx’s LoadBalancer IP, reachable only on the LAN (or over VPN). This page is a <strong>design doc and reusable runbook</strong>, not something already deployed: it’s the plan to execute against the first time a real app needs to flip from internal-only to public, split out of the <a href="https://github.com/ZanyHunter/homelab/issues/33">public exposure readiness checklist</a> (#33). Nothing here should be implemented speculatively — build it when there’s a real app to route to, not before.</p>
+<hr>
+<h2 id="why-cloudflare-tunnel"><a class="header" href="#why-cloudflare-tunnel">Why Cloudflare Tunnel</a></h2>
+<p>The alternative is port-forwarding: opening an inbound port on the home router and pointing it at ingress-nginx’s LoadBalancer IP. That works, but it means the router has an open inbound port at all, and WAF/rate-limiting has to be built or bolted on separately.</p>
+<p>A <a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/">Cloudflare Tunnel</a> (<code>cloudflared</code>) is <strong>outbound-only</strong> — a pod in-cluster opens a connection <em>to</em> Cloudflare’s edge, and Cloudflare routes public hostnames back through that connection. The router’s inbound side never opens at all, and Cloudflare’s edge gives WAF and rate-limiting for free, before traffic ever reaches the tunnel — closing #33’s first checklist bullet with no new component to run or secure.</p>
+<p>The tradeoff: Cloudflare sees the traffic (TLS terminates at their edge, or passes through to origin in Full-strict mode — see below), and their uptime becomes a dependency for anything public. Accepted as the right tradeoff for a single-operator homelab with no dedicated edge hardware.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>Internet → Cloudflare edge → cloudflared (pod, outbound-only) → ingress-nginx's
+existing ClusterIP Service → the app's existing Ingress → the app's Service/Pods
+</code></pre>
+<p>The tunnel is a second <em>path</em> into the same front door, not a parallel ingress stack. Once traffic reaches <code>cloudflared</code>, it hits ingress-nginx’s ClusterIP Service exactly the way LAN traffic hits its LoadBalancer Service today — same Ingress objects, same cert-manager certs, same per-namespace NetworkPolicies. Nothing about how an app is exposed internally changes when it also becomes reachable publicly.</p>
+<h2 id="tls-full-strict"><a class="header" href="#tls-full-strict">TLS: Full (strict)</a></h2>
+<p>Cloudflare’s strictest mode validates that the origin (ingress-nginx) presents a certificate that’s both trusted and hostname-matching — no self-signed or expired certs accepted. This is effectively free here: cert-manager already issues real Let’s Encrypt certs via DNS-01 for every hostname, so the “you need a publicly-trusted origin cert” requirement Full (strict) usually forces on people is already satisfied.</p>
+<p>The real tradeoff is operational, not security: Full (strict) <strong>fails closed</strong>. If a cert-manager renewal ever hiccups (an ACME rate limit, a transient DNS-01 failure), public traffic gets a hard <code>526</code> error until it’s fixed, rather than silently falling back to an unverified connection. That’s the right trade — a loud outage beats a silent security gap — but it does mean a cert problem becomes public-facing-visible immediately, worth knowing going in rather than discovering live.</p>
+<h2 id="authentication-cloudflare-is-transport-keycloak-is-the-authority"><a class="header" href="#authentication-cloudflare-is-transport-keycloak-is-the-authority">Authentication: Cloudflare is transport, Keycloak is the authority</a></h2>
+<p>A bare Cloudflare Tunnel does not participate in authentication at all — it’s a pipe. A public app using Keycloak OIDC still redirects the browser straight to <code>keycloak.&lt;domain&gt;/realms/homelab/...</code> exactly like it does on the LAN today; Cloudflare never inspects or gates that flow.</p>
+<p><strong>Cloudflare Access (Zero Trust) is explicitly not used.</strong> It’s a separate product that <em>could</em> insert a Cloudflare-hosted login page in front of a hostname before forwarding through the tunnel — useful as a second gate in front of something sensitive. It’s deliberately skipped here: the user has VPN on every device, so there’s no real remote-access need it would solve, and it would just be an extra moving part with its own login flow to maintain. This mirrors the “Upstream identity federation (deferred)” call-out in <a href="#9-single-sign-on-keycloak">SSO</a> — a considered rejection, not an oversight, so a future session doesn’t “helpfully” add it back without re-litigating why.</p>
+<h2 id="keycloak-admin-internalvpn-only-permanently"><a class="header" href="#keycloak-admin-internalvpn-only-permanently">Keycloak admin: internal/VPN-only, permanently</a></h2>
+<p>This is a hard design constraint, not a default that happens to be true today: <strong><code>keycloak.&lt;domain&gt;</code> never gets a wildcard route through the tunnel.</strong> The admin console (<code>/admin/*</code>) must never become reachable from the public internet — internal LAN and VPN access, which already reaches it today, is sufficient and is the only access path that should ever exist for it.</p>
+<p>The <em>first</em> time a real public app needs Keycloak login, the only thing that changes is one narrowly-scoped tunnel route added for exactly <code>/realms/homelab/*</code> on that hostname — nothing else. This is an <strong>allowlist, not a denylist</strong>: rather than trying to enumerate every sensitive path to block (<code>/admin</code>, and whatever else might exist or get added later), only the one path public OIDC flows actually need is ever forwarded, and everything else on that hostname is unreachable through the tunnel by construction. See the runbook below for the exact <code>cloudflare_zero_trust_tunnel_cloudflared_config</code> shape.</p>
+<h2 id="-required-manual-step-when-this-is-actually-implemented-cloudflare-token-scope"><a class="header" href="#-required-manual-step-when-this-is-actually-implemented-cloudflare-token-scope">⚠️ Required manual step (when this is actually implemented): Cloudflare token scope</a></h2>
+<p>The existing Cloudflare API token (<code>tofu/secrets.enc.yaml</code>’s <code>cloudflare_api_token</code>, today used only by cert-manager for DNS-01) is scoped to Zone DNS Edit only. Managing the Tunnel object itself via Tofu needs <strong>Account: Cloudflare Tunnel Edit</strong> added to that token’s permissions (or a second, separately-scoped token) — a real permission increase on the one credential in this repo with blast radius outside the homelab.</p>
+<p>Per <code>CLAUDE.md</code>’s standing Cloudflare guardrail, this is an ask-first change: propose and confirm with the user before widening the token’s scope, the same as any other new Cloudflare-related Tofu resource. Not needed today — only at the point this doc is actually executed against.</p>
+<h2 id="where-things-live-for-whoever-implements-this"><a class="header" href="#where-things-live-for-whoever-implements-this">Where things live (for whoever implements this)</a></h2>
+<p>All in the <strong><code>core-addons</code></strong> unit, alongside ingress-nginx/cert-manager — the existing home for ingress-adjacent add-ons:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Concern</th><th>Resource</th></tr>
+</thead>
+<tbody>
+<tr><td>The Tunnel object <code>cloudflared</code> authenticates as</td><td><code>cloudflare_zero_trust_tunnel_cloudflared</code></td></tr>
+<tr><td>Public hostname → internal Service routing rules</td><td><code>cloudflare_zero_trust_tunnel_cloudflared_config</code> (remote-managed mode — <code>cloudflared</code> runs with just <code>--token</code>, no mounted config file to keep in sync)</td></tr>
+<tr><td>Public DNS record per app (<code>&lt;hostname&gt; → &lt;tunnel-id&gt;.cfargotunnel.com</code>)</td><td><code>cloudflare_dns_record</code> (provider v5 name — v4’s <code>cloudflare_record</code> is deprecated). Uses the <em>existing</em> DNS-Zone-Edit token scope, no new permission needed for this piece specifically.</td></tr>
+<tr><td>The <code>cloudflared</code> pod itself</td><td>Hand-rolled <code>kubernetes_deployment</code>, not a chart — Cloudflare doesn’t publish an official one, and this repo already avoids third-party charts for pinned-version risk (see Postgres in <code>keycloak-infra</code>, MinIO in <code>backup</code>)</td></tr>
+<tr><td>NetworkPolicy</td><td>Reuse the existing <code>allow_internet_egress</code> pattern (port 443 to <code>0.0.0.0/0</code>, already used by cert-manager/ArgoCD in <code>core-addons/main.tf</code>) plus DNS egress. No <code>hostNetwork</code>/<code>hostPID</code>/<code>hostPath</code> need, so <code>restricted</code> PSA should be achievable — unlike the <code>privileged</code> node-level DaemonSets elsewhere in this cluster.</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>The app list is an <code>env.hcl</code> object-typed variable</strong> (e.g. <code>public_apps</code>), mirroring the existing <code>chart_versions</code>/<code>nfs_storage</code> pattern this repo already uses for environment-specific config. Onboarding a public app means adding one entry and running <code>terragrunt apply</code> — not a Cloudflare dashboard click, and not a GitOps manifest edit. GitOps was considered (matching the precedent set by the MetalLB <code>IPAddressPool</code>/cert-manager <code>ClusterIssuer</code>s, which moved off Tofu) and rejected: those moved to GitOps specifically to dodge a CRD-creation-ordering problem between Tofu/Helm and the Kubernetes API — Cloudflare-side resources aren’t Kubernetes CRs at all, so that problem doesn’t exist here, and a plain Tofu variable keeps everything in one auditable <code>apply</code> instead of splitting the concern across two systems for no benefit.</p>
+<h2 id="the-onboarding-runbook"><a class="header" href="#the-onboarding-runbook">The onboarding runbook</a></h2>
+<p>Once the infrastructure above exists, exposing a new app publicly is:</p>
+<ol>
+<li><strong>Confirm prerequisites</strong>: the app already works internally — a real Ingress, a cert-manager-issued cert, and NetworkPolicies scoped for it (see <a href="#13-networkpolicies-and-pod-security-admission">NetworkPolicies and Pod Security Admission</a>).</li>
+<li><strong>Add one entry</strong> to <code>env.hcl</code>’s <code>public_apps</code> variable: the public hostname and the internal Service/port it should route to.</li>
+<li><strong>If this is the first public app that needs Keycloak login</strong>: add the one <code>/realms/homelab/*</code>-only route for <code>keycloak.&lt;domain&gt;</code> alongside it (see “Keycloak admin” above) — otherwise skip this step entirely.</li>
+<li><code>terragrunt apply</code> in <code>core-addons</code>.</li>
+<li><strong>Verify from outside the LAN/VPN</strong> (mobile data, not a laptop still on Wi-Fi): the app’s hostname loads end-to-end, and — if step 3 applied — <code>keycloak.&lt;domain&gt;/admin</code> and anything else not explicitly allowlisted does <em>not</em> resolve through the tunnel. Internal/VPN access to everything, including Keycloak’s admin console, should be completely unaffected throughout.</li>
+<li><strong>Work through #33’s remaining per-app checklist items</strong> — stricter NetworkPolicies for that specific app, DMZ-style segmentation, image scanning, a patching cadence. This doc covers the ingress path only; #33 has the rest.</li>
+</ol>
 
                     </main>
 

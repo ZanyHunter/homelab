@@ -1,6 +1,6 @@
 # 15. Public Ingress via Cloudflare Tunnel
 
-Nothing in this cluster is public-facing today — everything lives behind ingress-nginx's LoadBalancer IP, reachable only on the LAN (or over VPN). This page is a **design doc and reusable runbook**, not something already deployed: it's the plan to execute against the first time a real app needs to flip from internal-only to public, split out of the [public exposure readiness checklist](https://github.com/ZanyHunter/homelab/issues/33) (#33). Nothing here should be implemented speculatively — build it when there's a real app to route to, not before.
+This is live — [Immich](./15-immich.md) (`photos.dev.thepugh.family`) is the first real app exposed publicly through it, split out of the [public exposure readiness checklist](https://github.com/ZanyHunter/homelab/issues/33) (#33). This page doubles as the reusable runbook for onboarding the *next* public app: everything below describes the actual deployed shape, not a plan waiting to be executed.
 
 ---
 
@@ -39,13 +39,13 @@ This is a hard design constraint, not a default that happens to be true today: *
 
 The *first* time a real public app needs Keycloak login, the only thing that changes is one narrowly-scoped tunnel route added for exactly `/realms/homelab/*` on that hostname — nothing else. This is an **allowlist, not a denylist**: rather than trying to enumerate every sensitive path to block (`/admin`, and whatever else might exist or get added later), only the one path public OIDC flows actually need is ever forwarded, and everything else on that hostname is unreachable through the tunnel by construction. See the runbook below for the exact `cloudflare_zero_trust_tunnel_cloudflared_config` shape.
 
-## ⚠️ Required manual step (when this is actually implemented): Cloudflare token scope
+## Manual step already done: Cloudflare token scope
 
-The existing Cloudflare API token (`tofu/secrets.enc.yaml`'s `cloudflare_api_token`, today used only by cert-manager for DNS-01) is scoped to Zone DNS Edit only. Managing the Tunnel object itself via Tofu needs **Account: Cloudflare Tunnel Edit** added to that token's permissions (or a second, separately-scoped token) — a real permission increase on the one credential in this repo with blast radius outside the homelab.
+The existing Cloudflare API token (`tofu/secrets.enc.yaml`'s `cloudflare_api_token`, also used by cert-manager for DNS-01) needed **Account: Cloudflare Tunnel Edit** added to its permissions (on top of its existing Zone DNS Edit scope) before the Tunnel object could be Tofu-managed — a real permission increase on the one credential in this repo with blast radius outside the homelab, done with the user's explicit sign-off per `CLAUDE.md`'s standing Cloudflare guardrail. The token's value itself never changed, only its scope — no `secrets.enc.yaml` update was needed for this step.
 
-Per `CLAUDE.md`'s standing Cloudflare guardrail, this is an ask-first change: propose and confirm with the user before widening the token's scope, the same as any other new Cloudflare-related Tofu resource. Not needed today — only at the point this doc is actually executed against.
+If this is ever redone from scratch (a new Cloudflare account, a lost token), the same manual step applies: widen an API token's permissions to include Account: Cloudflare Tunnel Edit before `core-addons` can apply.
 
-## Where things live (for whoever implements this)
+## Where things live
 
 All in the **`core-addons`** unit, alongside ingress-nginx/cert-manager — the existing home for ingress-adjacent add-ons:
 
@@ -57,15 +57,15 @@ All in the **`core-addons`** unit, alongside ingress-nginx/cert-manager — the 
 | The `cloudflared` pod itself | Hand-rolled `kubernetes_deployment`, not a chart — Cloudflare doesn't publish an official one, and this repo already avoids third-party charts for pinned-version risk (see Postgres in `keycloak-infra`, MinIO in `backup`) |
 | NetworkPolicy | Reuse the existing `allow_internet_egress` pattern (port 443 to `0.0.0.0/0`, already used by cert-manager/ArgoCD in `core-addons/main.tf`) plus DNS egress. No `hostNetwork`/`hostPID`/`hostPath` need, so `restricted` PSA should be achievable — unlike the `privileged` node-level DaemonSets elsewhere in this cluster. |
 
-**The app list is an `env.hcl` object-typed variable** (e.g. `public_apps`), mirroring the existing `chart_versions`/`nfs_storage` pattern this repo already uses for environment-specific config. Onboarding a public app means adding one entry and running `terragrunt apply` — not a Cloudflare dashboard click, and not a GitOps manifest edit. GitOps was considered (matching the precedent set by the MetalLB `IPAddressPool`/cert-manager `ClusterIssuer`s, which moved off Tofu) and rejected: those moved to GitOps specifically to dodge a CRD-creation-ordering problem between Tofu/Helm and the Kubernetes API — Cloudflare-side resources aren't Kubernetes CRs at all, so that problem doesn't exist here, and a plain Tofu variable keeps everything in one auditable `apply` instead of splitting the concern across two systems for no benefit.
+**The app list is an `env.hcl` object-typed variable** (`public_apps`), mirroring the existing `chart_versions`/`nfs_storage` pattern this repo already uses for environment-specific config. Onboarding a public app means adding one entry and running `terragrunt apply` — not a Cloudflare dashboard click, and not a GitOps manifest edit. GitOps was considered (matching the precedent set by the MetalLB `IPAddressPool`/cert-manager `ClusterIssuer`s, which moved off Tofu) and rejected: those moved to GitOps specifically to dodge a CRD-creation-ordering problem between Tofu/Helm and the Kubernetes API — Cloudflare-side resources aren't Kubernetes CRs at all, so that problem doesn't exist here, and a plain Tofu variable keeps everything in one auditable `apply` instead of splitting the concern across two systems for no benefit.
 
 ## The onboarding runbook
 
-Once the infrastructure above exists, exposing a new app publicly is:
+Immich (`photos`) was the first app through this — its `env.hcl` entry and the Keycloak realm route are the worked example. Exposing the *next* app publicly is:
 
 1. **Confirm prerequisites**: the app already works internally — a real Ingress, a cert-manager-issued cert, and NetworkPolicies scoped for it (see [NetworkPolicies and Pod Security Admission](./12-network-policies.md)).
-2. **Add one entry** to `env.hcl`'s `public_apps` variable: the public hostname and the internal Service/port it should route to.
-3. **If this is the first public app that needs Keycloak login**: add the one `/realms/homelab/*`-only route for `keycloak.<domain>` alongside it (see "Keycloak admin" above) — otherwise skip this step entirely.
+2. **Add one entry** to `env.hcl`'s `public_apps` variable: the public hostname (matching `{ hostname = "photos" }`'s shape).
+3. **If this is the first public app that needs Keycloak login** (it already isn't, since Immich already added it): add the one `/realms/homelab/*`-only route for `keycloak.<domain>` alongside it (see "Keycloak admin" above) — otherwise skip this step entirely.
 4. `terragrunt apply` in `core-addons`.
-5. **Verify from outside the LAN/VPN** (mobile data, not a laptop still on Wi-Fi): the app's hostname loads end-to-end, and — if step 3 applied — `keycloak.<domain>/admin` and anything else not explicitly allowlisted does *not* resolve through the tunnel. Internal/VPN access to everything, including Keycloak's admin console, should be completely unaffected throughout.
+5. **Verify from outside the LAN/VPN** (mobile data, not a laptop still on Wi-Fi): the app's hostname loads end-to-end, and `keycloak.<domain>/admin` and anything else not explicitly allowlisted does *not* resolve through the tunnel. Internal/VPN access to everything, including Keycloak's admin console, should be completely unaffected throughout.
 6. **Work through #33's remaining per-app checklist items** — stricter NetworkPolicies for that specific app, DMZ-style segmentation, image scanning, a patching cadence. This doc covers the ingress path only; #33 has the rest.

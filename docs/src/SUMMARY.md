@@ -19,4 +19,5 @@
 - [13. NetworkPolicies and Pod Security Admission](./bootstrap-environment/12-network-policies.md)
 - [14. Ceph-Backed Storage for Databases](./bootstrap-environment/13-ceph-storage.md)
 - [15. Public Ingress via Cloudflare Tunnel](./bootstrap-environment/14-public-ingress.md)
+- [16. Immich](./bootstrap-environment/15-immich.md)
 

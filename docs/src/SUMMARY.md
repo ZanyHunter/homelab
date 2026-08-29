@@ -17,4 +17,5 @@
 - [11. Terragrunt Units and Multi-Environment Layout](./bootstrap-environment/10-terragrunt-units.md)
 - [12. Observability](./bootstrap-environment/11-observability.md)
 - [13. NetworkPolicies and Pod Security Admission](./bootstrap-environment/12-network-policies.md)
+- [14. Ceph-Backed Storage for Databases](./bootstrap-environment/13-ceph-storage.md)
 

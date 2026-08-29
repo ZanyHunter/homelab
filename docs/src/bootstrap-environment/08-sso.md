@@ -6,7 +6,7 @@
 
 ## What's deployed
 
-**Postgres**: a hand-rolled single-instance `StatefulSet` (not a chart — see the comment at the top of `tofu/modules/keycloak-infra/main.tf` for why), on the same NFS-backed `StorageClass` as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed `StorageClass` ever exists (#28).
+**Postgres**: a hand-rolled single-instance `StatefulSet` (not a chart — see the comment at the top of `tofu/modules/keycloak-infra/main.tf` for why), on the Ceph-backed `StorageClass` (real block storage, migrated off NFS — see `docs/src/bootstrap-environment/13-ceph-storage.md`, #28) rather than the NFS-backed one everything else here uses, since Postgres's fsync/locking semantics are exactly the case that StorageClass exists for.
 
 **Keycloak**: the [codecentric/keycloakx](https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx) chart. Chosen over Bitnami's chart for the same pinned-version reason as MinIO (see `tofu/modules/backup/main.tf`). Reachable at:
 

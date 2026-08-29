@@ -1,0 +1,129 @@
+# Forward-auth for changedetection.io, which has no native OIDC support —
+# hand-rolled plain manifests rather than the Helm chart sso-demo uses
+# (tofu/modules/keycloak-realm/main.tf's helm_release.oauth2_proxy), to
+# match every other app under apps/ being plain Kustomize resources. Image
+# tag v7.15.3 matches that chart's own pinned version (10.7.0)'s appVersion,
+# for consistency with the reference deployment.
+#
+# --upstream=static://202: oauth2-proxy here only ever answers its own
+# /oauth2/* paths (start, callback, auth) — ingress-nginx's auth-url
+# subrequest only cares about the 202 status code from /oauth2/auth, not a
+# proxied response body, so there's no real upstream to point at (same
+# static://202 pattern the oauth2-proxy chart defaults to).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: changedetection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      # See apps/actual/actual.yaml's comment — defensive across every app
+      # here, not just the one that actually collided (Actual's ACTUAL_PORT).
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3
+          args:
+            - --provider=oidc
+            - --oidc-issuer-url=https://__KEYCLOAK_HOSTNAME__/realms/homelab
+            - --redirect-url=https://__APP_HOSTNAME__/oauth2/callback
+            - --email-domain=*
+            - --cookie-secure=true
+            - --scope=openid email profile
+            - --set-xauthrequest=true
+            - --upstream=static://202
+            - --http-address=0.0.0.0:4180
+          ports:
+            - containerPort: 4180
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: changedetection-oauth2-proxy-credentials
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: changedetection-oauth2-proxy-credentials
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: changedetection-oauth2-proxy-credentials
+                  key: cookie-secret
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: changedetection
+spec:
+  selector:
+    app: oauth2-proxy
+  ports:
+    - port: 80
+      targetPort: 4180
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy
+  namespace: changedetection
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # oauth2-proxy's session cookie bundles Keycloak's access/ID/refresh
+    # tokens, which routinely exceeds ingress-nginx's default proxy buffer
+    # size — found live on sso-demo as a real "upstream sent too big
+    # header" 502 on /oauth2/callback, not a transient issue.
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: changedetection-tls

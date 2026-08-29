@@ -1,0 +1,112 @@
+# Immich's database needs the VectorChord extension (successor to
+# pgvecto.rs) for its ML/search features — a purpose-built image
+# (tensorchord/vchord-postgres) rather than a DIY extension install onto
+# vanilla postgres, same reasoning as Keycloak's hand-rolled Postgres
+# (avoids the pinning risk of a full chart/operator like CloudNativePG for
+# one single-instance database). Debian-based (postgres:18-bookworm), so
+# uid 999 — NOT Keycloak's Alpine-based uid 70. See
+# docs/src/bootstrap-environment/15-immich.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: immich-postgres-init
+  namespace: immich
+data:
+  init.sql: |
+    CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+    CREATE EXTENSION IF NOT EXISTS earthdistance CASCADE;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-postgres
+  namespace: immich
+spec:
+  selector:
+    app: immich-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: immich-postgres
+  namespace: immich
+spec:
+  serviceName: immich-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immich-postgres
+  template:
+    metadata:
+      labels:
+        app: immich-postgres
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # actual database contents, not just the StatefulSet's own object
+        # definition. See docs/src/bootstrap-environment/07-backup-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: ghcr.io/tensorchord/vchord-postgres:pg18-v1.1.1
+          ports:
+            - containerPort: 5432
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: POSTGRES_DB
+              value: immich
+            - name: POSTGRES_USER
+              value: immich
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db-credentials
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "immich"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "immich"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+      volumes:
+        - name: init
+          configMap:
+            name: immich-postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: __STORAGE_CLASS_CEPH__
+        resources:
+          requests:
+            storage: 10Gi

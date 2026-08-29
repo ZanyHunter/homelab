@@ -422,10 +422,18 @@ resource "kubernetes_secret" "sops_age_key" {
   type = "Opaque"
 }
 
-# App-of-apps: one Application per direct subdirectory of apps/, discovered
-# automatically via the git directory generator — adding a new app just
-# means adding a new directory under apps/ and pushing, no Tofu change and
-# no manual `kubectl apply`/`argocd app create` needed.
+# App-of-apps: one Application per apps/<app>/overlays/<cluster_name>
+# directory, discovered automatically via the git directory generator — so
+# adding a new app just means adding apps/<app>/base/ plus an
+# overlays/<env>/ per existing environment and pushing, no Tofu change and
+# no manual `kubectl apply`/`argocd app create` needed. The generator
+# matches only *this* environment's overlay (apps/*/overlays/${var.cluster_name}),
+# since dev/prod are entirely separate clusters/ArgoCD installs — each only
+# ever syncs its own overlay, never the other's. path[1] (not
+# path.basename, which would resolve to "dev"/"prod" here) picks out the
+# app-name path segment regardless of overlay depth — see
+# docs/src/bootstrap-environment/06-gitops.md for the base/overlays
+# structure and the checklist for adding a new app or a new environment.
 resource "helm_release" "argocd_apps" {
   name       = "argocd-apps"
   repository = "https://argoproj.github.io/argo-helm"
@@ -454,14 +462,14 @@ resource "helm_release" "argocd_apps" {
                 repoURL  = var.gitops.repo_url
                 revision = var.gitops.revision
                 directories = [
-                  { path = "apps/*" }
+                  { path = "apps/*/overlays/${var.cluster_name}" }
                 ]
               }
             }
           ]
           template = {
             metadata = {
-              name = "{{path.basename}}"
+              name = "{{path[1]}}"
             }
             spec = {
               project = "default"
@@ -472,7 +480,7 @@ resource "helm_release" "argocd_apps" {
               }
               destination = {
                 server    = "https://kubernetes.default.svc"
-                namespace = "{{path.basename}}"
+                namespace = "{{path[1]}}"
               }
               syncPolicy = {
                 automated = {

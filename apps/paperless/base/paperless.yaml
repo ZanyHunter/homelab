@@ -1,0 +1,206 @@
+# Paperless-ngx — https://docs.paperless-ngx.com/. One image serves
+# webserver + consumer + scheduler roles (no separate "consumer" container
+# needed as of v3). Native OIDC via django-allauth's openid_connect
+# provider — see paperless-config.enc.yaml for the PAPERLESS_APPS /
+# PAPERLESS_SOCIALACCOUNT_PROVIDERS / PAPERLESS_SOCIAL_ACCOUNT_SYNC_* wiring
+# and docs/src/bootstrap-environment/16-self-hosted-apps.md for the full
+# picture, including the exact allauth callback URL this depends on.
+#
+# The default container starts as root and chowns volumes to an internal
+# uid/gid 1000 "paperless" user before dropping privilege — official
+# "rootless mode" (docs: https://docs.paperless-ngx.com/setup/#advanced_compose)
+# starts directly as that uid instead, which is what runAsUser: 1000 below
+# engages. Rootless mode is incompatible with PAPERLESS_OCR_LANGUAGES
+# (extra language installs need root at startup) — not set here, so this is
+# safe; revisit if a non-English OCR language is ever needed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless
+  namespace: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paperless
+  template:
+    metadata:
+      labels:
+        app: paperless
+    spec:
+      # See apps/actual/actual.yaml's comment — defensive here in
+      # particular: this namespace's "paperless" Service would inject a
+      # PAPERLESS_PORT var of its own, the same literal name paperless-ngx
+      # itself reads for its internal listen port.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: paperless
+          image: ghcr.io/paperless-ngx/paperless-ngx:3.1.0
+          ports:
+            - containerPort: 8000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: PAPERLESS_URL
+              value: https://__APP_HOSTNAME__
+            - name: PAPERLESS_DBENGINE
+              value: postgresql
+            - name: PAPERLESS_DBHOST
+              value: paperless-postgres
+            - name: PAPERLESS_DBPORT
+              value: "5432"
+            - name: PAPERLESS_DBNAME
+              value: paperless
+            - name: PAPERLESS_DBUSER
+              value: paperless
+            - name: PAPERLESS_DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-db-credentials
+                  key: password
+            - name: PAPERLESS_REDIS
+              value: redis://paperless-redis:6379
+            - name: PAPERLESS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-config
+                  key: secret-key
+            - name: PAPERLESS_APPS
+              value: allauth.socialaccount.providers.openid_connect
+            - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-config
+                  key: socialaccount-providers
+            - name: PAPERLESS_SOCIAL_AUTO_SIGNUP
+              value: "true"
+            - name: PAPERLESS_REDIRECT_LOGIN_TO_SSO
+              value: "true"
+            # Blocks the frontend password login form AND rejects any
+            # password-based login attempt server-side (adapter.py's
+            # pre_authenticate unconditionally raises) — so the bootstrap
+            # admin below can never actually be used to log in, regardless
+            # of DISABLE_REGULAR_LOGIN's own scope.
+            - name: PAPERLESS_DISABLE_REGULAR_LOGIN
+              value: "true"
+            # A real gotcha found live: paperless-ngx's own FIRST_INSTALL
+            # check (zero User rows + zero Documents) drives an
+            # unconditional client-side redirect straight to
+            # /accounts/signup/ on a fresh install — independent of
+            # DISABLE_REGULAR_LOGIN, which only gates the login form/POST,
+            # not this signup bypass or is_open_for_signup(). Confirmed
+            # against the actual source (context_processors.py's
+            # FIRST_INSTALL, adapter.py's is_open_for_signup) — on a
+            # genuinely empty DB, the very first visitor (not necessarily
+            # the first real Keycloak login) could create a local account
+            # and be auto-granted Django superuser. PAPERLESS_ADMIN_USER/
+            # PASSWORD (consumed by manage_superuser at container start)
+            # creates one throwaway local superuser before anyone ever
+            # visits, permanently closing that window — it coexists safely
+            # with PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP below
+            # (group sync only ever touches the specific user tied to a
+            # social login, never this unrelated local row) and can never
+            # itself be used to log in, since DISABLE_REGULAR_LOGIN rejects
+            # password auth unconditionally. See
+            # docs/src/bootstrap-environment/16-self-hosted-apps.md.
+            - name: PAPERLESS_ADMIN_USER
+              value: bootstrap-admin
+            - name: PAPERLESS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-config
+                  key: admin-password
+            # platform-admins -> Django superuser, matched against the
+            # "groups" claim requested via SCOPE in
+            # PAPERLESS_SOCIALACCOUNT_PROVIDERS below — re-evaluated on
+            # every login (unlike Immich v3.0.0's account-creation-only
+            # behavior), so removing someone from platform-admins correctly
+            # demotes them here too.
+            - name: PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS
+              value: "true"
+            - name: PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP
+              value: platform-admins
+          volumeMounts:
+            - name: media
+              mountPath: /usr/src/paperless/data
+              subPath: data
+            - name: media
+              mountPath: /usr/src/paperless/media
+              subPath: media
+            - name: media
+              mountPath: /usr/src/paperless/consume
+              subPath: consume
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: paperless-media
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless
+  namespace: paperless
+spec:
+  selector:
+    app: paperless
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless
+  namespace: paperless
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Document uploads can exceed nginx's default 1MB body-size limit.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless
+                port:
+                  number: 8000
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: paperless-tls

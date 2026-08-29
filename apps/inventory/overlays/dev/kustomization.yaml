@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - env-values.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.app-hostname
+    targets:
+      - select:
+          kind: Ingress
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: homebox
+        fieldPaths:
+          - spec.template.spec.containers.0.env.[name=HBOX_OPTIONS_HOSTNAME].value
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.keycloak-hostname
+    targets:
+      - select:
+          kind: Deployment
+          name: homebox
+        fieldPaths:
+          - spec.template.spec.containers.0.env.[name=HBOX_OIDC_ISSUER_URL].value
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.storage-class-ceph
+    targets:
+      - select:
+          kind: PersistentVolumeClaim
+        fieldPaths:
+          - spec.storageClassName

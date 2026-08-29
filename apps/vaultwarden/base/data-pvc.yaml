@@ -1,0 +1,16 @@
+# Vaultwarden's default persistence is a single SQLite file (db.sqlite3)
+# plus attachments under /data — Ceph-backed, not NFS, for the same
+# file-locking-correctness reason as every other SQLite-on-Kubernetes app in
+# this repo (see docs/src/bootstrap-environment/13-ceph-storage.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vaultwarden-data
+  namespace: vaultwarden
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi

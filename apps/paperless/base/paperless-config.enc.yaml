@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: paperless-config
+    namespace: paperless
+stringData:
+    secret-key: ENC[AES256_GCM,data:RkWxnj1eMHJ+j91BLwgR+7fYFowb3rJS2A+F05WtuB21e040YHBMTnT6TSk8XKQ+9A1IKlLrMLXxSX/nV7Q=,iv:1GWq2HvFMyDyqtoT92GV4SQczItoyjwxg/YLPJec+CE=,tag:e7KxpA8kUATWZoaD1RUW6Q==,type:str]
+    socialaccount-providers: ENC[AES256_GCM,data:qy224ZbluhtKDnId99hDoV3l34XULMqqgJ1gCbv2LF0e+E3Up+gLn0N1ocEA8WzLnU74S0mUaSWzUfW713nw9XHRsZHgpULBLlW55VVgz5QO6gjPNTVbkjskKVakuD80f1Zq3dXFyVXPK1oTTt+GU7FT4Hx2qlw9tHB1mhnh2GFjMhScP1cHsWweZNKDg9IUo5ALYTjQ9oWr3s3SozY3sqMFaY3S9VCddCAtz1UthsTe+qhzX+/9cJjU4QDSUo7CjyWzJs0owEU0m+XsP+ZlL2rUQq0Mb8ehiGcROIzgJBrEWoyEQ/9faj7STqZyw++536ZEkDVFCiC9urUu1kZ4fNrG3cblSKxlHweqFzEwogsF8YOvGVaN,iv:TpYumoilTw47X/veJEfwYRLxKKim3vpuR39ND8uzfLQ=,tag:ta/vgsfPKpdJJkWJiytVlA==,type:str]
+    admin-password: ENC[AES256_GCM,data:AtvQN6g6wM3raIF+aJiZ1ohUAL0ALhZbS0nkBHcscg==,iv:Q3r1r+t/1di7NOA3DDmuthUaW6ZwQAa0KMyhTLqDIFQ=,tag:HD6F4DFGeH9jQ2dxIg+iQw==,type:str]
+type: Opaque
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA5TWkzaDNnWEtYUVI4THo5
+            d0lEbnVKWHZkcEhoMW5iT3RvRzhlUitCWlFzClB1UUlTUmNVK0krbU81eWwzTGFP
+            M2ptdElEZWgzSDZsTEQrTmxZNGlQb0UKLS0tIG9UVGVjb1RpditmQWMzdE5lekFz
+            RzVHRGZsQVplUXZoNXliUDR5dkhxQWcK6R3Yu/m05kdPVJeoU3A2yzIZw5N8+prT
+            3pzuwKWOwhyU+uDJnfmFr9IF65mH30vNM5DCShhYR2clPBrsY7pxcg==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
+    encrypted_regex: ^(data|stringData|email)$
+    lastmodified: "2026-08-29T20:28:33Z"
+    mac: ENC[AES256_GCM,data:f98q5K+SDWoOc9CA38V07PJM2WTt/bCoPsKY2VFTXUdUsOs5my+ZZL4r7mEiQogvT9iou2hZXIc1MaZcrPqNKGgJULEKgwb+2T/YkLV/46ojdHuw6aF2onj617UtA+aA952M/CPwlUAc+0WSzAB1DLDw1pn7oyu+O2vNjFI5GhA=,iv:KyC+PVv2KkaouHJDd70XLhAYM7/1iDpSGgFMpuhvb9E=,tag:7LfZixYT2PkDCufcz+cmSQ==,type:str]
+    version: 3.13.3

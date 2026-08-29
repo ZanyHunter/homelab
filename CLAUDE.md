@@ -14,6 +14,7 @@ The Tofu config is also meant to be **reusable across multiple cluster environme
 - **Storage**: 1 NFS NAS for service data (Immich, etc.). Not yet under IaC management — provisioned/configured manually today. Revisit if it should be brought into Tofu or get its own IaC story.
 - **Network**: Unifi-managed. The K8s cluster lives on VLAN 1601, subnet `192.168.160.0/27` (expanded from a `/28` once that filled up — see issue #3), gateway `192.168.160.1` (see the `network` unit, `tofu/modules/network/main.tf`). Every ingress hostname/OIDC redirect URI across every unit is driven by one per-environment `domain_name` value in `env.hcl` (dev: `dev.thepugh.family`; prod: the real `thepugh.family` apex — see #10). Local DNS resolution for that whole suffix is a Tofu-managed wildcard record (`unifi_dns_record.wildcard_ingress`, same `network` unit) pointed at a static `ingress_ip` (also `env.hcl`) that `core-addons` pins ingress-nginx's LoadBalancer Service to — documented in `docs/src/bootstrap-environment/04-dns-configuration.md`.
 - **Real external domain**: `thepugh.family`, managed in Cloudflare. cert-manager uses a Cloudflare API token (DNS Zone Edit scope) for ACME DNS-01 challenges — this is the one credential in this repo with blast radius outside the homelab.
+- **Docs site's real external domain**: `zanylights.com` (specifically `zanylights.com/homelab/`) — a separate, unrelated custom domain GitHub Pages serves this repo's mdBook site from (see Documentation section below). Not Cloudflare/Tofu-managed; configured directly in the repo's GitHub Pages settings.
 
 ## Kubernetes cluster
 
@@ -76,6 +77,8 @@ How the user hands off work, especially for larger refactors/features tracked ov
 ## Documentation
 
 Keep `docs/src/` in sync with infrastructure changes as part of the same change/PR — when a Tofu change alters bootstrap steps, add-ons, or operational procedure, update the relevant mdBook page(s) alongside it rather than letting docs drift.
+
+**Publishing** (`.github/workflows/docs.yml`): builds and deploys via a `gh-pages` branch (GitHub Pages source is "Deploy from a branch", not the Actions-artifact deployment type — needed so production and PR previews can coexist as separate subdirectories of the same branch without one wiping the other). A push to `main` deploys to the branch root (`peaceiris/actions-gh-pages`, `keep_files: true`); every PR gets its own live preview at `zanylights.com/homelab/pr-preview/pr-<N>/` (`rossjrw/pr-preview-action`), GitLab "View app"-style — the action posts/updates a sticky PR comment with the link and automatically removes the preview directory when the PR closes, no separate cleanup job needed.
 
 ## Known gaps / roadmap
 

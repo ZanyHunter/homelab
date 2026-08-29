@@ -53,7 +53,9 @@ kube-prometheus-stack's default scrape jobs for `kube-proxy`, `kube-scheduler`, 
 
 ### Loki's chunks-cache defaults to an 8Gi memory request
 
-Loki's `chunksCache` (an optional memcached-based query-performance cache, enabled by default) requests `allocatedMemory: 8192` — sized for a much larger deployment than any single node in this 4GB-RAM-per-node cluster has, leaving `loki-chunks-cache-0` permanently `Pending` ("Insufficient memory" on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO (`docs/src/bootstrap-environment/07-backup-restore.md`). Not worth tuning a cache size for at this log volume, so both `chunksCache` and `resultsCache` are disabled outright.
+Loki's `chunksCache` (an optional memcached-based query-performance cache, enabled by default) requests `allocatedMemory: 8192` — sized for a much larger deployment than any single worker had on the original 4GB-RAM-per-node cluster, leaving `loki-chunks-cache-0` permanently `Pending` ("Insufficient memory" on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO (`docs/src/bootstrap-environment/07-backup-restore.md`).
+
+`allocatedMemory` turned out to be an independently tunable number, not an enabled/disabled-only toggle, and workers were later resized to 16GB (see `node_resources` in `env.hcl`) — so both `chunksCache` and `resultsCache` are enabled at `allocatedMemory: 512` (512MB) rather than left off, giving real query-caching benefit at a size this log volume actually needs.
 
 ## Verifying it's actually working
 

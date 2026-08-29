@@ -345,16 +345,19 @@ resource "helm_release" "loki" {
       backend = { replicas = 0 }
 
       # Both are optional memcached-based query-performance caches, not
-      # required for Loki to function — and both default to a memory request
-      # sized for a much larger deployment (chunksCache alone requests ~8Gi)
-      # than any single node in this 6-node/4GB-RAM-per-node cluster has,
-      # which left loki-chunks-cache-0 permanently unschedulable
-      # ("Insufficient memory" on all 6 nodes) on the first real apply. Same
-      # class of oversized-chart-default problem already hit with MinIO
-      # (tofu/modules/backup/main.tf) — not worth tuning a cache size for at
-      # this log volume, so just disabled.
-      resultsCache = { enabled = false }
-      chunksCache  = { enabled = false }
+      # required for Loki to function. Both were disabled outright on the
+      # first real apply, since chunksCache's chart default
+      # (allocatedMemory: 8192, ~8Gi) left loki-chunks-cache-0 permanently
+      # unschedulable on the 4GB-RAM-per-worker nodes this cluster had at the
+      # time — same class of oversized-chart-default problem already hit
+      # with MinIO (tofu/modules/backup/main.tf). That default is sized for
+      # a much larger deployment than this homelab's actual log volume
+      # needs, though — allocatedMemory is an independently tunable number,
+      # not an enabled/disabled-only toggle, and workers are now sized with
+      # real headroom (see node_resources in env.hcl), so both are re-enabled
+      # here at a much smaller explicit size instead of left off.
+      resultsCache = { enabled = true, allocatedMemory = 512 }
+      chunksCache  = { enabled = true, allocatedMemory = 512 }
 
       loki = {
         auth_enabled = false # single-tenant homelab use, not multi-tenant SaaS

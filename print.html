@@ -1,0 +1,659 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>ZanyHunter&#x27;s Homelab</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Infrastructure-as-Code documentation for ZanyHunter&#x27;s homelab">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-6b072187.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-ab7d3f73.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">ZanyHunter&#x27;s Homelab</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="introduction"><a href="#introduction" class="header">Introduction</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h1>
+<p>Prior to embarking on this journey, ensure you have the following infrastructure:</p>
+<ul>
+<li>Unifi-based network infrastructure exists, with the Network application running</li>
+<li>Proxmox infrastructure exists
+<ul>
+<li>Ideally, this cluster has a minimum of three physical nodes and uses Ceph to follow HCI principles.</li>
+<li>Networking is configured to allow VLAN trunking</li>
+</ul>
+</li>
+<li>NFS backend exists
+<ul>
+<li>For bulk storage of application data (e.g. Immich media, Plex media, etc.)</li>
+</ul>
+</li>
+</ul>
+<p>On your local bootstrap machine, ensure you have the following:</p>
+<ul>
+<li>Ubuntu</li>
+<li>OpenTofu</li>
+<li>Terragrunt</li>
+<li>This repo cloned</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="2-prepare-infrastructure"><a class="header" href="#2-prepare-infrastructure">2. Prepare Infrastructure</a></h1>
+<ol>
+<li>Create role and user in Proxmox for Tofu:
+<pre><code>pveum role add TerraformProv -privs "Datastore.Allocate Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit Pool.Allocate Sys.Audit Sys.Console Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options VM.GuestAgent.Audit VM.GuestAgent.Unrestricted VM.Migrate VM.PowerMgmt SDN.Use"
+pveum user add terraform-prov@pve --password &lt;password&gt;
+pveum aclmod / -user terraform-prov@pve -role TerraformProv
+</code></pre>
+</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="3-deploy-kubernetes-cluster"><a class="header" href="#3-deploy-kubernetes-cluster">3. Deploy Kubernetes Cluster</a></h1>
+<p>Now that the infrastructure is prepared, deploy the cluster.</p>
+<ol>
+<li>Make sure the SMB share holding remote state is mounted at <code>tofu/state/</code> — see <a href="#10-remote-tofu-state">Remote Tofu State</a>. <code>mkdir -p tofu/state</code> first on a fresh clone.</li>
+<li><code>cd tofu/live/dev</code> (or <code>tofu/live/&lt;environment&gt;</code> for another environment — see <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt Units</a>)</li>
+<li>Modify <code>env.hcl</code> if necessary</li>
+<li>Run:
+<pre><code class="language-bash">terragrunt run --all --non-interactive -- apply -auto-approve
+</code></pre>
+</li>
+</ol>
+<p>A from-scratch stand-up is one command — no manual <code>-target</code> steps, no multi-phase bootstrap. See <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt Units</a> for why, and for the shape of what this actually runs (six independently-applied units in dependency order).</p>
+<h2 id="concepts"><a class="header" href="#concepts">Concepts</a></h2>
+<p>Across the six units, this Tofu configuration:</p>
+<ol>
+<li>Creates a network for the Kubernetes cluster to reside</li>
+<li>Downloads the appropriate Talos ISO onto each physical node where Kubernetes will be hosted</li>
+<li>Provisions the Talos VMs and bootstraps the cluster</li>
+<li>Installs the core cluster add-ons (MetalLB, ingress-nginx, cert-manager, ArgoCD, NFS storage)</li>
+<li>Deploys backup (Velero/MinIO) and SSO (Keycloak)</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="4-connect-to-the-cluster"><a class="header" href="#4-connect-to-the-cluster">4. Connect to the cluster</a></h1>
+<p>Run these commands from <code>tofu/live/dev/talos-cluster/</code> (or <code>tofu/live/&lt;env&gt;/talos-cluster/</code> for another environment) to download Talos and Kubernetes configuration files to the default locations:</p>
+<pre><code class="language-bash">terragrunt output -raw talosctl_config &gt; ~/.talos/config
+terragrunt output -raw kube_config &gt; ~/.kube/config
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="5-dns-configuration"><a class="header" href="#5-dns-configuration">5. DNS Configuration</a></h1>
+<p>Every ingress hostname in this repo (ArgoCD, Keycloak, Grafana, sso-demo, and any future <code>apps/&lt;app&gt;/</code> addition) lives under one <strong>domain suffix</strong> for the environment — <code>dev.thepugh.family</code> for <code>dev</code>, the real <code>thepugh.family</code> apex for <code>prod</code> (see <code>env.hcl</code>’s <code>domain_name</code>). Local DNS resolution for that whole suffix is a single <strong>Tofu-managed wildcard record</strong> in the Unifi controller (<code>unifi_dns_record.wildcard_ingress</code>, <code>tofu/modules/network/main.tf</code>), created automatically as part of a from-scratch stand-up — no manual step, and no per-hostname records to maintain as new apps land under <code>apps/</code>.</p>
+<hr>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h2>
+<ul>
+<li><code>env.hcl</code>’s <code>domain_name</code> drives every ingress hostname/OIDC redirect URI across every unit (<code>core-addons</code>, <code>keycloak-infra</code>, <code>keycloak-realm</code>, <code>observability</code>) — see <code>tofu/modules/network/variables.tf</code>’s <code>domain_name</code> description for the full picture.</li>
+<li><code>env.hcl</code>’s <code>ingress_ip</code> is a <strong>static</strong> IP (not MetalLB’s dynamically-assigned one) that both the wildcard DNS record and ingress-nginx’s own Service (pinned via the <code>metallb.universe.tf/loadBalancerIPs</code> annotation, <code>core-addons</code>) point at. Static specifically so the <code>network</code> unit’s DNS record doesn’t need a live Tofu dependency on <code>core-addons</code>, which applies after it in the DAG — see the design note in <code>tofu/modules/network/variables.tf</code>’s <code>ingress_ip</code> description.</li>
+<li>The Unifi provider (<code>ubiquiti-community/unifi</code>, pinned in <code>tofu/modules/network/terraform.tf</code>) manages this via its <code>unifi_dns_record</code> resource — the same feature the UniFi Network Application’s own UI calls <strong>Local DNS Records</strong> (Settings → Routing → DNS), just Tofu-managed instead of clicked through by hand.</li>
+</ul>
+<h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
+<pre><code class="language-bash">dig +short 'argocd.dev.thepugh.family' @&lt;unifi-gateway-ip&gt;
+</code></pre>
+<p>Should return the pinned <code>ingress_ip</code> value. Any new service deployed under <code>apps/&lt;app&gt;/</code> resolves automatically under the same wildcard — no DNS step needed, ever, matching the app-of-apps “just add a directory, push” model.</p>
+<h2 id="a-real-hostname-migration"><a class="header" href="#a-real-hostname-migration">A real hostname migration</a></h2>
+<p>This mechanism replaced an older manual wildcard record scoped to <code>k8s.thepugh.family</code> (retired as part of #10 — every hostname moved to the environment’s real <code>domain_name</code> instead, and the old record was imported into Tofu state and destroyed cleanly rather than left as an unmanaged leftover). Two real things worth knowing if this ever needs redoing on a <code>domain_name</code> change:</p>
+<ul>
+<li><strong>cert-manager needs a minute to catch up.</strong> Every Ingress with a <code>cert-manager.io/cluster-issuer</code> annotation gets a <em>new</em> Certificate request the moment its hostname changes (DNS-01 via Cloudflare, same <code>letsencrypt-prod</code>/<code>letsencrypt-staging</code> issuers, no cert-manager config change needed — DNS-01 doesn’t care about subdomain depth within the zone). <code>kubectl get certificate -A</code> / <code>kubectl wait --for=condition=Ready certificate/&lt;name&gt; -n &lt;ns&gt;</code> before trying to actually log into anything on the new hostname, or <code>tofu</code>/<code>curl</code> calls against it will fail TLS verification against the <em>old</em> cert briefly.</li>
+<li><strong>DNS changes on the Unifi controller aren’t instant.</strong> A <code>tofu apply</code> that creates/deletes a <code>unifi_dns_record</code> completes immediately from Tofu’s point of view, but the controller can take ~10–20s to actually start answering the new/removed record — a <code>dig</code> run immediately after <code>apply</code> can show a stale answer that resolves correctly moments later.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="6-nfs-storage-access"><a class="header" href="#6-nfs-storage-access">6. NFS Storage Access</a></h1>
+<p>The Kubernetes cluster’s persistent storage (Immich, Paperless-ngx, and other stateful workloads planned for the future) is backed by the homelab’s NFS NAS (TrueNAS), reached over the network rather than managed by Tofu — see the “Known gaps” section of <code>CLAUDE.md</code> for why the NAS itself isn’t under IaC management yet.</p>
+<p>This page documents how the k8s VLAN reaches the NAS and how the NFS export backing Kubernetes storage is configured, since neither is visible from the Tofu config alone.</p>
+<hr>
+<h2 id="network-path"><a class="header" href="#network-path">Network path</a></h2>
+<p>The NAS lives on VLAN 1 (<code>192.168.0.11</code>), while the k8s cluster lives on VLAN 1601 (<code>192.168.160.0/27</code>). No additional Unifi firewall/routing rule was needed — inter-VLAN reachability to the NAS on the NFS port (2049) already worked when tested from a pod on the cluster.</p>
+<p>The NAS is also reachable via <code>truenas.thepugh.family</code> — prefer the hostname over the raw IP in any k8s-side configuration (StorageClass, PV definitions, etc.), since the NAS may move to a different VLAN/IP in the future and the hostname would keep working without a k8s-side config change.</p>
+<h2 id="nfs-export"><a class="header" href="#nfs-export">NFS export</a></h2>
+<p>A dedicated NFS export exists for Kubernetes, separate from the NAS’s other exports (which serve the existing Docker Compose Immich instance and Proxmox itself, and are IP-restricted to those specific hosts):</p>
+<ul>
+<li><strong>Path</strong>: <code>/mnt/Main/k8s-dev</code></li>
+<li><strong>Authorized network</strong>: <code>192.168.160.0/27</code> (the k8s VLAN, network-restricted rather than open to the whole LAN)</li>
+<li><strong>Maproot user/group</strong>: <code>root</code>/<code>wheel</code> (root squash disabled)</li>
+</ul>
+<p>Root squash is disabled specifically because a dynamic NFS provisioner (planned for the storage/CSI issue) creates a new subdirectory per PersistentVolumeClaim and needs root to do so — the network-level restriction above is what keeps this export from being broadly accessible, not root-squash.</p>
+<h3 id="nfsv4-is-required"><a class="header" href="#nfsv4-is-required">NFSv4 is required</a></h3>
+<p>TrueNAS’s NFS <em>service</em> (Services → NFS, separate from the per-share config above) must have NFSv4 enabled. Dynamic provisioning mounts a per-PVC subdirectory under this export rather than the export root, and that only works over NFSv4 — NFSv4’s unified pseudo-filesystem lets a client mount any subdirectory of an export, while NFSv3’s <code>mountd</code> protocol only accepts paths that are themselves an exact export.</p>
+<p>This was found the hard way while standing up <code>csi-driver-nfs</code> (see the storage/CSI issue): with NFSv4 disabled, unspecified version negotiation fell back to NFSv3, the export root mounted fine, but every subdirectory mount failed with <code>mount.nfs: Protocol not supported</code>. Enabling NFSv4 service-wide fixed it — no client-side <code>vers=</code> needs to be pinned once it’s on.</p>
+<hr>
+<h2 id="verification-1"><a class="header" href="#verification-1">Verification</a></h2>
+<p>From a pod running on the cluster:</p>
+<pre><code class="language-bash">showmount -e truenas.thepugh.family
+</code></pre>
+<p>Should list the export along with its authorized network:</p>
+<pre><code class="language-text">Export list for truenas.thepugh.family:
+/mnt/Main/k8s-dev 192.168.160.0/27
+etc.
+</code></pre>
+<p>A mount/write/read round-trip confirms the export is actually usable, not just visible:</p>
+<pre><code class="language-bash">mount -t nfs -o nolock truenas.thepugh.family:/mnt/Main/k8s-dev /mnt/test
+echo "hello from k8s" &gt; /mnt/test/test.txt
+cat /mnt/test/test.txt
+umount /mnt/test
+</code></pre>
+<p>Testing this requires a pod with <code>securityContext.privileged: true</code> (the <code>mount</code> syscall needs <code>CAP_SYS_ADMIN</code>, which the cluster’s baseline Pod Security level doesn’t grant by default) — run it in a throwaway namespace labeled <code>pod-security.kubernetes.io/enforce: privileged</code>, and delete the namespace afterward rather than leaving a permanently-privileged namespace around.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="7-gitops-app-of-apps-and-encrypted-secrets"><a class="header" href="#7-gitops-app-of-apps-and-encrypted-secrets">7. GitOps: App-of-Apps and Encrypted Secrets</a></h1>
+<p>ArgoCD is bootstrapped by Tofu (part of the <code>core-addons</code> unit, <code>tofu/modules/core-addons/main.tf</code> — see <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt Units</a>), but the applications it manages live in git, under this repo’s <code>apps/</code> directory, not in Tofu. This page documents how that wiring works and how to add to it.</p>
+<hr>
+<h2 id="app-of-apps"><a class="header" href="#app-of-apps">App-of-apps</a></h2>
+<p>An ArgoCD <code>ApplicationSet</code> (<code>helm_release.argocd_apps</code> in <code>tofu/modules/core-addons/main.tf</code>, installed via argo-helm’s <code>argocd-apps</code> chart) watches <code>apps/*</code> in this repo at the revision pinned by <code>var.gitops.revision</code> (<code>main</code> for the <code>dev</code> cluster). Its git directory generator turns each direct subdirectory of <code>apps/</code> into its own ArgoCD <code>Application</code>, named after the directory, synced automatically (<code>prune</code> + <code>selfHeal</code>) into a same-named namespace.</p>
+<p><strong>To add a new app</strong>: create a new directory under <code>apps/</code>, e.g. <code>apps/my-app/</code>, with a <code>kustomization.yaml</code> (and whatever manifests/generators it needs) at its root. Commit and push. No Tofu change, no <code>kubectl apply</code>, no <code>argocd app create</code> — the next time the ApplicationSet’s generator runs (or immediately, since ArgoCD also reacts to webhook/poll events), a new <code>Application</code> named <code>my-app</code> appears and syncs on its own.</p>
+<p><strong>Removing an app</strong> works the same way in reverse, with one caveat: the ApplicationSet’s <code>preserveResourcesOnDeletion</code> is set to <code>true</code>, specifically so a renamed directory or a transient git-generator hiccup can’t cascade-delete live resources (the <code>Application</code> object gets pruned, but whatever it was managing — Deployments, the MetalLB pool, ClusterIssuers, etc. — is left running, orphaned, until a matching <code>Application</code> reappears and re-adopts it). If you’re decommissioning an app for real, clean up its resources explicitly (e.g. <code>kubectl delete namespace &lt;app&gt;</code>) rather than assuming removing the directory will do it.</p>
+<p><code>apps/cluster-addons/</code> is the one directory that predates any “real” application — it holds cluster-level objects (the MetalLB <code>IPAddressPool</code>/<code>L2Advertisement</code>, the <code>letsencrypt-prod</code>/<code>letsencrypt-staging</code> <code>ClusterIssuer</code>s) that used to be applied by Tofu via <code>terraform_data</code> + <code>local-exec</code> provisioners shelling out to <code>kubectl</code>. Those provisioners are gone; this is where that configuration lives now.</p>
+<h2 id="ksops-encrypted-manifests-under-apps"><a class="header" href="#ksops-encrypted-manifests-under-apps">ksops: encrypted manifests under apps/</a></h2>
+<p>ArgoCD’s repo-server has <a href="https://github.com/viaduct-ai/kustomize-sops">ksops</a> installed (patched in via <code>helm_release.argocd</code>’s values in <code>tofu/modules/core-addons/main.tf</code>: an init container copies the <code>ksops</code>/<code>kustomize</code> binaries into the repo-server, overriding the built-in <code>kustomize</code>), and is handed the same age private key already used for <code>tofu/secrets.enc.yaml</code> (mounted from a <code>kubernetes_secret.sops_age_key</code>, itself sourced from <code>~/.config/sops/age/keys.txt</code> — see <code>CLAUDE.md</code>’s “Secrets management”). This means any <code>kustomization.yaml</code> under <code>apps/</code> can reference a <code>ksops</code> generator to decrypt SOPS-encrypted files at sync time, the same way <code>tofu/secrets.enc.yaml</code> gets decrypted at plan time.</p>
+<p><strong>To add a new encrypted secret for an app</strong>:</p>
+<ol>
+<li>
+<p>Write the plaintext manifest (a <code>Secret</code>, or any resource with a sensitive field) somewhere temporary, <em>not</em> under <code>apps/</code>.</p>
+</li>
+<li>
+<p>Copy it into place under your app’s directory with an <code>.enc.yaml</code> suffix, e.g. <code>apps/my-app/db-credentials.enc.yaml</code>.</p>
+</li>
+<li>
+<p>Encrypt it in place: <code>sops -e -i apps/my-app/db-credentials.enc.yaml</code> (run from the repo root, so the path matches <code>.sops.yaml</code>’s <code>apps/.*\.enc\.yaml$</code> rule).</p>
+</li>
+<li>
+<p>Reference it from a <code>ksops</code> generator in the same directory:</p>
+<pre><code class="language-yaml">apiVersion: viaduct.ai/v1
+kind: ksops
+metadata:
+  name: my-app-secrets
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: ksops
+files:
+  - ./db-credentials.enc.yaml
+</code></pre>
+</li>
+<li>
+<p>Add that generator to the directory’s <code>kustomization.yaml</code>:</p>
+<pre><code class="language-yaml">generators:
+  - ksops-generator.yaml
+</code></pre>
+</li>
+</ol>
+<p><code>.sops.yaml</code>’s rule for <code>apps/.*\.enc\.yaml$</code> only encrypts keys named <code>data</code>, <code>stringData</code>, or <code>email</code> — everything else in the manifest (the resource’s <code>kind</code>, <code>metadata.name</code>, non-sensitive <code>spec</code> fields) stays plaintext and human-reviewable in git. <code>email</code> is there specifically for cert-manager’s <code>ClusterIssuer</code>, which has no <code>secretRef</code> indirection for its ACME registration email — see <code>apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml</code> for a worked example of a mostly-plaintext manifest with one encrypted leaf. If a new kind of genuinely sensitive field shows up in some other resource later, extend that regex rather than leaving it in plaintext.</p>
+<h3 id="verifying-the-pipeline-end-to-end"><a class="header" href="#verifying-the-pipeline-end-to-end">Verifying the pipeline end-to-end</a></h3>
+<p>There’s no permanent canary secret sitting in the cluster for this — it was validated once, live, while wiring this up (a throwaway <code>Secret</code> under a temporary <code>apps/ksops-smoke-test/</code> directory, confirmed to sync healthy and decrypt correctly, then removed). To re-verify after an ArgoCD or ksops version bump, the fastest check is:</p>
+<pre><code class="language-bash">kubectl get applications -n argocd
+kubectl get clusterissuers
+</code></pre>
+<p>Both <code>letsencrypt-prod</code> and <code>letsencrypt-staging</code> should show <code>READY: True</code> — an ACME <code>ClusterIssuer</code> only reaches <code>Ready</code> after successfully registering an account with the ACME server using the decrypted <code>email</code>, which is a strong end-to-end signal that ksops decryption is working, not just that the manifest applied.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="8-backup-and-restore"><a class="header" href="#8-backup-and-restore">8. Backup and Restore</a></h1>
+<p>Cluster backups are handled by <a href="https://velero.io/">Velero</a>, backed by <a href="https://min.io/">MinIO</a> as an S3-compatible gateway in front of the NFS share — Velero needs an S3 API and doesn’t speak NFS natively. Both are installed via Tofu (<code>tofu/modules/backup/main.tf</code>), not GitOps, since their configuration (the <code>BackupStorageLocation</code>, the daily <code>Schedule</code>) is expressed entirely through their own Helm chart values rather than needing a separate hand-rolled object.</p>
+<hr>
+<h2 id="what-gets-backed-up"><a class="header" href="#what-gets-backed-up">What gets backed up</a></h2>
+<p>Velero backs up Kubernetes <strong>object definitions</strong> — Deployments, Services, ConfigMaps, Secrets, the PVC/PV objects themselves, ArgoCD <code>Application</code>s, etc. — not raw file-level volume data. File-system backup (Velero’s restic/kopia integration, <code>deployNodeAgent</code>) and CSI volume snapshots are both deliberately left disabled (<code>snapshotsEnabled = false</code>, <code>deployNodeAgent = false</code> in <code>tofu/modules/backup/main.tf</code>).</p>
+<p>That’s a deliberate scope decision, not an oversight: today, every workload’s persistent data already lives on the NFS-backed <code>StorageClass</code> from the <a href="#6-nfs-storage-access">storage</a> issue, and that NFS share has its own offsite backup outside this repo’s concern (see <code>CLAUDE.md</code>). Backing up the same bytes a second time through Velero would be redundant. Revisit if a workload ever needs a non-NFS-backed volume.</p>
+<p>A restore, then, recreates namespaces, workloads, and their config/secrets — and since the PV objects Velero restores point back at the same underlying NFS-backed volumes, any data already on those volumes comes along for the ride without Velero needing to move it itself.</p>
+<h2 id="schedule-and-retention"><a class="header" href="#schedule-and-retention">Schedule and retention</a></h2>
+<p>A daily <code>Schedule</code> (<code>var.backup.schedule</code>, <code>0 3 * * *</code> for <code>dev</code>) backs up the whole cluster with a 30-day retention (<code>var.backup.ttl</code>, <code>720h</code>). Both are environment-specific values — see <code>var.backup</code> in <code>tofu/modules/backup/variables.tf</code>, set per environment in <code>tofu/live/&lt;env&gt;/env.hcl</code> — so <code>dev</code>/<code>prod</code> can tune them independently.</p>
+<h2 id="verifying-backups-are-actually-happening"><a class="header" href="#verifying-backups-are-actually-happening">Verifying backups are actually happening</a></h2>
+<pre><code class="language-bash">velero backup get
+velero schedule get
+</code></pre>
+<p>A healthy <code>Schedule</code> shows <code>STATUS: Enabled</code> and, after its first scheduled run, a <code>LASTBACKUP</code> timestamp. <code>velero backup describe &lt;name&gt;</code> shows per-resource detail; <code>velero backup logs &lt;name&gt;</code> shows the full log if something didn’t back up as expected.</p>
+<p>The <a href="https://velero.io/docs/main/basic-install/#install-the-cli"><code>velero</code> CLI</a> isn’t installed as part of cluster bootstrap — download the release matching the server’s <code>appVersion</code> (currently <code>v1.18.1</code>, from <code>tofu/modules/backup/main.tf</code>’s <code>chart_versions.velero</code> pin) from the <a href="https://github.com/vmware-tanzu/velero/releases">velero releases page</a>, and point <code>kubectl</code>/<code>velero</code> at a current kubeconfig (<code>terragrunt output -raw kube_config</code> from <code>tofu/live/dev/talos-cluster/</code>, per <code>CLAUDE.md</code>).</p>
+<h2 id="restore-procedure"><a class="header" href="#restore-procedure">Restore procedure</a></h2>
+<p>This repo’s whole premise is disaster recovery, so a backup nobody has tested restoring from isn’t a real backup. To restore a namespace (or the whole cluster) from a backup:</p>
+<pre><code class="language-bash"># See what's available
+velero backup get
+
+# Restore everything in a backup
+velero restore create --from-backup &lt;backup-name&gt; --wait
+
+# Or restore just one namespace
+velero restore create --from-backup &lt;backup-name&gt; --include-namespaces &lt;namespace&gt; --wait
+
+# Confirm it worked
+velero restore describe &lt;restore-name&gt;
+kubectl get all -n &lt;namespace&gt;
+</code></pre>
+<p>This was verified end-to-end while standing up Velero: a namespace with a test <code>ConfigMap</code> was backed up, the namespace was deleted outright, and <code>velero restore create --from-backup ... --wait</code> brought the namespace and the <code>ConfigMap</code>’s data back correctly.</p>
+<h3 id="restoring-into-a-fresh-cluster"><a class="header" href="#restoring-into-a-fresh-cluster">Restoring into a fresh cluster</a></h3>
+<p>Since Velero’s own <code>BackupStorageLocation</code> points at the MinIO bucket on the NAS, a from-scratch cluster rebuild (<code>terragrunt run --all apply</code> after <code>terragrunt run --all destroy</code>, or onto new hardware) that reconnects to the <em>same</em> NFS export will have a working, populated <code>BackupStorageLocation</code> again as soon as <code>helm_release.velero</code> applies — Velero syncs existing backups from the bucket automatically, no restore-specific setup needed beyond a normal apply.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="9-single-sign-on-keycloak"><a class="header" href="#9-single-sign-on-keycloak">9. Single Sign-On (Keycloak)</a></h1>
+<p><a href="https://www.keycloak.org/">Keycloak</a> is the identity provider for homelab services, backed by a dedicated Postgres instance. Both are Tofu-managed, split across two Terragrunt units (see <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt Units</a>): <code>keycloak-infra</code> (<code>tofu/modules/keycloak-infra/</code>) stands up Postgres and Keycloak itself, and <code>keycloak-realm</code> (<code>tofu/modules/keycloak-realm/</code>) manages the <code>homelab</code> realm and its clients via the <a href="https://registry.terraform.io/providers/keycloak/keycloak/latest/docs"><code>keycloak</code> Terraform provider</a> — the same “talk to the app’s own API declaratively” pattern already used for <code>unifi_network.this</code>.</p>
+<hr>
+<h2 id="whats-deployed"><a class="header" href="#whats-deployed">What’s deployed</a></h2>
+<ul>
+<li><strong>Postgres</strong>: a hand-rolled single-instance <code>StatefulSet</code> (not a chart — see the comment at the top of <code>tofu/modules/keycloak-infra/main.tf</code> for why), on the same NFS-backed <code>StorageClass</code> as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed <code>StorageClass</code> ever exists (#28).</li>
+<li><strong>Keycloak</strong>: the <a href="https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx">codecentric/keycloakx</a> chart, reachable at <code>https://keycloak.dev.thepugh.family</code>. Chosen over Bitnami’s chart for the same pinned-version reason as MinIO (see <code>tofu/modules/backup/main.tf</code>).</li>
+<li><strong>Realm</strong>: <code>homelab</code>, with a bootstrap admin account (<code>admin</code> / a Tofu-generated password — <code>kubectl get secret -n keycloak keycloak-admin-credentials</code>) for the Keycloak console itself, separate from the realm’s own users.</li>
+<li><strong>A forward-auth demo</strong>: <a href="https://oauth2-proxy.github.io/oauth2-proxy/">oauth2-proxy</a> in front of a minimal <code>whoami</code> echo server, at <code>https://sso-demo.dev.thepugh.family</code>. This exists to prove the Keycloak wiring works end-to-end, and doubles as the copy-paste template for real apps that need forward-auth (see below) — it’s a living reference, not a one-off smoke test that gets torn down.</li>
+</ul>
+<h2 id="admin-access"><a class="header" href="#admin-access">Admin access</a></h2>
+<pre><code class="language-bash">kubectl get secret -n keycloak keycloak-admin-credentials -o jsonpath='{.data.KC_BOOTSTRAP_ADMIN_PASSWORD}' | base64 -d
+</code></pre>
+<p>Log in at <code>https://keycloak.dev.thepugh.family</code> with username <code>admin</code>.</p>
+<h2 id="trying-the-forward-auth-demo"><a class="header" href="#trying-the-forward-auth-demo">Trying the forward-auth demo</a></h2>
+<p>A test user (<code>demo</code>) already exists in the <code>homelab</code> realm:</p>
+<pre><code class="language-bash">kubectl get secret -n sso-demo sso-demo-user-credentials -o jsonpath='{.data.password}' | base64 -d
+</code></pre>
+<p>Visit <code>https://sso-demo.dev.thepugh.family</code> from a browser on the LAN — it redirects through Keycloak login, then lands on the <code>whoami</code> page showing the request oauth2-proxy forwarded, including <code>X-Auth-Request-User</code>/<code>X-Auth-Request-Email</code> headers identifying who logged in.</p>
+<h2 id="management-apps-argocd-and-grafana"><a class="header" href="#management-apps-argocd-and-grafana">Management apps: ArgoCD and Grafana</a></h2>
+<p>Both authenticate through Keycloak (<code>tofu/modules/core-addons/main.tf</code>’s <code>helm_release.argocd</code>, <code>tofu/modules/observability/main.tf</code>’s <code>helm_release.kube_prometheus_stack</code>) using their own native OIDC support — no oauth2-proxy needed, the same “Apps with native OIDC support” pattern documented below. Local admin login is disabled on both (<code>admin.enabled: "false"</code> for ArgoCD, <code>auth.basic.enabled: false</code> for Grafana — the latter needed alongside <code>auth.disable_login_form</code> since that alone still leaves basic-auth reachable via direct API calls).</p>
+<p><strong>Access is group-based, not tied to any specific person.</strong> A <code>platform-admins</code> Keycloak group (<code>tofu/modules/keycloak-realm/main.tf</code>’s <code>keycloak_group.platform_admins</code>) is the only thing either app’s RBAC checks — ArgoCD’s <code>policy.csv</code> is <code>g, platform-admins, role:admin</code>, Grafana’s <code>role_attribute_path</code> checks <code>contains(groups[*], 'platform-admins')</code>. Nothing in the Tofu code names a real user. <strong>To grant someone admin access to ArgoCD/Grafana</strong>: create (or use an existing) account in Keycloak’s admin console (<code>https://keycloak.dev.thepugh.family</code>), open it, go to the <strong>Groups</strong> tab, and <strong>Join Group</strong> → <code>platform-admins</code>. Group membership itself isn’t Tofu-managed, by design — see “Upstream identity federation” below for the reasoning.</p>
+<p>Under the hood, this needs a <code>groups</code> claim in the token, which isn’t included by default — <code>keycloak_openid_client_scope.groups</code> is a reusable custom client scope with a <code>keycloak_openid_group_membership_protocol_mapper</code> (configured with <code>full_path = false</code>, so the claim is the plain group name rather than <code>/platform-admins</code>), attached to both clients as an <em>optional</em> scope (<code>keycloak_openid_client_optional_scopes</code>) rather than a default one — both apps already explicitly request it (ArgoCD’s <code>requestedScopes</code>, Grafana’s <code>scopes</code> config), so making it default too would only risk fighting Keycloak’s own built-in default-scope list for no benefit.</p>
+<p><strong>Break-glass recovery</strong>: both local admin credentials still exist (<code>kubectl get secret -n argocd argocd-secret -o jsonpath='{.data.admin\.password}' | base64 -d</code>; <code>kubectl get secret -n monitoring grafana-admin-credentials -o jsonpath='{.data.admin-password}' | base64 -d</code>) — if Keycloak itself is ever unreachable, flip <code>admin.enabled</code>/<code>auth.basic.enabled</code> back in Tofu and reapply to regain local access, then flip them off again once Keycloak’s back.</p>
+<p><strong>A real gotcha found live</strong>: the ArgoCD chart ships a default <code>configs.cm.url</code> value of <code>https://argocd.example.com</code> — this is what ArgoCD actually uses to build its OIDC <code>redirect_uri</code> (not the incoming request’s <code>Host</code> header), so leaving it unset produces a real “Invalid redirect URL” rejection from Keycloak on every login attempt. Set explicitly to <code>https://argocd.dev.thepugh.family</code> in <code>configs.cm</code>.</p>
+<h2 id="adding-a-real-app"><a class="header" href="#adding-a-real-app">Adding a real app</a></h2>
+<h3 id="apps-with-native-oidc-support-eg-immich-paperless-ngx"><a class="header" href="#apps-with-native-oidc-support-eg-immich-paperless-ngx">Apps with native OIDC support (e.g. Immich, Paperless-ngx)</a></h3>
+<p>No forward-auth proxy needed — configure the app directly against the realm:</p>
+<ul>
+<li><strong>Issuer URL</strong>: <code>https://keycloak.dev.thepugh.family/realms/homelab</code></li>
+<li><strong>Client ID/secret</strong>: create a new <code>keycloak_openid_client</code> resource in <code>tofu/modules/keycloak-realm/main.tf</code> (copy <code>keycloak_openid_client.oauth2_proxy</code> as a starting point — <code>access_type = "CONFIDENTIAL"</code>, <code>standard_flow_enabled = true</code>, and the app’s actual callback URL in <code>valid_redirect_uris</code>).</li>
+</ul>
+<h3 id="apps-without-native-oidc-support-eg-grocy"><a class="header" href="#apps-without-native-oidc-support-eg-grocy">Apps without native OIDC support (e.g. Grocy)</a></h3>
+<p>Copy the <code>oauth2-proxy</code> + Ingress <code>auth-url</code>/<code>auth-signin</code> pattern from <code>tofu/modules/keycloak-realm/main.tf</code>’s <code>helm_release.oauth2_proxy</code> and <code>kubernetes_ingress_v1.whoami</code>. Two things to change from the demo:</p>
+<ol>
+<li><strong>The client secret should be ksops-encrypted, not Tofu-generated.</strong> The demo’s <code>oauth2_proxy</code> client is Tofu-managed end-to-end because it exists purely to prove the wiring, not as a real app — but a real app’s per-client secret belongs in that app’s <code>apps/&lt;app&gt;/</code> directory under ArgoCD’s management (see <code>docs/src/bootstrap-environment/06-gitops.md</code>), the same way <code>apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml</code> keeps its one sensitive field encrypted. Create the Keycloak client with an explicit <code>client_secret</code> (a <code>random_password</code>, as the demo does), then commit that value ksops-encrypted under the app’s own directory rather than only in Tofu state.</li>
+<li><strong>One oauth2-proxy per protected app</strong> (or a shared one, if several apps can tolerate a shared session cookie domain) — the demo’s <code>sso-demo</code> namespace/hostname pairing is illustrative, not something to reuse directly.</li>
+</ol>
+<h2 id="upstream-identity-federation-deferred"><a class="header" href="#upstream-identity-federation-deferred">Upstream identity federation (deferred)</a></h2>
+<p>Brokering an upstream identity provider (e.g. Google) through Keycloak — so a real login could use an existing Google account instead of a Keycloak-local password — was considered as part of #32 and deliberately deferred, not implemented. Local Keycloak accounts are sufficient for a single-operator homelab today, and deferring avoids standing up a Google Cloud OAuth app/credentials for no immediate benefit. This is also why group membership (see above) is managed by hand rather than via a Tofu <code>keycloak_user</code> resource: with accounts staying local for now, there’s no real automation to gain by managing them declaratively, and doing so would mean putting a real person’s identity into this repo’s code.</p>
+<p>Revisit if/when more real users need access (e.g. family members) — at that point it means a Keycloak <code>keycloak_identity_provider</code> resource (or realm identity-provider config) plus a Google Cloud OAuth app/credentials.</p>
+<h2 id="no-bootstrap-quirk-anymore"><a class="header" href="#no-bootstrap-quirk-anymore">No bootstrap quirk anymore</a></h2>
+<p>This used to need a manual two-phase apply on a from-scratch rebuild: the <code>keycloak</code> provider authenticates with an admin password generated in the same apply, which the old single flat module couldn’t resolve in one pass. Splitting <code>keycloak-infra</code> and <code>keycloak-realm</code> into separate Terragrunt units fixed this structurally — <code>keycloak-realm</code>’s <code>dependency</code> block on <code>keycloak-infra</code> explicitly disallows mock outputs at apply time, so <code>terragrunt run --all apply</code> blocks until Keycloak has genuinely started and its real admin password exists before generating the <code>keycloak</code> provider block with it. See <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt Units</a>. A from-scratch rebuild is a single <code>terragrunt run --all apply</code> from <code>tofu/live/dev/</code>, same as everything else — no targeting, no special first-apply step.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="10-remote-tofu-state"><a class="header" href="#10-remote-tofu-state">10. Remote Tofu State</a></h1>
+<p>Tofu’s state lives under <code>tofu/state/</code> — a gitignored directory meant to be an SMB mount of a share on the NAS, set up out-of-band, outside of Tofu entirely. Since the <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt refactor</a>, it’s no longer one flat state file: each unit gets its own, at a path Terragrunt computes from directory structure rather than a single hand-typed literal.</p>
+<pre><code>tofu/state/
+  dev/
+    network/terraform.tfstate
+    talos-cluster/terraform.tfstate
+    core-addons/terraform.tfstate
+    backup/terraform.tfstate
+    keycloak-infra/terraform.tfstate
+    keycloak-realm/terraform.tfstate
+  prod/
+    ... (same shape, once prod is ever actually applied)
+</code></pre>
+<p><code>tofu/live/root.hcl</code>’s <code>remote_state</code> block generates each unit’s <code>backend "local"</code> with <code>path = "${get_repo_root()}/tofu/state/${path_relative_to_include()}/terraform.tfstate"</code> — <code>path_relative_to_include()</code> resolves to e.g. <code>dev/talos-cluster</code>, so nothing is hand-typed per unit, and a real <code>prod</code> environment gets its own state tree automatically the moment it’s ever applied.</p>
+<hr>
+<h2 id="one-time-setup-on-a-new-machine"><a class="header" href="#one-time-setup-on-a-new-machine">One-time setup on a new machine</a></h2>
+<p><code>mkdir -p tofu/state</code> and mount the NAS share onto it, e.g.:</p>
+<pre><code class="language-bash">sudo mount -t cifs //truenas.thepugh.family/&lt;share&gt; /home/hpugh/homelab/tofu/state \
+  -o credentials=/path/to/smb-creds,uid=$(id -u),gid=$(id -g),vers=3.0
+</code></pre>
+<p>(or the equivalent <code>/etc/fstab</code> entry for a persistent mount across WSL restarts). This is a per-machine setup step, not something <code>terragrunt apply</code> does — same category as installing <code>sops</code>/<code>age</code>/<code>terragrunt</code> or fetching the age key from KeePass.</p>
+<p><strong>Check the mount is actually live before running <code>terragrunt</code>.</strong> If the share isn’t mounted, <code>tofu/state/</code> is just an empty local directory — <code>terragrunt init</code>/<code>plan</code>/<code>apply</code> won’t error, they’ll silently create (or use) fresh, empty local state files at those paths instead of finding the real ones. <code>mountpoint /home/hpugh/homelab/tofu/state</code> (exit code <code>0</code> means mounted) is a quick sanity check before trusting any <code>terragrunt plan</code> output.</p>
+<p><strong>Don’t mount with the <code>nobrl</code> option.</strong> Tofu’s <code>local</code> backend locks state via <code>flock()</code>; Linux’s CIFS client translates that into an SMB byte-range lock by default, which is what actually prevents two concurrent applies to the <em>same unit</em> from corrupting its state — <code>nobrl</code> disables that translation and silently turns off locking. (Two different units never contend for the same lock regardless, since each has its own state file.)</p>
+<h2 id="why-the-earlier-minios3-approach-was-abandoned"><a class="header" href="#why-the-earlier-minios3-approach-was-abandoned">Why the earlier MinIO/S3 approach was abandoned</a></h2>
+<p>An earlier version of this remote state used a MinIO bucket hosted on this same cluster, with OpenTofu’s native S3 conditional-write locking. It worked, including a real verified concurrent-apply lock test — but had a structural problem: MinIO was created <em>by</em> this Tofu config, so destroying the cluster would eventually destroy the very thing backing its own state, and the final state-persist write would fail as a result (a well-documented Terraform/Terragrunt anti-pattern: destroying infra that backs your own remote-state backend, through that same backend). SMB-on-the-NAS avoids this entirely — nothing this config creates or destroys can ever take its own state backend down with it, for <code>dev</code>, a future <code>prod</code>, or any other cluster this config might stand up. See git history for the full MinIO-based version if ever useful for comparison.</p>
+<h2 id="migrating-existing-state-after-a-refactor"><a class="header" href="#migrating-existing-state-after-a-refactor">Migrating existing state after a refactor</a></h2>
+<p>Splitting one state file into several (as the Terragrunt refactor did) is a <code>tofu state mv</code> operation per resource, done with the old backend’s file as <code>-state</code> and the new unit’s fresh state file as <code>-state-out</code> — no infrastructure changes, verified with <code>terragrunt run --all plan</code> showing zero changes before ever touching real infra. Not something expected to happen often, but the general technique for any future unit reshuffling.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="11-terragrunt-units-and-multi-environment-layout"><a class="header" href="#11-terragrunt-units-and-multi-environment-layout">11. Terragrunt Units and Multi-Environment Layout</a></h1>
+<p><code>tofu/</code> used to be one flat root module — one state file, one environment (“dev”), no way to stand up a second cluster without clobbering the first. It’s now six independently-applied <a href="https://terragrunt.gruntwork.io/">Terragrunt</a> units, each its own Tofu root module, wired together by <code>dependency</code> blocks that read a prior unit’s <em>already-applied</em> outputs.</p>
+<hr>
+<h2 id="layout"><a class="header" href="#layout">Layout</a></h2>
+<pre><code>tofu/
+  modules/                 # plain Tofu root modules — the actual resources
+    network/                 # unifi_network.this (the VLAN)
+    talos-cluster/            # Proxmox VMs, Talos bootstrap, kubeconfig
+    core-addons/              # MetalLB, ingress-nginx, cert-manager, ArgoCD, NFS storage
+    backup/                   # MinIO, Velero
+    keycloak-infra/            # Postgres, Keycloak
+    keycloak-realm/            # homelab realm/clients, oauth2-proxy + whoami demo
+  live/
+    root.hcl                 # shared: generates each unit's backend, secrets decrypt
+    dev/
+      env.hcl                  # this environment's real values (cluster, nodes, chart versions, ...)
+      network/terragrunt.hcl
+      talos-cluster/terragrunt.hcl
+      core-addons/terragrunt.hcl
+      backup/terragrunt.hcl
+      keycloak-infra/terragrunt.hcl
+      keycloak-realm/terragrunt.hcl
+    prod/                     # same shape, placeholder env.hcl — scaffolding, never applied
+      ...
+</code></pre>
+<p>Dependency graph: <code>network</code> → <code>talos-cluster</code> → <code>core-addons</code> → {<code>backup</code>, <code>keycloak-infra</code>} → <code>keycloak-realm</code>.</p>
+<h2 id="why-units-not-one-module"><a class="header" href="#why-units-not-one-module">Why units, not one module</a></h2>
+<p>Two concrete problems this solves:</p>
+<ol>
+<li><strong>The Keycloak two-phase bootstrap.</strong> The <code>keycloak</code> provider authenticates with an admin password generated in the same apply — a value that’s unknown on a from-empty-state plan, which the old flat module couldn’t resolve without a manual <code>tofu apply -target=time_sleep.wait_for_keycloak</code> first. Splitting <code>keycloak-infra</code> (creates the password) from <code>keycloak-realm</code> (uses it) into separate units fixes this structurally: <code>keycloak-realm</code>’s <code>dependency</code> block on <code>keycloak-infra</code> sets <code>mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]</code> — <strong>not</strong> <code>"apply"</code> — so <code>terragrunt run --all apply</code> refuses to synthesize a fake password at apply time. It blocks until <code>keycloak-infra</code> has genuinely finished applying and produced a real, known password, then generates the <code>keycloak</code> provider block with that literal value. No targeting, no bootstrap incantation to remember.</li>
+<li><strong>Real dev/prod separation.</strong> Each environment under <code>tofu/live/</code> is just another directory of the same six units, with its own <code>env.hcl</code> and its own generated state paths (see <a href="#10-remote-tofu-state">Remote Tofu State</a>) — nothing shared, nothing to clobber.</li>
+</ol>
+<h2 id="day-to-day-commands"><a class="header" href="#day-to-day-commands">Day-to-day commands</a></h2>
+<p>From <code>tofu/live/dev/</code> (or any environment directory):</p>
+<pre><code class="language-bash"># Everything, in dependency order, one command:
+terragrunt run --all --non-interactive -- apply -auto-approve
+
+# Same, in reverse order, for a full teardown:
+terragrunt run --all --non-interactive -- destroy -auto-approve
+
+# Just one unit:
+cd core-addons &amp;&amp; terragrunt apply
+</code></pre>
+<p><code>--non-interactive</code> skips the per-unit confirmation prompt <code>run --all</code> would otherwise show; <code>-auto-approve</code> is the underlying <code>tofu apply</code>’s own flag, passed through after the <code>--</code>. Terragrunt’s own flags go <em>before</em> the <code>--</code>; anything after it goes to the wrapped <code>tofu</code> command — getting this backwards is a real footgun (<code>--non-interactive</code> after <code>--</code> gets silently ignored and you’ll hit an interactive prompt in a non-interactive script).</p>
+<h2 id="how-units-talk-to-each-other"><a class="header" href="#how-units-talk-to-each-other">How units talk to each other</a></h2>
+<ul>
+<li><strong>State</strong>: each unit gets its own file, generated by <code>tofu/live/root.hcl</code>’s <code>remote_state</code> block — see <a href="#10-remote-tofu-state">Remote Tofu State</a>.</li>
+<li><strong>Providers</strong>: each unit’s <code>terragrunt.hcl</code> has a <code>generate "provider"</code> block. Units needing cluster access (everything past <code>talos-cluster</code>) build their <code>kubernetes</code>/<code>helm</code> provider config from <code>dependency.talos_cluster.outputs.kubernetes_client_configuration</code> — the same attributes a single <code>providers.tf</code> used to read directly off <code>talos_cluster_kubeconfig.this</code> before the split. <code>keycloak-realm</code> additionally builds a <code>keycloak</code> provider from <code>dependency.keycloak_infra.outputs.admin_password</code>.</li>
+<li><strong>Secrets</strong>: <code>tofu/secrets.enc.yaml</code> (unchanged location/mechanism) is decrypted via a <code>generate "secrets"</code> block, but only into the units that actually need Proxmox/Unifi/Cloudflare credentials — <code>network</code>, <code>talos-cluster</code>, and <code>core-addons</code>. <code>backup</code>, <code>keycloak-infra</code>, and <code>keycloak-realm</code> never get it, so their state can never contain those credentials.</li>
+<li><strong>A real dependency, not just ordering</strong>: <code>talos-cluster</code> reads its VLAN ID from <code>dependency.network.outputs.vlan_id</code> rather than a separately-supplied variable — the old flat module had a <code># depends_on = [unifi_network.this]</code> that was commented out and never enforced anything. Now there’s one source of truth.</li>
+</ul>
+<h2 id="adding-a-real-prod-environment"><a class="header" href="#adding-a-real-prod-environment">Adding a real prod environment</a></h2>
+<p><code>tofu/live/prod/</code> already has the full six-unit shape with placeholder values in <code>env.hcl</code> — nobody has run <code>terragrunt apply</code> there. Before that’s a real thing:</p>
+<ul>
+<li>Pick a real, unallocated VLAN ID and subnet (a Unifi change — needs sign-off per <code>CLAUDE.md</code>, and answers the still-open question from issue #21 about whether prod gets its own VLAN — it does, one VLAN per cluster, same as dev).</li>
+<li>Pick unallocated <code>vm_id</code>/IP ranges that don’t collide with dev’s.</li>
+<li>Provision a dedicated NFS export on the NAS (<code>CLAUDE.md</code>: “dev/prod will not share infrastructure”).</li>
+<li>Pick a real <code>ingress_ip</code> reserved in prod’s own MetalLB pool range (<code>env.hcl</code> still has a placeholder) — the ingress hostname scheme itself no longer needs deciding: <code>domain_name</code> already drives every hostname across every unit (#10), and prod’s is already set to the real <code>thepugh.family</code> apex.</li>
+</ul>
+<h2 id="cautions-learned-from-testing-this-live"><a class="header" href="#cautions-learned-from-testing-this-live">Cautions learned from testing this live</a></h2>
+<p>Terragrunt’s <code>dependency</code> blocks make a from-scratch <code>run --all apply</code> genuinely one command — verified with a real destroy-then-recreate of the entire dev environment, not just a read of the docs. Three real bugs were found and fixed in the process, all worth knowing about:</p>
+<ul>
+<li><strong><code>helm_release.ingress_nginx</code> needed <code>wait = false</code></strong> (<code>tofu/modules/core-addons/main.tf</code>). Helm’s default wait behavior blocks until this LoadBalancer Service gets an external IP — which on a from-scratch bootstrap it never does in time, since MetalLB’s <code>IPAddressPool</code> is GitOps-managed and can’t exist until ArgoCD (which itself depends on ingress-nginx) has synced. A genuine bootstrap-ordering circularity that never surfaced before, because every prior apply was incremental against an already-assigned IP.</li>
+<li><strong><code>mock_outputs_allowed_terraform_commands</code> needed <code>"destroy"</code>, not just <code>"init", "validate", "plan"</code></strong> (every <code>terragrunt.hcl</code> with a <code>dependency</code> block). Without it, any command against a downstream unit hard-fails with <code>Unknown variable: dependency</code> the moment its upstream has no real outputs — either never applied, or already destroyed — which meant <code>run --all destroy</code> couldn’t clean up a stack that a failed apply had left partially applied. Safe to add: a unit with nothing real to destroy never invokes its provider regardless of whether the mocked value is real, and reverse-DAG ordering means a unit that <em>does</em> have something real to destroy always still has its upstream intact. <code>"apply"</code> is still deliberately excluded — the property that matters (<code>keycloak-realm</code>’s <code>keycloak</code> provider always uses a real, known admin password, never a mock) is unaffected.</li>
+<li><strong>oauth2-proxy’s Ingress needed <code>nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"</code></strong> (<code>tofu/modules/keycloak-realm/main.tf</code>). A real scripted login through Keycloak consistently 502’d on <code>/oauth2/callback</code> with <code>upstream sent too big header while reading response header from upstream</code> in the ingress-nginx logs — oauth2-proxy’s session cookie bundles Keycloak’s access/ID/refresh tokens, comfortably exceeding ingress-nginx’s default proxy buffer. This one predates the Terragrunt refactor (same architecture, same missing annotation, on the original flat module too) — it just hadn’t been hit before. Verified fixed with the full scripted login flow again, confirming a real 200 with <code>X-Auth-Request-User</code>/<code>-Email</code> present.</li>
+</ul>
+<p>Beyond those three, repeated back-to-back destroy/recreate cycles against the same physical Proxmox hardware (done deliberately, well beyond a single verification pass, to pressure-test the one-command claim under adverse conditions) surfaced real flakiness that current evidence points at environmental strain rather than a defect in this refactor: a transient DNS failure resolving <code>factory.talos.dev</code>, and Talos VMs that repeatedly failed to become network-reachable for several cycles in a row, even though Proxmox reported them created and the VLAN’s own gateway stayed reachable throughout — resolved by simply trying the apply again once the physical hardware had a chance to settle. A single destroy/recreate (not four in an hour) is the realistic operating pattern.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="12-observability"><a class="header" href="#12-observability">12. Observability</a></h1>
+<p>Metrics, logs, and alerting are handled by <a href="https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack">kube-prometheus-stack</a> (Prometheus + Alertmanager + Grafana + node-exporter + kube-state-metrics) plus <a href="https://grafana.com/oss/loki/">Loki</a> + <a href="https://grafana.com/docs/alloy/latest/">Grafana Alloy</a> for log aggregation — all installed via Tofu (<code>tofu/modules/observability/main.tf</code>), not GitOps, same reasoning as <code>backup</code>/<code>keycloak-infra</code>: their configuration is expressed entirely through Helm chart values, not a separate hand-rolled object.</p>
+<hr>
+<h2 id="why-a-separate-unit"><a class="header" href="#why-a-separate-unit">Why a separate unit</a></h2>
+<p><code>observability</code> sits alongside <code>backup</code>/<code>keycloak-infra</code> in the Terragrunt dependency graph (<code>core-addons</code> → {<code>backup</code>, <code>keycloak-infra</code>, <code>observability</code>} → <code>keycloak-realm</code>) rather than folding into <code>core-addons</code> — nothing downstream depends on its outputs, and it’s a distinct operational concern, the same reasoning that already kept <code>backup</code> and <code>keycloak-infra</code> split out. See <code>docs/src/bootstrap-environment/10-terragrunt-units.md</code> for the full unit layout.</p>
+<h2 id="whats-deployed-1"><a class="header" href="#whats-deployed-1">What’s deployed</a></h2>
+<ul>
+<li><strong>Prometheus</strong> (via the Prometheus Operator) scrapes cluster/node metrics and evaluates alerting rules. Retention is 15 days on a 20Gi NFS-backed PVC.</li>
+<li><strong>Alertmanager</strong> routes firing alerts to a Discord webhook.</li>
+<li><strong>Grafana</strong>, reachable at <code>https://grafana.dev.thepugh.family</code> (<code>admin</code> / a Tofu-generated password in the <code>grafana-admin-credentials</code> Secret, <code>monitoring</code> namespace). Ships with the chart’s own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo.</li>
+<li><strong>node-exporter</strong> and <strong>kube-state-metrics</strong> — bundled with the chart, give node-level and Kubernetes-object-level metrics respectively.</li>
+<li><strong>Loki</strong>, deployment mode <code>SingleBinary</code> (the chart’s own term for what’s now generally called “Monolithic” mode) — right-sized for homelab log volume, storing chunks on a 20Gi NFS-backed PVC rather than requiring an S3-compatible backend.</li>
+<li><strong>Grafana Alloy</strong>, a DaemonSet on every node (including control planes — see “Talos control-plane taint” below) shipping every pod’s container logs into Loki, labeled by namespace/pod/container. The current, maintained log-shipping agent — Promtail is deprecated upstream.</li>
+</ul>
+<h2 id="alerting-whats-covered-and-where-it-goes"><a class="header" href="#alerting-whats-covered-and-where-it-goes">Alerting: what’s covered, and where it goes</a></h2>
+<p>Node down/not-ready, pod crash-looping, and PVC-nearly-full are already covered by kube-prometheus-stack’s own bundled default alert rules (<code>defaultRules.create</code>, on by default) — no extra work needed for those. Two more are added explicitly via the chart’s <code>additionalPrometheusRulesMap</code> value:</p>
+<ul>
+<li><strong><code>CertManagerCertificateExpiringSoon</code></strong> — fires when any cert-manager-managed certificate is within 7 days of expiry.</li>
+<li><strong><code>VeleroBackupStale</code></strong> — fires when a Velero schedule hasn’t produced a successful backup in the last ~28 hours (a buffer past the daily 03:00 schedule — see <code>docs/src/bootstrap-environment/07-backup-restore.md</code>).</li>
+</ul>
+<p>Every alert (aside from the chart’s always-firing <code>Watchdog</code> heartbeat, deliberately routed to a <code>null</code> receiver) routes to a <strong>Discord</strong> webhook, configured via <code>alertmanager.config</code> in <code>tofu/modules/observability/main.tf</code>’s <code>helm_release.kube_prometheus_stack</code>. The webhook URL lives encrypted at <code>discord_alert_webhook</code> in <code>tofu/secrets.enc.yaml</code> — see “Secrets management” in <code>CLAUDE.md</code>.</p>
+<h3 id="why-cert-managervelero-dont-get-a-servicemonitor"><a class="header" href="#why-cert-managervelero-dont-get-a-servicemonitor">Why cert-manager/Velero don’t get a <code>ServiceMonitor</code></a></h3>
+<p>The obvious way to add a new scrape target to a Prometheus-Operator-managed Prometheus is a <code>ServiceMonitor</code> custom resource. That would mean creating one in <code>core-addons</code> (for cert-manager) and <code>backup</code> (for Velero) — but a <code>ServiceMonitor</code> needs the Prometheus Operator’s CRDs to already exist, and <code>core-addons</code>/<code>backup</code> apply <em>before</em> <code>observability</code> in the Terragrunt DAG. That’s a real ordering conflict, not a cosmetic one.</p>
+<p>Instead, both cert-manager and Velero already expose Prometheus-annotation-style metrics (<code>prometheus.io/scrape</code>/<code>.../port</code>/<code>.../path</code> pod annotations) by default in their own charts — no values change needed on their side. <code>tofu/modules/observability/main.tf</code> picks those up via <code>prometheus.prometheusSpec.additionalScrapeConfigs</code>, a plain scrape-config addition rendered by the <em>same</em> <code>helm_release</code> as the Prometheus Operator CRDs themselves — no separate custom resource, no ordering risk. The two new alert rules above use the same reasoning: <code>additionalPrometheusRulesMap</code> is rendered by that same <code>helm_release</code>, unlike a standalone <code>PrometheusRule</code>.</p>
+<h3 id="talos-control-plane-taint"><a class="header" href="#talos-control-plane-taint">Talos control-plane taint</a></h3>
+<p>Talos control-plane nodes carry a <code>NoSchedule</code> taint, and neither the node-exporter subchart nor the Alloy chart tolerate it by default — without an explicit toleration, both DaemonSets would silently skip 3 of this cluster’s 6 nodes. <code>tofu/modules/observability/main.tf</code> adds a blanket <code>{ operator = "Exists", effect = "NoSchedule" }</code> toleration to both.</p>
+<h3 id="kube-proxyschedulercontroller-manager-scrape-targets"><a class="header" href="#kube-proxyschedulercontroller-manager-scrape-targets">kube-proxy/scheduler/controller-manager scrape targets</a></h3>
+<p>kube-prometheus-stack’s default scrape jobs for <code>kube-proxy</code>, <code>kube-scheduler</code>, and <code>kube-controller-manager</code> assume kubeadm-style exposure — each component’s metrics port reachable directly on the node’s host IP. Talos binds these to loopback only, so all three came up as permanently <code>connection refused</code> targets (and a permanently-firing <code>TargetDown</code> alert) the first time this was tested against the real cluster. Rather than chasing Talos-side metrics exposure for three components this repo doesn’t otherwise need visibility into, <code>kubeControllerManager</code>/<code>kubeScheduler</code>/<code>kubeProxy</code> (and their matching <code>defaultRules.rules</code> alert groups) are disabled in <code>tofu/modules/observability/main.tf</code>.</p>
+<h3 id="lokis-chunks-cache-defaults-to-an-8gi-memory-request"><a class="header" href="#lokis-chunks-cache-defaults-to-an-8gi-memory-request">Loki’s chunks-cache defaults to an 8Gi memory request</a></h3>
+<p>Loki’s <code>chunksCache</code> (an optional memcached-based query-performance cache, enabled by default) requests <code>allocatedMemory: 8192</code> — sized for a much larger deployment than any single node in this 4GB-RAM-per-node cluster has, leaving <code>loki-chunks-cache-0</code> permanently <code>Pending</code> (“Insufficient memory” on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO (<code>docs/src/bootstrap-environment/07-backup-restore.md</code>). Not worth tuning a cache size for at this log volume, so both <code>chunksCache</code> and <code>resultsCache</code> are disabled outright.</p>
+<h2 id="verifying-its-actually-working"><a class="header" href="#verifying-its-actually-working">Verifying it’s actually working</a></h2>
+<pre><code class="language-bash">kubectl -n monitoring get pods
+</code></pre>
+<p>Everything (<code>kube-prometheus-stack-*</code>, <code>loki-0</code>, <code>alloy-*</code> DaemonSet pods) should be <code>Running</code>, with one <code>alloy</code> pod per node (6 total).</p>
+<ul>
+<li><strong>Metrics</strong>: open Grafana, check the built-in “Kubernetes / Compute Resources / Cluster” and “Node Exporter / Nodes” dashboards show real data. In Prometheus’s own UI (<code>kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090</code>) under Status → Targets, the <code>cert-manager</code> and <code>velero</code> jobs should both show <code>UP</code>.</li>
+<li><strong>Logs</strong>: in Grafana, Explore → Loki datasource, query <code>{namespace="monitoring"}</code> (or any known namespace) and confirm real log lines come back.</li>
+<li><strong>Alerting</strong>: the real bar, not just “the rule exists” — deliberately trigger a firing alert (e.g. scale a Deployment covered by a default rule to 0 replicas, or temporarily break a scrape target) and confirm it lands in the configured Discord channel within its <code>group_wait</code>/<code>repeat_interval</code> window.</li>
+</ul>
+<h2 id="restoring-into-a-fresh-cluster-1"><a class="header" href="#restoring-into-a-fresh-cluster-1">Restoring into a fresh cluster</a></h2>
+<p>Same shape as every other add-on unit: <code>terragrunt run --all apply</code> after a full destroy (or onto new hardware) recreates the <code>observability</code> unit from scratch — a fresh Prometheus/Loki with empty history, since neither is covered by Velero’s object-level backups (see <code>docs/src/bootstrap-environment/07-backup-restore.md</code>) or has any external persistence beyond its own NFS-backed PVC. That’s an accepted tradeoff: historical metrics/logs aren’t disaster-recovery-critical the way the workloads they observe are.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="13-networkpolicies-and-pod-security-admission"><a class="header" href="#13-networkpolicies-and-pod-security-admission">13. NetworkPolicies and Pod Security Admission</a></h1>
+<p>Every namespace this repo manages is now default-deny on both ingress and egress, with explicit allow rules for only the traffic that’s actually needed — and carries an explicit, justified Pod Security Admission (PSA) level instead of the cluster’s implicit unrestricted default. Both are Tofu-managed <code>kubernetes_network_policy</code>/namespace-label resources, living in whichever unit already owns that namespace (<code>core-addons</code>, <code>backup</code>, <code>keycloak-infra</code>, <code>keycloak-realm</code>, <code>observability</code>) — no new Terragrunt unit or <code>dependency</code> wiring needed, since every cross-namespace rule below references another namespace purely by its automatic <code>kubernetes.io/metadata.name</code> label, not a Terragrunt output.</p>
+<hr>
+<h2 id="the-base-pattern"><a class="header" href="#the-base-pattern">The base pattern</a></h2>
+<p>Every namespace gets three policies layered together (NetworkPolicies are additive — multiple policies selecting the same pods union their rules, they don’t override each other):</p>
+<ol>
+<li><strong><code>default-deny-all</code></strong> — empty pod selector, both <code>Ingress</code>/<code>Egress</code> policy types, no rules. Everything else is an <em>additional</em> allow on top of this.</li>
+<li><strong><code>allow-dns-egress</code></strong> — every pod needs to resolve DNS; egress to <code>kube-system</code> on <code>53/UDP</code>+<code>53/TCP</code>.</li>
+<li><strong><code>allow-same-namespace</code></strong> — ingress+egress between pods in the same namespace. Applied to <em>every</em> namespace by default, not judged case-by-case per pod — found live on the very first namespace tackled (<code>minio</code>) that even a namespace that looks single-pod can have a same-namespace helper (MinIO’s own post-install “make bucket” Job talking to the MinIO Service) that’s easy to miss ahead of time. Without this rule, that kind of gap doesn’t fail loudly; it just hangs.</li>
+</ol>
+<p>Specific cross-namespace traffic gets its own additional policy, e.g. <code>velero</code>’s egress to <code>minio:9000</code> matched by an ingress rule on the <code>minio</code> side, or <code>ingress-nginx</code>’s ingress from anywhere on <code>80</code>/<code>443</code> since it’s the cluster’s actual entry point, not just another backend.</p>
+<h2 id="two-rules-worth-knowing-about"><a class="header" href="#two-rules-worth-knowing-about">Two rules worth knowing about</a></h2>
+<ul>
+<li><strong>Anything that calls the apiserver directly</strong> (ArgoCD’s application-controller, cert-manager, Velero, csi-driver-nfs, kube-state-metrics, MetalLB’s controller, Prometheus itself) needs egress to <code>10.96.0.1/32:443</code> — the in-cluster <code>kubernetes.default.svc</code> ClusterIP. It’s stable and has no pod selector to match against, hence an <code>ipBlock</code> instead of a namespace/pod selector.</li>
+<li><strong>Admission/conversion webhooks</strong> (<code>cert-manager-webhook</code>, <code>metallb-webhook-service</code>) need ingress on their port from the control-plane node subnet (<code>192.168.160.0/27</code>), not from any pod — the apiserver calls webhooks directly from a control-plane node’s real IP, which a <code>namespaceSelector</code>/<code>podSelector</code> can’t express.</li>
+</ul>
+<h2 id="pod-security-admission-what-landed-where-and-why"><a class="header" href="#pod-security-admission-what-landed-where-and-why">Pod Security Admission: what landed where, and why</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Namespace</th><th>Level</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td><code>metallb-system</code>, <code>csi-driver-nfs</code>, <code>monitoring</code></td><td><code>privileged</code></td><td>Each runs a DaemonSet doing real host-level things — <code>hostNetwork</code>/<code>hostPID</code> (MetalLB’s speaker, node-exporter) or real <code>mount(2)</code> syscalls and <code>hostPath</code> log mounts (csi-driver-nfs’s node-plugin, Alloy). <code>baseline</code> already forbids all of these outright; there’s no tightening available while these components exist.</td></tr>
+<tr><td><code>argocd</code>, <code>cert-manager</code>, <code>ingress-nginx</code>, <code>keycloak</code>, <code>sso-demo</code></td><td><code>restricted</code></td><td>Every chart involved already ships a <code>restricted</code>-compliant <code>securityContext</code> by default, or came within one or two explicit fields of it.</td></tr>
+<tr><td><code>minio</code>, <code>velero</code></td><td><code>baseline</code></td><td>The main workload in both passes <code>restricted</code> cleanly with an explicit <code>containerSecurityContext</code> — but a one-shot Helm hook Job in each (MinIO’s <code>makeBucketJob</code>/<code>makeUserJob</code>, Velero’s pre-upgrade <code>velero-upgrade-crds</code>) either doesn’t expose enough of a <code>securityContext</code> value to satisfy <code>restricted</code>, or hits a kubelet-level check requiring an explicit <code>runAsUser</code> the hook’s own chart values don’t support setting. PSA applies namespace-wide, so the whole namespace stays at <code>baseline</code> rather than patching around a values schema gap for a Job that only runs once per install/upgrade.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Getting a workload to <code>restricted</code> in this repo means: <code>allowPrivilegeEscalation: false</code>, <code>capabilities.drop: ["ALL"]</code>, <code>runAsNonRoot: true</code>, a <code>runAsUser</code>, and a <code>seccompProfile.type: RuntimeDefault</code> — either via the chart’s own <code>securityContext</code>/<code>containerSecurityContext</code> values, or (for this repo’s own hand-rolled resources, like Postgres and <code>whoami</code>) set directly.</p>
+<h2 id="gotchas-found-live"><a class="header" href="#gotchas-found-live">Gotchas found live</a></h2>
+<ul>
+<li><strong>Postgres’s existing data directory was owned by uid 70</strong> (<code>postgres:alpine</code>’s real user), not the Debian-image uid 999 convention assumed at first — a guessed <code>runAsUser</code> produced a real <code>initdb: could not access directory: Permission denied</code> against the <em>existing</em> database (the real Keycloak realm/user data, not a fresh volume). Confirmed the actual owning uid live via a throwaway non-root debug pod mounted against the same PVC before picking the right value, rather than guessing twice.</li>
+<li><strong>A StatefulSet doesn’t always replace a crash-looping pod under its new spec promptly.</strong> After correcting Postgres’s <code>runAsUser</code>, the StatefulSet’s own spec updated immediately but the <em>running</em> pod kept crash-looping under the <em>old</em>, wrong spec for several minutes — Terraform’s own post-apply rollout wait doesn’t proactively nudge this. A manual <code>kubectl delete pod</code> forced the controller to recreate it under the corrected spec right away.</li>
+<li><strong>The <code>velero-upgrade-crds</code> hook Job’s image has a non-numeric default user</strong> (<code>cnb</code>, a Cloud Native Buildpacks convention) — <code>runAsNonRoot: true</code> alone isn’t enough there; the kubelet can’t verify a non-numeric user is actually non-root without an explicit numeric <code>runAsUser</code> alongside it.</li>
+<li><strong>This repo’s own custom <code>install-ksops</code> initContainer</strong> (on ArgoCD’s repo-server, added when GitOps/ksops was wired up) had no <code>securityContext</code> at all — the one real gap keeping the <code>argocd</code> namespace off <code>restricted</code>, easy to miss since it’s not part of any upstream chart’s own defaults.</li>
+</ul>
+<h2 id="verifying-its-actually-enforced"><a class="header" href="#verifying-its-actually-enforced">Verifying it’s actually enforced</a></h2>
+<pre><code class="language-bash">kubectl get networkpolicy -A
+kubectl get ns -o custom-columns=NAME:.metadata.name,ENFORCE:.metadata.labels."pod-security\.kubernetes\.io/enforce"
+</code></pre>
+<p>Every namespace this repo manages should show at least 3 NetworkPolicies (the base trio) and an explicit <code>ENFORCE</code> value — no namespace should show <code>&lt;none&gt;</code>. Beyond that, this round was verified against real functionality per namespace, not just “the policy applied”: a real Velero backup completing against the NetworkPolicy-restricted MinIO target, a real login through Keycloak (both directly and through the full oauth2-proxy OIDC flow), Grafana/Prometheus/Loki/Alertmanager all still working (including a real Discord alert delivery), and ArgoCD staying Synced/Healthy through a forced resync (proving the repo-server’s GitHub egress rule, not just cached state).</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

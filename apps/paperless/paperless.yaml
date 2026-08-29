@@ -87,13 +87,40 @@ spec:
               value: "true"
             - name: PAPERLESS_REDIRECT_LOGIN_TO_SSO
               value: "true"
-            # Blocks the frontend password login form. Doesn't block
-            # Django's own /admin/ login or API basic auth — but with no
-            # PAPERLESS_ADMIN_USER/PASSWORD ever set, no local credential
-            # exists for either to accept. See
-            # docs/src/bootstrap-environment/16-self-hosted-apps.md.
+            # Blocks the frontend password login form AND rejects any
+            # password-based login attempt server-side (adapter.py's
+            # pre_authenticate unconditionally raises) — so the bootstrap
+            # admin below can never actually be used to log in, regardless
+            # of DISABLE_REGULAR_LOGIN's own scope.
             - name: PAPERLESS_DISABLE_REGULAR_LOGIN
               value: "true"
+            # A real gotcha found live: paperless-ngx's own FIRST_INSTALL
+            # check (zero User rows + zero Documents) drives an
+            # unconditional client-side redirect straight to
+            # /accounts/signup/ on a fresh install — independent of
+            # DISABLE_REGULAR_LOGIN, which only gates the login form/POST,
+            # not this signup bypass or is_open_for_signup(). Confirmed
+            # against the actual source (context_processors.py's
+            # FIRST_INSTALL, adapter.py's is_open_for_signup) — on a
+            # genuinely empty DB, the very first visitor (not necessarily
+            # the first real Keycloak login) could create a local account
+            # and be auto-granted Django superuser. PAPERLESS_ADMIN_USER/
+            # PASSWORD (consumed by manage_superuser at container start)
+            # creates one throwaway local superuser before anyone ever
+            # visits, permanently closing that window — it coexists safely
+            # with PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP below
+            # (group sync only ever touches the specific user tied to a
+            # social login, never this unrelated local row) and can never
+            # itself be used to log in, since DISABLE_REGULAR_LOGIN rejects
+            # password auth unconditionally. See
+            # docs/src/bootstrap-environment/16-self-hosted-apps.md.
+            - name: PAPERLESS_ADMIN_USER
+              value: bootstrap-admin
+            - name: PAPERLESS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-config
+                  key: admin-password
             # platform-admins -> Django superuser, matched against the
             # "groups" claim requested via SCOPE in
             # PAPERLESS_SOCIALACCOUNT_PROVIDERS below — re-evaluated on

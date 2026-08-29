@@ -108,10 +108,15 @@ locals {
   public_apex_domain     = "thepugh.family"
   public_hostname_suffix = ""
 
-  # No real public apps yet — prod stays a placeholder like everything else
-  # here (see CLAUDE.md's Dev/prod separation).
-  public_apps           = []
-  public_keycloak_realm = false
+  # Prod is the one environment meant to be publicly exposed long-term
+  # (#33/#39/#40) — dev proved the mechanism and had its own exposure torn
+  # down. public_apps stays empty until real services are actually migrated
+  # here (the user's existing Immich, etc., moving to legacy domains first)
+  # — prod stays a placeholder like everything else here (see CLAUDE.md's
+  # Dev/prod separation) until that happens.
+  public_ingress_enabled = true
+  public_apps            = []
+  public_keycloak_realm  = false
 
 
   ksops_version = "4.5.1"

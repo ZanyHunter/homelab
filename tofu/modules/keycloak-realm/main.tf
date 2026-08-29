@@ -366,6 +366,129 @@ resource "keycloak_openid_client" "changedetection_oauth2_proxy" {
   web_origins         = ["+"]
 }
 
+# --- Canonical secrets for External Secrets Operator (#42) -------------------
+# Every client secret generated above for a real, GitOps-managed app used to
+# need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
+# file — which silently drifts the moment this unit is destroyed/recreated or
+# a secret is deliberately rotated, since nothing updates the already-
+# committed file. This namespace is the canonical source ESO's
+# ClusterSecretStore (apps/cluster-addons/base/, GitOps-managed) reads from
+# via its kubernetes provider, mirroring each Secret out into that app's own
+# namespace through an ExternalSecret living in that app's own apps/<app>/base/
+# — see docs/src/bootstrap-environment/06-gitops.md. No pods run here; this
+# namespace exists purely to hold secret material and the RBAC scoping read
+# access to it.
+resource "kubernetes_namespace" "keycloak_secrets" {
+  metadata {
+    name = "keycloak-secrets"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
+}
+
+resource "kubernetes_secret" "immich_oidc_client_secret" {
+  metadata {
+    name      = "immich-oidc-client-secret"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.immich.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "actual_oidc_client_secret" {
+  metadata {
+    name      = "actual-oidc-client-secret"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.actual.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "paperless_oidc_client_secret" {
+  metadata {
+    name      = "paperless-oidc-client-secret"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.paperless.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "vaultwarden_oidc_client_secret" {
+  metadata {
+    name      = "vaultwarden-oidc-client-secret"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.vaultwarden.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "homebox_oidc_client_secret" {
+  metadata {
+    name      = "homebox-oidc-client-secret"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.homebox.client_secret
+  }
+
+  type = "Opaque"
+}
+
+# Includes client-id alongside client-secret: unlike the other five apps,
+# changedetection's ksops file also encrypted its (non-sensitive, Tofu-known)
+# client-id purely because ksops operates per-Secret rather than per-key —
+# riding it along here means the ExternalSecret can produce both keys without
+# a second mechanism.
+resource "kubernetes_secret" "changedetection_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "changedetection-oidc-client-secret"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.changedetection_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.changedetection_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+# --- NetworkPolicies for keycloak-secrets: default-deny is enough (no pods
+# run here), applied purely for consistency with this repo's "every managed
+# namespace shows the same base trio" convention (see
+# docs/src/bootstrap-environment/12-network-policies.md).
+resource "kubernetes_network_policy" "keycloak_secrets_default_deny_all" {
+  metadata {
+    name      = "default-deny-all"
+    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+  }
+}
+
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste
 # template for real apps that need forward-auth (changedetection.io above is

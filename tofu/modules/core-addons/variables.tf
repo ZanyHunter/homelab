@@ -6,13 +6,14 @@ variable "cluster_name" {
 variable "chart_versions" {
   description = "Pinned Helm chart versions for the add-ons this unit manages. Plain numbers.periods only, no leading \"v\"."
   type = object({
-    csi_driver_nfs = string
-    ceph_csi_rbd   = string
-    metallb        = string
-    ingress_nginx  = string
-    cert_manager   = string
-    argocd         = string
-    argocd_apps    = string
+    csi_driver_nfs   = string
+    ceph_csi_rbd     = string
+    metallb          = string
+    ingress_nginx    = string
+    cert_manager     = string
+    argocd           = string
+    argocd_apps      = string
+    external_secrets = string
   })
 }
 

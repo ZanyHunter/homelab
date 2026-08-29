@@ -403,6 +403,40 @@ resource "kubernetes_secret" "cloudflare_api_token" {
 # it's sourced from tofu/secrets.enc.yaml (the Cloudflare API token), and the
 # ClusterIssuers' dns01.cloudflare.apiTokenSecretRef just references it by name.
 
+# --- External Secrets Operator (#42) --------------------------------------
+# Mirrors the Tofu-generated Keycloak client secrets keycloak-realm writes
+# into its own keycloak-secrets namespace (see that unit's main.tf) out into
+# each real app's own GitOps-managed namespace, so a keycloak-realm destroy/
+# recreate or a deliberate secret rotation reaches the running app
+# automatically instead of silently drifting from an already-committed
+# ksops-encrypted file. Deliberately no Vault: the "external" store here is
+# just another Kubernetes Secret, read via ESO's kubernetes provider — a
+# narrow, conscious revisit of the ksops-over-ESO decision in CLAUDE.md's
+# History (that reasoning still holds for every other secret in this repo,
+# just not for this subset, which also has to independently track a live
+# Tofu value). The ClusterSecretStore/ExternalSecret objects themselves are
+# GitOps-managed (apps/cluster-addons/ and each app's own apps/<app>/base/),
+# same "Tofu owns secret material, GitOps owns everything else" split used
+# throughout this repo.
+resource "kubernetes_namespace" "external_secrets" {
+  metadata {
+    name = "external-secrets"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
+}
+
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  version    = var.chart_versions.external_secrets
+  namespace  = kubernetes_namespace.external_secrets.metadata[0].name
+}
+
 # --- GitOps: app-of-apps + ksops age key --------------------------------------
 # ArgoCD's own decryption key: the *same* age keypair already used for
 # tofu/secrets.enc.yaml (see CLAUDE.md "Secrets management"), so there is
@@ -513,13 +547,14 @@ locals {
   # applies cleanly before it ever matters.
   core_addons_namespaces = merge(
     {
-      csi_driver_nfs = kubernetes_namespace.csi_driver_nfs.metadata[0].name
-      ceph_csi_rbd   = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
-      metallb_system = kubernetes_namespace.metallb_system.metadata[0].name
-      ingress_nginx  = kubernetes_namespace.ingress_nginx.metadata[0].name
-      argocd         = kubernetes_namespace.argocd.metadata[0].name
-      cert_manager   = kubernetes_namespace.cert_manager.metadata[0].name
-      cluster_addons = "cluster-addons"
+      csi_driver_nfs   = kubernetes_namespace.csi_driver_nfs.metadata[0].name
+      ceph_csi_rbd     = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
+      metallb_system   = kubernetes_namespace.metallb_system.metadata[0].name
+      ingress_nginx    = kubernetes_namespace.ingress_nginx.metadata[0].name
+      argocd           = kubernetes_namespace.argocd.metadata[0].name
+      cert_manager     = kubernetes_namespace.cert_manager.metadata[0].name
+      external_secrets = kubernetes_namespace.external_secrets.metadata[0].name
+      cluster_addons   = "cluster-addons"
     },
     # Only when the Cloudflare Tunnel actually exists (var.public_ingress_enabled)
     # — otherwise there's no cloudflared namespace for these policies to attach
@@ -598,12 +633,14 @@ resource "kubernetes_network_policy" "allow_same_namespace" {
 }
 
 # csi-driver-nfs, ceph-csi-rbd, metallb-system, argocd (application-controller),
-# and cert-manager (+ its webhook, via the CRD conversion path) all watch/write
+# cert-manager (+ its webhook, via the CRD conversion path), and
+# external-secrets (watches ExternalSecret/ClusterSecretStore CRs and mints
+# short-lived ServiceAccount tokens via TokenRequest) all watch/write
 # Kubernetes objects directly.
 resource "kubernetes_network_policy" "allow_apiserver_egress" {
   for_each = {
     for k, v in local.core_addons_namespaces : k => v
-    if contains(["csi_driver_nfs", "ceph_csi_rbd", "metallb_system", "argocd", "cert_manager"], k)
+    if contains(["csi_driver_nfs", "ceph_csi_rbd", "metallb_system", "argocd", "cert_manager", "external_secrets"], k)
   }
 
   metadata {
@@ -631,12 +668,12 @@ resource "kubernetes_network_policy" "allow_apiserver_egress" {
 
 # The apiserver calls admission/conversion webhooks directly from a
 # control-plane node's real IP, not from a pod — no podSelector to match,
-# hence an ipBlock over the node subnet. Needed by cert-manager-webhook and
-# metallb-webhook-service specifically.
+# hence an ipBlock over the node subnet. Needed by cert-manager-webhook,
+# metallb-webhook-service, and external-secrets-webhook specifically.
 resource "kubernetes_network_policy" "allow_webhook_ingress" {
   for_each = {
     for k, v in local.core_addons_namespaces : k => v
-    if contains(["metallb_system", "cert_manager"], k)
+    if contains(["metallb_system", "cert_manager", "external_secrets"], k)
   }
 
   metadata {
@@ -926,7 +963,7 @@ data "cloudflare_zero_trust_tunnel_cloudflared_token" "this" {
 # public_hostname_suffix keeps dev/prod from colliding on the same public
 # hostname for the same app once prod is real.
 locals {
-  public_hostnames = { for app in var.public_apps : app.hostname => "${app.hostname}${var.public_hostname_suffix}.${var.public_apex_domain}" }
+  public_hostnames         = { for app in var.public_apps : app.hostname => "${app.hostname}${var.public_hostname_suffix}.${var.public_apex_domain}" }
   keycloak_public_hostname = "keycloak${var.public_hostname_suffix}.${var.public_apex_domain}"
 }
 

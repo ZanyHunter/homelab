@@ -177,6 +177,45 @@ resource "keycloak_openid_client" "immich" {
   web_origins = ["+"]
 }
 
+# platform-admins -> Immich's own admin role, via oauth.roleClaim (defaults
+# to "immich_role" in Immich itself, not set explicitly here). Deliberately
+# not the reusable "groups" client scope pattern used for ArgoCD/Grafana:
+# Immich's own auth code checks a claim value for the literal string
+# "admin"/"user" (getRoleClaim() in its auth.service.ts), not an arbitrary
+# group name, so the realm role itself is named "admin" — the string match
+# Immich is actually looking for, not just a label. Verified live from
+# Immich's own source that this is re-evaluated on every login, not just at
+# account creation, so removing someone from platform-admins later demotes
+# them in Immich on their next login too.
+resource "keycloak_role" "immich_admin" {
+  realm_id    = keycloak_realm.homelab.id
+  name        = "admin"
+  description = "Grants Immich's own admin role via oauth.roleClaim — the literal claim value Immich's auth code checks for."
+}
+
+resource "keycloak_group_roles" "platform_admins_immich_admin" {
+  realm_id   = keycloak_realm.homelab.id
+  group_id   = keycloak_group.platform_admins.id
+  role_ids   = [keycloak_role.immich_admin.id]
+  exhaustive = true
+}
+
+# Attached directly to the Immich client (not a shared client scope like
+# "groups") since only Immich needs this specific claim shape — a mapper on
+# a client applies to every token that client issues, no optional-scope
+# opt-in required. multivalued = true: Immich's getRoleClaim() checks
+# whether the claim's value array *contains* "admin", so the presence of
+# Keycloak's other default realm roles (offline_access, etc.) alongside it
+# is harmless — only the first value would be set otherwise.
+resource "keycloak_openid_user_realm_role_protocol_mapper" "immich_role" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.immich.id
+  name      = "immich-role"
+
+  claim_name  = "immich_role"
+  multivalued = true
+}
+
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste
 # template for real apps that need forward-auth (Grocy, etc. — see

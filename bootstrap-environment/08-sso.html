@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-934fde10.js";
+            window.path_to_searchindex_js = "../searchindex-e520ef02.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-498f9b97.js"></script>
+        <script src="../toc-1eb1a63b.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -300,7 +300,7 @@
 
 <h2 id="adding-a-real-app"><a class="header" href="#adding-a-real-app">Adding a real app</a></h2>
 <h3 id="apps-with-native-oidc-support-eg-immich-paperless-ngx"><a class="header" href="#apps-with-native-oidc-support-eg-immich-paperless-ngx">Apps with native OIDC support (e.g. Immich, Paperless-ngx)</a></h3>
-<p>No forward-auth proxy needed — configure the app directly against the realm. <a href="./15-immich.html">Immich</a> (<code>keycloak_openid_client.immich</code>, <code>tofu/modules/keycloak-realm/main.tf</code>) is the real worked example — copy its <code>valid_redirect_uris</code>/client shape for the next app, not <code>oauth2_proxy</code>’s (that one’s Tofu-managed end-to-end specifically because it’s a demo, not a real app — see the note below). Issuer URL:</p>
+<p>No forward-auth proxy needed — configure the app directly against the realm. <a href="./15-immich.html">Immich</a> and the four apps in <a href="./16-self-hosted-apps.html">Self-Hosted Apps</a> with native OIDC (Actual Budget, Paperless-ngx, Vaultwarden, Homebox) are the real worked examples — copy their <code>valid_redirect_uris</code>/client shape for the next app, not <code>oauth2_proxy</code>’s (that one’s Tofu-managed end-to-end specifically because it’s a demo, not a real app — see the note below). Issuer URL:</p>
 <div class="mdbook-tabs-container" data-tabglobal="domain">
 <nav class="mdbook-tabs">
 <button class="mdbook-tab active" data-tabname="Production">Production</button>
@@ -317,8 +317,8 @@
 </div>
 
 <p><strong>Client ID/secret</strong>: create a new <code>keycloak_openid_client</code> resource in <code>tofu/modules/keycloak-realm/main.tf</code> (copy <code>keycloak_openid_client.immich</code> as a starting point — <code>access_type = "CONFIDENTIAL"</code>, <code>standard_flow_enabled = true</code>, and the app’s actual callback URL(s) in <code>valid_redirect_uris</code>). Retrieve the generated secret once (a new sensitive output, following <code>immich_oidc_client_secret</code>‘s pattern in <code>tofu/modules/keycloak-realm/outputs.tf</code>) and hand-carry it into that app’s own ksops-encrypted config under <code>apps/&lt;app&gt;/</code> — real apps’ secrets live in GitOps, not just Tofu state.</p>
-<h3 id="apps-without-native-oidc-support-eg-grocy"><a class="header" href="#apps-without-native-oidc-support-eg-grocy">Apps without native OIDC support (e.g. Grocy)</a></h3>
-<p>Copy the <code>oauth2-proxy</code> + Ingress <code>auth-url</code>/<code>auth-signin</code> pattern from <code>tofu/modules/keycloak-realm/main.tf</code>’s <code>helm_release.oauth2_proxy</code> and <code>kubernetes_ingress_v1.whoami</code>. Two things to change from the demo:</p>
+<h3 id="apps-without-native-oidc-support-eg-changedetectionio"><a class="header" href="#apps-without-native-oidc-support-eg-changedetectionio">Apps without native OIDC support (e.g. changedetection.io)</a></h3>
+<p>Copy the <code>oauth2-proxy</code> + Ingress <code>auth-url</code>/<code>auth-signin</code> pattern from <code>tofu/modules/keycloak-realm/main.tf</code>’s <code>helm_release.oauth2_proxy</code> and <code>kubernetes_ingress_v1.whoami</code> — <a href="./16-self-hosted-apps.html">changedetection.io</a> (<code>apps/changedetection/base/oauth2-proxy.yaml</code>) is the real worked example, the first app to actually need this. Two things changed from the demo there:</p>
 <ol>
 <li><strong>The client secret should be ksops-encrypted, not Tofu-generated.</strong> The demo’s <code>oauth2_proxy</code> client is Tofu-managed end-to-end because it exists purely to prove the wiring, not as a real app — but a real app’s per-client secret belongs in that app’s <code>apps/&lt;app&gt;/</code> directory under ArgoCD’s management (see <code>docs/src/bootstrap-environment/06-gitops.md</code>), the same way <code>apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml</code> keeps its one sensitive field encrypted. Create the Keycloak client with an explicit <code>client_secret</code> (a <code>random_password</code>, as the demo does), then commit that value ksops-encrypted under the app’s own directory rather than only in Tofu state.</li>
 <li><strong>One oauth2-proxy per protected app</strong> (or a shared one, if several apps can tolerate a shared session cookie domain) — the demo’s <code>sso-demo</code> namespace/hostname pairing is illustrative, not something to reuse directly.</li>

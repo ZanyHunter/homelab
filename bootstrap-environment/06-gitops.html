@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-934fde10.js";
+            window.path_to_searchindex_js = "../searchindex-e520ef02.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-498f9b97.js"></script>
+        <script src="../toc-1eb1a63b.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -185,22 +185,60 @@
 <p>ArgoCD is bootstrapped by Tofu (part of the <code>core-addons</code> unit, <code>tofu/modules/core-addons/main.tf</code> — see <a href="./10-terragrunt-units.html">Terragrunt Units</a>), but the applications it manages live in git, under this repo’s <code>apps/</code> directory, not in Tofu. This page documents how that wiring works and how to add to it.</p>
 <hr>
 <h2 id="app-of-apps"><a class="header" href="#app-of-apps">App-of-apps</a></h2>
-<p>An ArgoCD <code>ApplicationSet</code> (<code>helm_release.argocd_apps</code> in <code>tofu/modules/core-addons/main.tf</code>, installed via argo-helm’s <code>argocd-apps</code> chart) watches <code>apps/*</code> in this repo at the revision pinned by <code>var.gitops.revision</code> (<code>main</code> for the <code>dev</code> cluster). Its git directory generator turns each direct subdirectory of <code>apps/</code> into its own ArgoCD <code>Application</code>, named after the directory, synced automatically (<code>prune</code> + <code>selfHeal</code>) into a same-named namespace.</p>
-<p><strong>To add a new app</strong>: create a new directory under <code>apps/</code>, e.g. <code>apps/my-app/</code>, with a <code>kustomization.yaml</code> (and whatever manifests/generators it needs) at its root. Commit and push. No Tofu change, no <code>kubectl apply</code>, no <code>argocd app create</code> — the next time the ApplicationSet’s generator runs (or immediately, since ArgoCD also reacts to webhook/poll events), a new <code>Application</code> named <code>my-app</code> appears and syncs on its own.</p>
+<p>An ArgoCD <code>ApplicationSet</code> (<code>helm_release.argocd_apps</code> in <code>tofu/modules/core-addons/main.tf</code>, installed via argo-helm’s <code>argocd-apps</code> chart) watches <code>apps/*/overlays/&lt;cluster_name&gt;</code> in this repo at the revision pinned by <code>var.gitops.revision</code> (<code>main</code> for both clusters today) — <code>&lt;cluster_name&gt;</code> is <code>var.cluster_name</code> (<code>"dev"</code>/<code>"prod"</code>), so each environment’s own ArgoCD only ever discovers its own overlay, never the other’s, even though both read from the same git path. Its git directory generator turns each matching directory into its own ArgoCD <code>Application</code>. The generated name/namespace use <code>{{path[1]}}</code> (the app-name path segment, e.g. <code>actual</code> out of <code>apps/actual/overlays/dev</code>) rather than <code>{{path.basename}}</code> (which would resolve to <code>dev</code>/<code>prod</code> here), synced automatically (<code>prune</code> + <code>selfHeal</code>).</p>
+<h3 id="the-base--overlaysenv-structure"><a class="header" href="#the-base--overlaysenv-structure">The <code>base/</code> + <code>overlays/&lt;env&gt;/</code> structure</a></h3>
+<p>Every directory under <code>apps/</code> (including <code>apps/cluster-addons/</code>) is split into:</p>
+<ul>
+<li><code>base/</code> — the actual manifests, environment-agnostic. Anywhere a value differs by environment (a hostname, a StorageClass name, a MetalLB IP range), the base file has an obviously-fake placeholder token instead (<code>__APP_HOSTNAME__</code>, <code>__KEYCLOAK_HOSTNAME__</code>, <code>__STORAGE_CLASS_CEPH__</code>, <code>__STORAGE_CLASS_NFS__</code>) rather than a real value.</li>
+<li><code>overlays/&lt;env&gt;/</code> — one per environment (<code>dev</code>, <code>prod</code> today), each just two small files: <code>env-values.yaml</code> (a plain <code>ConfigMap</code> holding that environment’s real values — the <em>only</em> place the real value is written down for that app) and <code>kustomization.yaml</code> (<code>resources: [../../base, env-values.yaml]</code> plus a <code>replacements:</code> block wiring each <code>ConfigMap</code> key to the base files’ placeholder tokens).</li>
+</ul>
+<p>This exists specifically to avoid duplicating whole manifests per environment — <code>overlays/&lt;env&gt;/</code> is a handful of lines, not a second copy of the app. See “Environment-specific values” below for exactly how the substitution works and why <code>replacements:</code> (not raw <code>patches:</code>) is the mechanism.</p>
+<p><strong>To add a new app</strong>: create <code>apps/my-app/base/</code> with a <code>kustomization.yaml</code> (and whatever manifests/generators it needs, using placeholder tokens for anything environment-specific) plus one <code>apps/my-app/overlays/&lt;env&gt;/</code> <strong>per existing environment</strong> (today: <code>dev</code> and <code>prod</code>, even though prod is unapplied scaffolding — see <a href="./10-terragrunt-units.html">Terragrunt Units</a>). Commit and push. No Tofu change, no <code>kubectl apply</code>, no <code>argocd app create</code> — the next time each cluster’s ApplicationSet generator runs, a new <code>Application</code> named <code>my-app</code> appears there and syncs on its own.</p>
+<p><strong>To add a new environment</strong> (e.g. a real prod, or a third environment down the line): this is the one place the base/overlays split creates real fan-out — add an <code>overlays/&lt;new-env&gt;/</code> to <strong>every</strong> directory under <code>apps/</code> (seven today: <code>cluster-addons</code>, <code>actual</code>, <code>paperless</code>, <code>vaultwarden</code>, <code>inventory</code>, <code>changedetection</code>, <code>immich</code>), not just a single config file. There’s no automation catching a missed one — a forgotten <code>overlays/&lt;new-env&gt;/</code> just means that one app’s <code>Application</code> never appears on the new cluster. Cross-check against <code>apps/*/overlays/</code> (a directory listing) when standing up a new environment, not memory.</p>
 <p><strong>Removing an app</strong> works the same way in reverse, with one caveat: the ApplicationSet’s <code>preserveResourcesOnDeletion</code> is set to <code>true</code>, specifically so a renamed directory or a transient git-generator hiccup can’t cascade-delete live resources (the <code>Application</code> object gets pruned, but whatever it was managing — Deployments, the MetalLB pool, ClusterIssuers, etc. — is left running, orphaned, until a matching <code>Application</code> reappears and re-adopts it). If you’re decommissioning an app for real, clean up its resources explicitly (e.g. <code>kubectl delete namespace &lt;app&gt;</code>) rather than assuming removing the directory will do it.</p>
-<p><code>apps/cluster-addons/</code> is the one directory that predates any “real” application — it holds cluster-level objects (the MetalLB <code>IPAddressPool</code>/<code>L2Advertisement</code>, the <code>letsencrypt-prod</code>/<code>letsencrypt-staging</code> <code>ClusterIssuer</code>s) that used to be applied by Tofu via <code>terraform_data</code> + <code>local-exec</code> provisioners shelling out to <code>kubectl</code>. Those provisioners are gone; this is where that configuration lives now.</p>
+<p><code>apps/cluster-addons/</code> is the one directory that predates any “real” application — it holds cluster-level objects (the MetalLB <code>IPAddressPool</code>/<code>L2Advertisement</code>, the <code>letsencrypt-prod</code>/<code>letsencrypt-staging</code> <code>ClusterIssuer</code>s) that used to be applied by Tofu via <code>terraform_data</code> + <code>local-exec</code> provisioners shelling out to <code>kubectl</code>. Those provisioners are gone; this is where that configuration lives now — and it gets the same <code>base/</code>/<code>overlays/&lt;env&gt;/</code> split as every real app, since its MetalLB <code>IPAddressPool</code> range is itself environment-specific.</p>
+<h2 id="environment-specific-values"><a class="header" href="#environment-specific-values">Environment-specific values</a></h2>
+<p>Every app has at least one value that legitimately differs per environment — its own external hostname, at minimum, plus (for most apps) a Ceph and/or NFS StorageClass name suffixed by cluster (<code>ceph-rbd-dev</code> vs <code>ceph-rbd-prod</code>, per <a href="./13-ceph-storage.html">Ceph-Backed Storage</a>’s naming convention). Kustomize deliberately has no general templating/string-concatenation language (that’s Helm’s job, not Kustomize’s) — the two real levers it gives you are <code>patches:</code> (verbose: one explicit op per field, repeating the literal value every time) and <code>replacements:</code> (used here: the real value is written down exactly once per environment, in that environment’s <code>env-values.yaml</code>, and copied into every field that needs it).</p>
+<p><strong>The trick that keeps this minimal</strong>: base files keep their real, correct structure — including any static suffix (<code>/realms/homelab</code>, <code>/oauth2/callback</code>) — with <em>only</em> the hostname segment itself replaced by a placeholder token, e.g. <code>value: https://__APP_HOSTNAME__/oauth2/callback</code>. <code>replacements:</code>’ <code>options.delimiter</code>/<code>index</code> (splitting the target string on <code>/</code> and touching only one indexed segment) then substitutes just that token, leaving everything else in the string untouched:</p>
+<pre><code class="language-yaml"># overlays/dev/kustomization.yaml
+replacements:
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.app-hostname
+    targets:
+      - select:
+          kind: Deployment
+          name: my-app
+        fieldPaths:
+          - spec.template.spec.containers.0.env.[name=SOME_URL].value
+        options:
+          delimiter: "/"
+          index: 2 # "https:" "" "__APP_HOSTNAME__" "oauth2" "callback" -&gt; index 2
+</code></pre>
+<p>A bare hostname field (an Ingress <code>host</code>, or <code>HBOX_OPTIONS_HOSTNAME</code>, which — unlike most of these apps’ OIDC env vars — takes a scheme-less hostname) needs no <code>options:</code> at all; a whole-value replace is correct since there’s nothing else in the string to preserve.</p>
+<p>This same mechanism reaches values embedded inside a ksops-encrypted <code>Secret</code> — <code>replacements:</code> operates on the fully-built (decrypted) resource list, after the <code>ksops</code> generator has already produced the real <code>Secret</code> object, so it doesn’t matter whether the target field came from a plain YAML file or a generator. Immich’s <code>issuerUrl</code> and Paperless-ngx’s <code>PAPERLESS_SOCIALACCOUNT_PROVIDERS</code> JSON blob (a value nested inside a single string field) both get their embedded Keycloak hostname swapped this same way — for the JSON case, the <em>entire</em> JSON string is still just one <code>/</code>-delimited value as far as <code>replacements:</code> is concerned, so the same delimiter/index approach works even though the surrounding text is JSON, not a bare URL.</p>
+<h3 id="verifying-a-build-without-a-live-argocd-sync"><a class="header" href="#verifying-a-build-without-a-live-argocd-sync">Verifying a build without a live ArgoCD sync</a></h3>
+<p>Local Bash sessions in this repo don’t have <code>kustomize</code>/<code>ksops</code> installed (only ArgoCD’s repo-server does, via <code>helm_release.argocd</code>’s init container). To check a <code>kustomization.yaml</code>/<code>replacements:</code> change actually builds correctly — and, critically, that ksops can still decrypt through it — before pushing:</p>
+<pre><code class="language-bash">POD=$(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-repo-server -o jsonpath='{.items[0].metadata.name}')
+kubectl cp apps/ argocd/"$POD":/tmp/test-build -c repo-server
+kubectl exec -n argocd "$POD" -c repo-server -- \
+  kustomize build --enable-alpha-plugins --enable-exec /tmp/test-build/apps/my-app/overlays/dev
+kubectl exec -n argocd "$POD" -c repo-server -- rm -rf /tmp/test-build
+</code></pre>
+<p>This uses the exact same binaries (and the exact same in-cluster age key) ArgoCD itself uses at sync time — a stronger check than anything a local <code>kustomize</code>/<code>sops</code> install could give, and the only way to test the ksops decryption path without actually syncing.</p>
 <h2 id="ksops-encrypted-manifests-under-apps"><a class="header" href="#ksops-encrypted-manifests-under-apps">ksops: encrypted manifests under apps/</a></h2>
 <p>ArgoCD’s repo-server has <a href="https://github.com/viaduct-ai/kustomize-sops">ksops</a> installed (patched in via <code>helm_release.argocd</code>’s values in <code>tofu/modules/core-addons/main.tf</code>: an init container copies the <code>ksops</code>/<code>kustomize</code> binaries into the repo-server, overriding the built-in <code>kustomize</code>), and is handed the same age private key already used for <code>tofu/secrets.enc.yaml</code> (mounted from a <code>kubernetes_secret.sops_age_key</code>, itself sourced from <code>~/.config/sops/age/keys.txt</code> — see <code>CLAUDE.md</code>’s “Secrets management”). This means any <code>kustomization.yaml</code> under <code>apps/</code> can reference a <code>ksops</code> generator to decrypt SOPS-encrypted files at sync time, the same way <code>tofu/secrets.enc.yaml</code> gets decrypted at plan time.</p>
 <p><strong>To add a new encrypted secret for an app</strong>:</p>
 <ol>
 <li>
-<p>Write the plaintext manifest (a <code>Secret</code>, or any resource with a sensitive field) somewhere temporary, <em>not</em> under <code>apps/</code>.</p>
+<p>Write the plaintext manifest (a <code>Secret</code>, or any resource with a sensitive field) somewhere temporary, <em>not</em> under <code>apps/</code>. If any field is environment-specific (a Keycloak issuer URL, say), use a placeholder token as described above — encryption doesn’t change how <code>replacements:</code> reaches this file.</p>
 </li>
 <li>
-<p>Copy it into place under your app’s directory with an <code>.enc.yaml</code> suffix, e.g. <code>apps/my-app/db-credentials.enc.yaml</code>.</p>
+<p>Copy it into place under your app’s <code>base/</code> directory with an <code>.enc.yaml</code> suffix, e.g. <code>apps/my-app/base/db-credentials.enc.yaml</code>.</p>
 </li>
 <li>
-<p>Encrypt it in place: <code>sops -e -i apps/my-app/db-credentials.enc.yaml</code> (run from the repo root, so the path matches <code>.sops.yaml</code>’s <code>apps/.*\.enc\.yaml$</code> rule).</p>
+<p>Encrypt it in place: <code>sops -e -i apps/my-app/base/db-credentials.enc.yaml</code> (run from the repo root, so the path matches <code>.sops.yaml</code>’s <code>apps/.*\.enc\.yaml$</code> rule).</p>
 </li>
 <li>
 <p>Reference it from a <code>ksops</code> generator in the same directory:</p>
@@ -223,7 +261,7 @@ files:
 </code></pre>
 </li>
 </ol>
-<p><code>.sops.yaml</code>’s rule for <code>apps/.*\.enc\.yaml$</code> only encrypts keys named <code>data</code>, <code>stringData</code>, or <code>email</code> — everything else in the manifest (the resource’s <code>kind</code>, <code>metadata.name</code>, non-sensitive <code>spec</code> fields) stays plaintext and human-reviewable in git. <code>email</code> is there specifically for cert-manager’s <code>ClusterIssuer</code>, which has no <code>secretRef</code> indirection for its ACME registration email — see <code>apps/cluster-addons/letsencrypt-prod-issuer.enc.yaml</code> for a worked example of a mostly-plaintext manifest with one encrypted leaf. If a new kind of genuinely sensitive field shows up in some other resource later, extend that regex rather than leaving it in plaintext.</p>
+<p><code>.sops.yaml</code>’s rule for <code>apps/.*\.enc\.yaml$</code> only encrypts keys named <code>data</code>, <code>stringData</code>, or <code>email</code> — everything else in the manifest (the resource’s <code>kind</code>, <code>metadata.name</code>, non-sensitive <code>spec</code> fields) stays plaintext and human-reviewable in git. <code>email</code> is there specifically for cert-manager’s <code>ClusterIssuer</code>, which has no <code>secretRef</code> indirection for its ACME registration email — see <code>apps/cluster-addons/base/letsencrypt-prod-issuer.enc.yaml</code> for a worked example of a mostly-plaintext manifest with one encrypted leaf. If a new kind of genuinely sensitive field shows up in some other resource later, extend that regex rather than leaving it in plaintext.</p>
 <h3 id="verifying-the-pipeline-end-to-end"><a class="header" href="#verifying-the-pipeline-end-to-end">Verifying the pipeline end-to-end</a></h3>
 <p>There’s no permanent canary secret sitting in the cluster for this — it was validated once, live, while wiring this up (a throwaway <code>Secret</code> under a temporary <code>apps/ksops-smoke-test/</code> directory, confirmed to sync healthy and decrypt correctly, then removed). To re-verify after an ArgoCD or ksops version bump, the fastest check is:</p>
 <pre><code class="language-bash">kubectl get applications -n argocd

@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-79045009.js";
+            window.path_to_searchindex_js = "../searchindex-0f02ef97.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-ab7d3f73.js"></script>
+        <script src="../toc-3a51dd82.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -185,7 +185,7 @@
 <p><a href="https://www.keycloak.org/">Keycloak</a> is the identity provider for homelab services, backed by a dedicated Postgres instance. Both are Tofu-managed, split across two Terragrunt units (see <a href="./10-terragrunt-units.html">Terragrunt Units</a>): <code>keycloak-infra</code> (<code>tofu/modules/keycloak-infra/</code>) stands up Postgres and Keycloak itself, and <code>keycloak-realm</code> (<code>tofu/modules/keycloak-realm/</code>) manages the <code>homelab</code> realm and its clients via the <a href="https://registry.terraform.io/providers/keycloak/keycloak/latest/docs"><code>keycloak</code> Terraform provider</a> — the same “talk to the app’s own API declaratively” pattern already used for <code>unifi_network.this</code>.</p>
 <hr>
 <h2 id="whats-deployed"><a class="header" href="#whats-deployed">What’s deployed</a></h2>
-<p><strong>Postgres</strong>: a hand-rolled single-instance <code>StatefulSet</code> (not a chart — see the comment at the top of <code>tofu/modules/keycloak-infra/main.tf</code> for why), on the same NFS-backed <code>StorageClass</code> as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed <code>StorageClass</code> ever exists (#28).</p>
+<p><strong>Postgres</strong>: a hand-rolled single-instance <code>StatefulSet</code> (not a chart — see the comment at the top of <code>tofu/modules/keycloak-infra/main.tf</code> for why), on the Ceph-backed <code>StorageClass</code> (real block storage, migrated off NFS — see <code>docs/src/bootstrap-environment/13-ceph-storage.md</code>, #28) rather than the NFS-backed one everything else here uses, since Postgres’s fsync/locking semantics are exactly the case that StorageClass exists for.</p>
 <p><strong>Keycloak</strong>: the <a href="https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx">codecentric/keycloakx</a> chart. Chosen over Bitnami’s chart for the same pinned-version reason as MinIO (see <code>tofu/modules/backup/main.tf</code>). Reachable at:</p>
 <div class="mdbook-tabs-container" data-tabglobal="domain">
 <nav class="mdbook-tabs">

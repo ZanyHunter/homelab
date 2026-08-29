@@ -110,7 +110,7 @@ Under the hood, this needs a `groups` claim in the token, which isn't included b
 
 ### Apps with native OIDC support (e.g. Immich, Paperless-ngx)
 
-No forward-auth proxy needed — configure the app directly against the realm. Issuer URL:
+No forward-auth proxy needed — configure the app directly against the realm. [Immich](./15-immich.md) (`keycloak_openid_client.immich`, `tofu/modules/keycloak-realm/main.tf`) is the real worked example — copy its `valid_redirect_uris`/client shape for the next app, not `oauth2_proxy`'s (that one's Tofu-managed end-to-end specifically because it's a demo, not a real app — see the note below). Issuer URL:
 
 {{#tabs global="domain" }}
 {{#tab name="Production" }}
@@ -121,7 +121,7 @@ No forward-auth proxy needed — configure the app directly against the realm. I
 {{#endtab }}
 {{#endtabs }}
 
-**Client ID/secret**: create a new `keycloak_openid_client` resource in `tofu/modules/keycloak-realm/main.tf` (copy `keycloak_openid_client.oauth2_proxy` as a starting point — `access_type = "CONFIDENTIAL"`, `standard_flow_enabled = true`, and the app's actual callback URL in `valid_redirect_uris`).
+**Client ID/secret**: create a new `keycloak_openid_client` resource in `tofu/modules/keycloak-realm/main.tf` (copy `keycloak_openid_client.immich` as a starting point — `access_type = "CONFIDENTIAL"`, `standard_flow_enabled = true`, and the app's actual callback URL(s) in `valid_redirect_uris`). Retrieve the generated secret once (a new sensitive output, following `immich_oidc_client_secret`'s pattern in `tofu/modules/keycloak-realm/outputs.tf`) and hand-carry it into that app's own ksops-encrypted config under `apps/<app>/` — real apps' secrets live in GitOps, not just Tofu state.
 
 ### Apps without native OIDC support (e.g. Grocy)
 

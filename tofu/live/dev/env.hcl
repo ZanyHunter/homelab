@@ -102,6 +102,24 @@ locals {
     revision = "main"
   }
 
+  # Not secrets in Cloudflare's own model (identifiers, not credentials) —
+  # visible on the dashboard's Overview page for the domain. See
+  # docs/src/bootstrap-environment/14-public-ingress.md's manual step.
+  cloudflare_account_id = "7eee532c0b49dbdd2f93dcb13de9df7a"
+  cloudflare_zone_id    = "f57b43e69b149c9be3483b4452f483d4"
+  cloudflared_version   = "2026.8.2"
+
+  # Apps exposed publicly via the Cloudflare Tunnel (#33/#39) — see
+  # docs/src/bootstrap-environment/14-public-ingress.md's onboarding runbook.
+  # photos.dev.thepugh.family (Immich) is the first; public_keycloak_realm
+  # adds the single allowlisted /realms/homelab/* route it needs for OIDC
+  # login, never a wildcard route for keycloak.dev.thepugh.family — /admin
+  # stays internal/VPN-only by construction.
+  public_apps = [
+    { hostname = "photos" },
+  ]
+  public_keycloak_realm = true
+
   ksops_version = "4.5.1"
 
   k8s_nodes = {

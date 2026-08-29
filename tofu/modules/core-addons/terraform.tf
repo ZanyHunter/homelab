@@ -21,5 +21,14 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6.0"
     }
+    # The Cloudflare Tunnel + public DNS records for photos.<domain_name>
+    # (#33/#39) — first use of this provider in this repo. cert-manager's
+    # DNS-01 use of the Cloudflare API token predates this and never needed
+    # a Terraform provider (it just hands the raw token to cert-manager's
+    # own Kubernetes Secret).
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.22.0"
+    }
   }
 }

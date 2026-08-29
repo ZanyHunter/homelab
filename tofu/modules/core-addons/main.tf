@@ -313,7 +313,12 @@ resource "helm_release" "argocd" {
     yamlencode({
       configs = {
         cm = {
-          "kustomize.buildOptions" = "--enable-alpha-plugins --enable-exec"
+          # --enable-helm: lets a kustomization.yaml's helmCharts: field
+          # inline-render a Helm chart (e.g. Immich's) alongside plain
+          # manifests — the repo-server image already bundles helm itself
+          # for ArgoCD's own native Helm-source support, so this is just
+          # exposing it to Kustomize's own inflator too.
+          "kustomize.buildOptions" = "--enable-alpha-plugins --enable-exec --enable-helm"
         }
       }
       repoServer = {
@@ -505,6 +510,7 @@ locals {
     ingress_nginx  = kubernetes_namespace.ingress_nginx.metadata[0].name
     argocd         = kubernetes_namespace.argocd.metadata[0].name
     cert_manager   = kubernetes_namespace.cert_manager.metadata[0].name
+    cloudflared    = kubernetes_namespace.cloudflared.metadata[0].name
     cluster_addons = "cluster-addons"
   }
 }
@@ -645,12 +651,13 @@ resource "kubernetes_network_policy" "allow_webhook_ingress" {
 
 # cert-manager, argocd's repo-server (git clone over HTTPS), argocd-server's
 # OIDC calls to Keycloak's external hostname (#32 — resolves back through
-# ingress-nginx's LoadBalancer IP, within this 0.0.0.0/0 range), and (below)
+# ingress-nginx's LoadBalancer IP, within this 0.0.0.0/0 range), cloudflared's
+# outbound-only connection to Cloudflare's edge (#33/#39), and (below)
 # ingress-nginx's outbound proxying all need real internet egress.
 resource "kubernetes_network_policy" "allow_internet_egress" {
   for_each = {
     for k, v in local.core_addons_namespaces : k => v
-    if contains(["cert_manager", "argocd"], k)
+    if contains(["cert_manager", "argocd", "cloudflared"], k)
   }
 
   metadata {
@@ -831,6 +838,227 @@ resource "kubernetes_network_policy" "ceph_csi_rbd_allow_monitor_egress" {
       }
       ports {
         port     = "3300"
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# --- Cloudflare Tunnel: public ingress (#33/#39) ------------------------------
+# Outbound-only connection from cloudflared to Cloudflare's edge — no port-
+# forward, no inbound rule on the router. Transport only, not an auth layer:
+# every app behind it keeps using the exact same Ingress/cert-manager/
+# NetworkPolicy chain LAN traffic already goes through. See
+# docs/src/bootstrap-environment/14-public-ingress.md for the full design.
+resource "kubernetes_namespace" "cloudflared" {
+  metadata {
+    name = "cloudflared"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
+}
+
+# The password a locally-managed tunnel would authenticate with — unused
+# directly since config_src = "cloudflare" (remote-managed), but the API
+# still requires one to create the tunnel object.
+resource "random_bytes" "cloudflare_tunnel_secret" {
+  length = 32
+}
+
+resource "cloudflare_zero_trust_tunnel_cloudflared" "this" {
+  account_id    = var.cloudflare_account_id
+  name          = "homelab-${var.cluster_name}"
+  config_src    = "cloudflare"
+  tunnel_secret = random_bytes.cloudflare_tunnel_secret.base64
+}
+
+# Ready-to-run connector credential for `cloudflared tunnel run --token`.
+# There's no separate resource attribute for this — Terraform has to ask
+# Cloudflare's API for it explicitly via this data source.
+data "cloudflare_zero_trust_tunnel_cloudflared_token" "this" {
+  account_id = var.cloudflare_account_id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this.id
+}
+
+# Remote-managed ingress rules — allowlist only, evaluated top to bottom,
+# first match wins. Each var.public_apps entry forwards its whole hostname;
+# Keycloak (var.public_keycloak_realm) gets exactly one path-scoped route for
+# /realms/homelab/* and nothing else — /admin, bare "/", anything not listed
+# at all, falls through to the final http_status:404 catch-all, which must
+# stay last. This is the actual mechanism keeping Keycloak's admin console
+# internal/VPN-only: not a denylist rule that could miss a path, but nothing
+# else ever being forwarded through the tunnel in the first place.
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
+  account_id = var.cloudflare_account_id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this.id
+
+  config = {
+    ingress = concat(
+      [
+        for app in var.public_apps : {
+          hostname = "${app.hostname}.${var.domain_name}"
+          # https:// + origin_server_name, not a plain http:// shortcut:
+          # cloudflared validates ingress-nginx's real cert-manager-issued
+          # cert before forwarding (Full-strict-equivalent for the
+          # cloudflared-to-origin leg — see 14-public-ingress.md's TLS
+          # section on why that's free here and worth doing properly).
+          service = "https://ingress-nginx-controller.${kubernetes_namespace.ingress_nginx.metadata[0].name}.svc.cluster.local:443"
+          origin_request = {
+            # Without an explicit Host header, ingress-nginx would see the
+            # internal service DNS name instead of the real hostname and
+            # fail to route to the right backend Ingress at all.
+            http_host_header   = "${app.hostname}.${var.domain_name}"
+            origin_server_name = "${app.hostname}.${var.domain_name}"
+          }
+        }
+      ],
+      var.public_keycloak_realm ? [
+        {
+          hostname = "keycloak.${var.domain_name}"
+          path     = "^/realms/homelab/.*"
+          service  = "https://ingress-nginx-controller.${kubernetes_namespace.ingress_nginx.metadata[0].name}.svc.cluster.local:443"
+          origin_request = {
+            http_host_header   = "keycloak.${var.domain_name}"
+            origin_server_name = "keycloak.${var.domain_name}"
+          }
+        }
+      ] : [],
+      [{ service = "http_status:404" }]
+    )
+  }
+}
+
+# Public CNAME per app, proxied (orange-clouded — required for tunnel
+# routing to actually work, an unproxied/DNS-only record would just resolve
+# to cfargotunnel.com with nothing behind it). Same zone/DNS-Edit scope
+# cert-manager's DNS-01 already uses — no new token permission needed here.
+resource "cloudflare_dns_record" "public_apps" {
+  for_each = { for app in var.public_apps : app.hostname => app }
+
+  zone_id = var.cloudflare_zone_id
+  name    = "${each.value.hostname}.${var.domain_name}"
+  type    = "CNAME"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.this.id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+}
+
+resource "cloudflare_dns_record" "keycloak_public" {
+  count = var.public_keycloak_realm ? 1 : 0
+
+  zone_id = var.cloudflare_zone_id
+  name    = "keycloak.${var.domain_name}"
+  type    = "CNAME"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.this.id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+}
+
+resource "kubernetes_secret" "cloudflared_tunnel_token" {
+  metadata {
+    name      = "cloudflared-tunnel-token"
+    namespace = kubernetes_namespace.cloudflared.metadata[0].name
+  }
+
+  data = {
+    token = data.cloudflare_zero_trust_tunnel_cloudflared_token.this.token
+  }
+
+  type = "Opaque"
+}
+
+# Hand-rolled, not a chart — Cloudflare doesn't publish an official Helm
+# chart for cloudflared, and this repo already avoids third-party charts for
+# pinned-version risk (see Postgres in keycloak-infra, MinIO in backup).
+# Two replicas: Cloudflare Tunnel natively supports multiple concurrent
+# connectors on the same tunnel token, so this is real redundancy for free,
+# not just a cosmetic replica count.
+resource "kubernetes_deployment" "cloudflared" {
+  metadata {
+    name      = "cloudflared"
+    namespace = kubernetes_namespace.cloudflared.metadata[0].name
+    labels    = { app = "cloudflared" }
+  }
+
+  spec {
+    replicas = 2
+    selector {
+      match_labels = { app = "cloudflared" }
+    }
+    template {
+      metadata {
+        labels = { app = "cloudflared" }
+      }
+      spec {
+        security_context {
+          run_as_non_root = true
+          run_as_user     = 65532
+        }
+        container {
+          name  = "cloudflared"
+          image = "cloudflare/cloudflared:${var.cloudflared_version}"
+          # --protocol http2 forces TCP-only transport to Cloudflare's edge
+          # (the default would prefer QUIC/UDP), keeping the NetworkPolicy
+          # below to a single TCP port instead of also opening UDP.
+          args = ["tunnel", "--no-autoupdate", "--protocol", "http2", "run"]
+          env {
+            name = "TUNNEL_TOKEN"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.cloudflared_tunnel_token.metadata[0].name
+                key  = "token"
+              }
+            }
+          }
+          security_context {
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 65532
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
+          resources {
+            requests = {
+              cpu    = "50m"
+              memory = "64Mi"
+            }
+            limits = {
+              memory = "128Mi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# cloudflared -> ingress-nginx's ClusterIP Service, the one in-cluster hop
+# every tunneled request makes on its way to the app's own Ingress.
+resource "kubernetes_network_policy" "cloudflared_allow_ingress_nginx_egress" {
+  metadata {
+    name      = "allow-ingress-nginx-egress"
+    namespace = kubernetes_namespace.cloudflared.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = kubernetes_namespace.ingress_nginx.metadata[0].name }
+        }
+      }
+      ports {
+        port     = "443"
         protocol = "TCP"
       }
     }

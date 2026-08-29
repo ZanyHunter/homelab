@@ -77,6 +77,13 @@ resource "kubernetes_stateful_set_v1" "keycloak_postgres" {
           # existing data directory's on-disk ownership (drwx------, uid 70),
           # not the Debian-image UID 999 convention this image doesn't use.
           run_as_user = 70
+          # A freshly-formatted Ceph RBD volume (#28) is root-owned by
+          # default; ceph-csi's CSIDriver declares fsGroupPolicy: "File", so
+          # setting this makes Kubernetes chown the volume to uid/gid 70 on
+          # mount instead of Postgres hitting a real "Permission denied" on
+          # initdb — found live migrating off NFS, which never needed this
+          # (root-squash was disabled on that export instead).
+          fs_group = 70
         }
 
         container {
@@ -158,8 +165,14 @@ resource "kubernetes_stateful_set_v1" "keycloak_postgres" {
         name = "data"
       }
       spec {
-        access_modes       = ["ReadWriteOnce"]
-        storage_class_name = var.nfs_storage_class_name
+        access_modes = ["ReadWriteOnce"]
+        # Real block storage instead of NFS (#28) — Postgres's fsync/locking
+        # needs are exactly the case this StorageClass exists for. Migrated
+        # via a real pg_dump/restore, not an in-place change: Kubernetes
+        # doesn't allow changing a bound PVC's StorageClass, and this
+        # template change creates a fresh empty PVC — see
+        # docs/src/bootstrap-environment/13-ceph-storage.md.
+        storage_class_name = var.ceph_storage_class_name
         resources {
           requests = {
             storage = "5Gi"

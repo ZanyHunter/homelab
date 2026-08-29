@@ -14,6 +14,11 @@ variable "nfs_storage_class_name" {
   description = "Name of the NFS StorageClass (core-addons unit's output) Postgres's data volume is provisioned on."
 }
 
+variable "ceph_storage_class_name" {
+  type        = string
+  description = "Name of the Ceph-backed StorageClass (core-addons unit's output) Postgres's data volume is provisioned on (#28) — real block storage, not NFS, for correct fsync/locking semantics."
+}
+
 variable "domain_name" {
   type        = string
   description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives Keycloak's own ingress hostname/frontend URL. See tofu/modules/network/variables.tf's domain_name for the full picture."

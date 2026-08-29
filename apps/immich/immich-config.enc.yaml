@@ -4,20 +4,20 @@ metadata:
     name: immich-config
     namespace: immich
 stringData:
-    immich-config.yaml: ENC[AES256_GCM,data:MpYtYoKenpMD18buLNoDgbckoo7aDAuYjrhMakX6gcgrKgb6TLdzay/aLvNCSQ848jG3o/pPcnO5O7Ezac/MhVa2pfAHgyKqE167+WOY0pse2s6PeNSBv1hmn9/kvvWra3czScgwCkL58cIQMh7hXl7IcOGgYaXddCKNaeKqCeDHO3UIGrjFn2A6QSoqopz2zxVwxr17YIjr00To3u9IzWzrreXma/Kxml50lTNx7vLnV3rx/ZYN7Rry4UIozpBHTNmHe0qdn1StD0s7vIdGFUGnzMuITsYJEtgUEM6KuO3ld3iSd2qSrK+MJnGgVf8CO/xQJ4vKzwiYLg==,iv:bptQHg8yhHfCyAJJo4uPAUkJhrVQapCi8PAX4lzaEfo=,tag:MI6IG822mYBGgpEZS+0Y2w==,type:str]
+    immich-config.yaml: ENC[AES256_GCM,data:t5U0ePxWf3EdVzkrZ/dz8EVKg9tDpPTpv28z6ygyn8wGunhnNaWAlaCyEBLspkh3/pV5rIOM3jj2/mYnZthheZQnSui9apMtn+sufd7LlFRc2YOu5B3gyokvP9tOflWHRKod7AZC59w2TdggiB8UUoLOhODvw1jPwkBAhPfnDeFY8USxXxP9r7GS59BAMy3KWiupmm0SP5eITINDNXHfw/yNVTOHzzMtEG89vLNNHAyks7bn5Bf2ZoNeNCp6fbJb9QNyqcPMDXHeda/U8sWi3VJnhnkYWudJby+zuBRu+bBiA7i+H63GgW7Tvrh/9FQsbA3MZKWj9yiY3cvGOioucPOwX5pumtyemyJ2T3HJb6faaq+MXeX50kFgrJlCi4A89FpqAK2mziFWnPcByuuDPf1dgFRB,iv:XyeYXloEi8YxAGSUcx32c7aYFTWnm3Dn6iYHq/1IsWk=,tag:KFNJF1GBMJxOlRL5nUuglw==,type:str]
 type: Opaque
 sops:
     age:
         - enc: |
             -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBQak04M0xNMm1yQUJLdXZE
-            QnhnR2ZhM014OHE4VGhEZ2h0WUNaMGYwR21FCkJBSlNPRW91MlFFZ1Azd1FnMXBO
-            azZMWW9KZkY5djNJOXhtYUx1cnFXTm8KLS0tIE12K2JDaDlDZ1BwdGRITXFoTUh1
-            UWlsVHdXazdZeTRWSlB3TFZHRmFUV2MKUFodRZxNkbcW1roFYo0+I8otStFPwmRP
-            mNHPpvGLwyfMdmIVnK9kF0I1J9rW/dCcn7vgoJ9ul7w/zKZMhEqKIA==
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSArbzVoU08xM1QxUjZPNGNp
+            bmphZnBkbFNOOEU0bUo2bjNuei9FTGx2bDFJClpGQnhNTEM3M2l0K1ZiQjl1b2dO
+            c1lSSWk4dVI2RmpWVkc5dUxlQjRsMVkKLS0tIFB1bTgvbkZZSVJGaVZ4SFp0RUVH
+            cmVWVVNSS1FQODZ1VFM1QnJzSjltVFkKtLFaUAifSvf71OsJktsUm6e0USrQM3YF
+            IDJJa1CH4PZcjMssdg6ZV5EGhZn4yI3TJvWEPDW/UE7ViTSe+0mTwA==
             -----END AGE ENCRYPTED FILE-----
           recipient: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
     encrypted_regex: ^(data|stringData|email)$
-    lastmodified: "2026-08-29T05:12:22Z"
-    mac: ENC[AES256_GCM,data:PgPfdtwiyP/5NPubd/BA1Md8bD5QXU9Zf7tR1h62uGdonMddJ3MiIlme4CjmsZRbqUcHIQN7Lhg7ewTiSyf9q48tHL/abmmL69LuMPMEPBbmA9HYmE9ST8AbQDN92D7Gd9ONTDCwiHXYldddCPaG7QfDUgQiiKXpum0bMHrEzXU=,iv:50Hl0XrUMvntzd+Sxu+m9/OekpAcygGQoSmS1NJDwn0=,tag:3H50cROxbBWcx9p60G1q9Q==,type:str]
+    lastmodified: "2026-08-29T14:42:31Z"
+    mac: ENC[AES256_GCM,data:mFXW+QACLNl9Fl3RPx1MltcAeMYWvzBGHeLBpxOV6Ef+QIRD90eUrRBJ4fUDYt10HEE9f965/gMTCTZ9OoDRZQXnjMOI7OHBwMz8GCVevxssJbjU7qTw23NnzHvKv+nAYpYtCPD0zxAAIww33DWo2TaOUZwr+CqaWhmio+ZFp+k=,iv:VUY5Zi5tFvP9gU8XsKfelLwHihDv1HTXxKaKWXp8kl0=,tag:YdO5orcXM/30Ci2DLlZTBA==,type:str]
     version: 3.13.3

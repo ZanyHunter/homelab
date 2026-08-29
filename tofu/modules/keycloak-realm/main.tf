@@ -178,17 +178,27 @@ resource "keycloak_openid_client" "immich" {
 }
 
 # platform-admins -> Immich's own admin role, via oauth.roleClaim (defaults
-# to "immich_role" in Immich itself, not set explicitly here). Deliberately
-# not the reusable "groups" client scope pattern used for ArgoCD/Grafana:
-# Immich's own auth code checks a claim value for the literal string
-# "admin"/"user" (getRoleClaim() in its auth.service.ts), not an arbitrary
-# group name, so the realm role itself is named "admin" — the string match
-# Immich is actually looking for, not just a label. Verified live from
-# Immich's own source that this is re-evaluated on every login, not just at
-# account creation, so removing someone from platform-admins later demotes
-# them in Immich on their next login too.
+# to "immich_role" in Immich itself, set explicitly below for clarity). A
+# *client* role on Immich's own client, not a realm role: the deployed
+# Immich version (v3.0.0) reads this claim with `typeof value === 'string'`
+# (see server/src/services/auth.service.ts@v3.0.0's getClaim helper) — an
+# *array* value (what a realm-role mapper produces, since every user also
+# carries Keycloak's own default-roles-<realm>/offline_access/
+# uma_authorization realm roles alongside "admin") fails that check and
+# silently falls back to "user", found live as a real "logged in via
+# Keycloak but landed as a normal user" bug. Scoping the mapper to just this
+# one client's roles (client_id_for_role_mappings) with multivalued = false
+# is what actually gets a bare "admin" string with nothing else competing
+# for the single value — realm roles have no equivalent per-client scoping.
+#
+# Note this is evaluated only at account creation in v3.0.0, not on every
+# login (a newer, not-yet-released Immich version does re-evaluate on every
+# login — worth revisiting when that ships). A role change here won't
+# retroactively fix an already-created Immich user; see
+# docs/src/bootstrap-environment/15-immich.md.
 resource "keycloak_role" "immich_admin" {
   realm_id    = keycloak_realm.homelab.id
+  client_id   = keycloak_openid_client.immich.id
   name        = "admin"
   description = "Grants Immich's own admin role via oauth.roleClaim — the literal claim value Immich's auth code checks for."
 }
@@ -200,20 +210,20 @@ resource "keycloak_group_roles" "platform_admins_immich_admin" {
   exhaustive = true
 }
 
-# Attached directly to the Immich client (not a shared client scope like
-# "groups") since only Immich needs this specific claim shape — a mapper on
-# a client applies to every token that client issues, no optional-scope
-# opt-in required. multivalued = true: Immich's getRoleClaim() checks
-# whether the claim's value array *contains* "admin", so the presence of
-# Keycloak's other default realm roles (offline_access, etc.) alongside it
-# is harmless — only the first value would be set otherwise.
-resource "keycloak_openid_user_realm_role_protocol_mapper" "immich_role" {
+resource "keycloak_openid_user_client_role_protocol_mapper" "immich_role" {
   realm_id  = keycloak_realm.homelab.id
   client_id = keycloak_openid_client.immich.id
   name      = "immich-role"
 
-  claim_name  = "immich_role"
-  multivalued = true
+  claim_name = "immich_role"
+  # The underlying Keycloak config key (usermodel.clientRoleMapping.clientId)
+  # actually wants the client's human-readable client_id string ("immich"),
+  # not its internal UUID (keycloak_openid_client.immich.id) despite this
+  # Terraform field's name — found live: passing the UUID here silently
+  # produced a mapper that never matched anything, so the claim was simply
+  # absent from the token rather than erroring.
+  client_id_for_role_mappings = keycloak_openid_client.immich.client_id
+  multivalued                 = false
 }
 
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------

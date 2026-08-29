@@ -68,6 +68,12 @@ resource "kubernetes_stateful_set_v1" "keycloak_postgres" {
     template {
       metadata {
         labels = { app = "keycloak-postgres" }
+        annotations = {
+          # Opts this pod's "data" volume into Velero's File System Backup
+          # (backup unit's node-agent, #28's follow-up) — actual database
+          # contents, not just the StatefulSet's own object definition.
+          "backup.velero.io/backup-volumes" = "data"
+        }
       }
 
       spec {

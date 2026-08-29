@@ -6,6 +6,4 @@ resources:
   - data-pvc.yaml
   - network-policies.yaml
   - actual.yaml
-
-generators:
-  - ksops-generator.yaml
+  - actual-oidc-credentials.yaml

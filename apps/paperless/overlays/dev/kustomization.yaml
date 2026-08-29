@@ -30,10 +30,10 @@ replacements:
       fieldPath: data.keycloak-hostname
     targets:
       - select:
-          kind: Secret
-          name: paperless-config
+          kind: ExternalSecret
+          name: paperless-oidc-config
         fieldPaths:
-          - stringData.socialaccount-providers
+          - spec.target.template.data.socialaccount-providers
         options:
           delimiter: "/"
           index: 2

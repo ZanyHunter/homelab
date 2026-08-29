@@ -8,6 +8,7 @@ resources:
   - redis.yaml
   - network-policies.yaml
   - paperless.yaml
+  - paperless-oidc-config.yaml
 
 generators:
   - ksops-generator.yaml

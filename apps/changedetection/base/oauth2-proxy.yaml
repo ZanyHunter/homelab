@@ -69,7 +69,7 @@ spec:
             - name: OAUTH2_PROXY_COOKIE_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: changedetection-oauth2-proxy-credentials
+                  name: changedetection-cookie-secret
                   key: cookie-secret
           readinessProbe:
             httpGet:

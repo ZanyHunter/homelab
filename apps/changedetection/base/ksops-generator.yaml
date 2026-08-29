@@ -7,4 +7,4 @@ metadata:
       exec:
         path: ksops
 files:
-  - ./changedetection-oauth2-proxy-credentials.enc.yaml
+  - ./changedetection-cookie-secret.enc.yaml

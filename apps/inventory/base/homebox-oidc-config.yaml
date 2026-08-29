@@ -1,0 +1,24 @@
+# Mirrors keycloak-realm's kubernetes_secret.homebox_oidc_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# (apps/cluster-addons/base/) — automatically stays current across a
+# keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
+# terragrunt output/hand-carry step (#42). homebox-config.enc.yaml stays
+# ksops-encrypted for api-key-pepper, which has no Tofu counterpart. See
+# docs/src/bootstrap-environment/06-gitops.md.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: homebox-oidc-config
+  namespace: inventory
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: homebox-oidc-config
+  data:
+    - secretKey: oidc-client-secret
+      remoteRef:
+        key: homebox-oidc-client-secret
+        property: client-secret

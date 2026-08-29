@@ -7,5 +7,4 @@ metadata:
       exec:
         path: ksops
 files:
-  - ./immich-config.enc.yaml
   - ./immich-db-credentials.enc.yaml

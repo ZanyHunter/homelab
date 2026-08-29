@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-289e9ec9.js";
+            window.path_to_searchindex_js = "../searchindex-934fde10.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-dfc9ad3a.js"></script>
+        <script src="../toc-498f9b97.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -300,7 +300,7 @@
 
 <h2 id="adding-a-real-app"><a class="header" href="#adding-a-real-app">Adding a real app</a></h2>
 <h3 id="apps-with-native-oidc-support-eg-immich-paperless-ngx"><a class="header" href="#apps-with-native-oidc-support-eg-immich-paperless-ngx">Apps with native OIDC support (e.g. Immich, Paperless-ngx)</a></h3>
-<p>No forward-auth proxy needed — configure the app directly against the realm. Issuer URL:</p>
+<p>No forward-auth proxy needed — configure the app directly against the realm. <a href="./15-immich.html">Immich</a> (<code>keycloak_openid_client.immich</code>, <code>tofu/modules/keycloak-realm/main.tf</code>) is the real worked example — copy its <code>valid_redirect_uris</code>/client shape for the next app, not <code>oauth2_proxy</code>’s (that one’s Tofu-managed end-to-end specifically because it’s a demo, not a real app — see the note below). Issuer URL:</p>
 <div class="mdbook-tabs-container" data-tabglobal="domain">
 <nav class="mdbook-tabs">
 <button class="mdbook-tab active" data-tabname="Production">Production</button>
@@ -316,7 +316,7 @@
 
 </div>
 
-<p><strong>Client ID/secret</strong>: create a new <code>keycloak_openid_client</code> resource in <code>tofu/modules/keycloak-realm/main.tf</code> (copy <code>keycloak_openid_client.oauth2_proxy</code> as a starting point — <code>access_type = "CONFIDENTIAL"</code>, <code>standard_flow_enabled = true</code>, and the app’s actual callback URL in <code>valid_redirect_uris</code>).</p>
+<p><strong>Client ID/secret</strong>: create a new <code>keycloak_openid_client</code> resource in <code>tofu/modules/keycloak-realm/main.tf</code> (copy <code>keycloak_openid_client.immich</code> as a starting point — <code>access_type = "CONFIDENTIAL"</code>, <code>standard_flow_enabled = true</code>, and the app’s actual callback URL(s) in <code>valid_redirect_uris</code>). Retrieve the generated secret once (a new sensitive output, following <code>immich_oidc_client_secret</code>‘s pattern in <code>tofu/modules/keycloak-realm/outputs.tf</code>) and hand-carry it into that app’s own ksops-encrypted config under <code>apps/&lt;app&gt;/</code> — real apps’ secrets live in GitOps, not just Tofu state.</p>
 <h3 id="apps-without-native-oidc-support-eg-grocy"><a class="header" href="#apps-without-native-oidc-support-eg-grocy">Apps without native OIDC support (e.g. Grocy)</a></h3>
 <p>Copy the <code>oauth2-proxy</code> + Ingress <code>auth-url</code>/<code>auth-signin</code> pattern from <code>tofu/modules/keycloak-realm/main.tf</code>’s <code>helm_release.oauth2_proxy</code> and <code>kubernetes_ingress_v1.whoami</code>. Two things to change from the demo:</p>
 <ol>

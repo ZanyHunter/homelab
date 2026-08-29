@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-289e9ec9.js";
+            window.path_to_searchindex_js = "../searchindex-934fde10.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-dfc9ad3a.js"></script>
+        <script src="../toc-498f9b97.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -227,7 +227,8 @@
 <h3 id="kube-proxyschedulercontroller-manager-scrape-targets"><a class="header" href="#kube-proxyschedulercontroller-manager-scrape-targets">kube-proxy/scheduler/controller-manager scrape targets</a></h3>
 <p>kube-prometheus-stack’s default scrape jobs for <code>kube-proxy</code>, <code>kube-scheduler</code>, and <code>kube-controller-manager</code> assume kubeadm-style exposure — each component’s metrics port reachable directly on the node’s host IP. Talos binds these to loopback only, so all three came up as permanently <code>connection refused</code> targets (and a permanently-firing <code>TargetDown</code> alert) the first time this was tested against the real cluster. Rather than chasing Talos-side metrics exposure for three components this repo doesn’t otherwise need visibility into, <code>kubeControllerManager</code>/<code>kubeScheduler</code>/<code>kubeProxy</code> (and their matching <code>defaultRules.rules</code> alert groups) are disabled in <code>tofu/modules/observability/main.tf</code>.</p>
 <h3 id="lokis-chunks-cache-defaults-to-an-8gi-memory-request"><a class="header" href="#lokis-chunks-cache-defaults-to-an-8gi-memory-request">Loki’s chunks-cache defaults to an 8Gi memory request</a></h3>
-<p>Loki’s <code>chunksCache</code> (an optional memcached-based query-performance cache, enabled by default) requests <code>allocatedMemory: 8192</code> — sized for a much larger deployment than any single node in this 4GB-RAM-per-node cluster has, leaving <code>loki-chunks-cache-0</code> permanently <code>Pending</code> (“Insufficient memory” on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO (<code>docs/src/bootstrap-environment/07-backup-restore.md</code>). Not worth tuning a cache size for at this log volume, so both <code>chunksCache</code> and <code>resultsCache</code> are disabled outright.</p>
+<p>Loki’s <code>chunksCache</code> (an optional memcached-based query-performance cache, enabled by default) requests <code>allocatedMemory: 8192</code> — sized for a much larger deployment than any single worker had on the original 4GB-RAM-per-node cluster, leaving <code>loki-chunks-cache-0</code> permanently <code>Pending</code> (“Insufficient memory” on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO (<code>docs/src/bootstrap-environment/07-backup-restore.md</code>).</p>
+<p><code>allocatedMemory</code> turned out to be an independently tunable number, not an enabled/disabled-only toggle, and workers were later resized to 16GB (see <code>node_resources</code> in <code>env.hcl</code>) — so both <code>chunksCache</code> and <code>resultsCache</code> are enabled at <code>allocatedMemory: 512</code> (512MB) rather than left off, giving real query-caching benefit at a size this log volume actually needs.</p>
 <h2 id="verifying-its-actually-working"><a class="header" href="#verifying-its-actually-working">Verifying it’s actually working</a></h2>
 <pre><code class="language-bash">kubectl -n monitoring get pods
 </code></pre>

@@ -1,5 +1,5 @@
 # Pinned `helm template` render of oci://ghcr.io/immich-app/immich-charts/immich
-# @ 0.13.1 (app version v3.0.0) — committed as static output rather than
+# @ 0.13.1 (app version v3.1.0) — committed as static output rather than
 # rendered at sync time (Kustomize's helmCharts inflator has a real,
 # currently-unresolved bug pulling OCI charts: kubernetes-sigs/kustomize#4381,
 # argoproj/argo-cd#21257). Same "avoid third-party chart pinning risk"
@@ -18,6 +18,13 @@
 # (independent of immich-config.enc.yaml's passwordLogin.enabled) — see
 # docs/src/bootstrap-environment/15-immich.md's "Local login is disabled"
 # section for the two real Keycloak role-mapper gotchas this required.
+# Bumped v3.0.0 -> v3.1.0: the release that ships re-evaluating the OIDC
+# role claim on every login and supporting array claim values, rather than
+# only at account creation with string-only values — the exact gap that
+# forced the client-role/single-string workaround documented in
+# 15-immich.md. Still left as-is rather than simplified back to a realm
+# role: no reason to reintroduce noisy default realm roles into the claim
+# just because a newer server version happens to tolerate them now.
 #
 # To upgrade: `helm pull oci://ghcr.io/immich-app/immich-charts/immich
 # --version <new> --untar`, re-render with the values below (see
@@ -36,6 +43,8 @@
 #   main:
 #     containers:
 #       main:
+#         image:
+#           tag: v3.1.0
 #         env:
 #           DB_HOSTNAME: immich-postgres
 #           DB_USERNAME: immich
@@ -300,7 +309,7 @@ spec:
             value: immich-valkey
           - name: TRANSFORMERS_CACHE
             value: /cache
-          image: ghcr.io/immich-app/immich-machine-learning:v3.0.0
+          image: ghcr.io/immich-app/immich-machine-learning:v3.1.0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -415,7 +424,7 @@ spec:
             value: http://immich-machine-learning:3003
           - name: REDIS_HOSTNAME
             value: immich-valkey
-          image: ghcr.io/immich-app/immich-server:v3.0.0
+          image: ghcr.io/immich-app/immich-server:v3.1.0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3

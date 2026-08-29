@@ -253,7 +253,7 @@ resource "helm_release" "kube_prometheus_stack" {
         }
         "grafana.ini" = {
           server = {
-            root_url = "https://grafana.k8s.thepugh.family"
+            root_url = "https://grafana.${var.domain_name}"
           }
           auth = {
             # Hides the local-login UI so normal users go through Keycloak.
@@ -277,9 +277,9 @@ resource "helm_release" "kube_prometheus_stack" {
             # group membership rather than a hardcoded per-person identity —
             # see keycloak-realm's keycloak_openid_client_scope.groups.
             scopes              = "openid email profile groups"
-            auth_url            = "https://keycloak.k8s.thepugh.family/realms/homelab/protocol/openid-connect/auth"
-            token_url           = "https://keycloak.k8s.thepugh.family/realms/homelab/protocol/openid-connect/token"
-            api_url             = "https://keycloak.k8s.thepugh.family/realms/homelab/protocol/openid-connect/userinfo"
+            auth_url            = "https://keycloak.${var.domain_name}/realms/homelab/protocol/openid-connect/auth"
+            token_url           = "https://keycloak.${var.domain_name}/realms/homelab/protocol/openid-connect/token"
+            api_url             = "https://keycloak.${var.domain_name}/realms/homelab/protocol/openid-connect/userinfo"
             role_attribute_path = "contains(groups[*], 'platform-admins') && 'Admin' || 'Viewer'"
             allow_sign_up       = true
           }
@@ -303,7 +303,7 @@ resource "helm_release" "kube_prometheus_stack" {
         ingress = {
           enabled          = true
           ingressClassName = "nginx"
-          hosts            = ["grafana.k8s.thepugh.family"]
+          hosts            = ["grafana.${var.domain_name}"]
           annotations = {
             "nginx.ingress.kubernetes.io/ssl-redirect" = "true"
             "cert-manager.io/cluster-issuer"           = "letsencrypt-prod"
@@ -311,7 +311,7 @@ resource "helm_release" "kube_prometheus_stack" {
           tls = [
             {
               secretName = "grafana-tls"
-              hosts      = ["grafana.k8s.thepugh.family"]
+              hosts      = ["grafana.${var.domain_name}"]
             }
           ]
         }

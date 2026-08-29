@@ -14,6 +14,11 @@
 # attempt (root-squash is disabled on the NFS export, same as elsewhere in
 # this repo, so the exact UID writing to the media PVC doesn't matter).
 #
+# IMMICH_ALLOW_SETUP=false: disables the local admin-setup wizard
+# (independent of immich-config.enc.yaml's passwordLogin.enabled) — see
+# docs/src/bootstrap-environment/15-immich.md's "Local login is disabled"
+# section for the two real Keycloak role-mapper gotchas this required.
+#
 # To upgrade: `helm pull oci://ghcr.io/immich-app/immich-charts/immich
 # --version <new> --untar`, re-render with the values below (see
 # docs/src/bootstrap-environment/15-immich.md), review the diff, replace
@@ -61,6 +66,8 @@
 #     main:
 #       containers:
 #         main:
+#           env:
+#             IMMICH_ALLOW_SETUP: "false"
 #           resources:
 #             requests: { cpu: 250m, memory: 512Mi }
 #             limits: { memory: 2Gi }
@@ -400,6 +407,8 @@ spec:
                 name: immich-db-credentials
           - name: DB_USERNAME
             value: immich
+          - name: IMMICH_ALLOW_SETUP
+            value: "false"
           - name: IMMICH_CONFIG_FILE
             value: /config/immich-config.yaml
           - name: IMMICH_MACHINE_LEARNING_URL

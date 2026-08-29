@@ -82,6 +82,7 @@ inputs = {
   cloudflare_account_id  = include.env.locals.cloudflare_account_id
   cloudflare_zone_id     = include.env.locals.cloudflare_zone_id
   cloudflared_version    = include.env.locals.cloudflared_version
+  public_ingress_enabled = include.env.locals.public_ingress_enabled
   public_apps            = include.env.locals.public_apps
   public_keycloak_realm  = include.env.locals.public_keycloak_realm
   public_apex_domain     = include.env.locals.public_apex_domain

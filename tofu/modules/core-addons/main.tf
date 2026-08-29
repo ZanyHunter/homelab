@@ -503,16 +503,21 @@ locals {
   # it already exists by the time this unit applies and holds no pods, so a
   # default-deny here is a harmless, zero-risk way to prove the base pattern
   # applies cleanly before it ever matters.
-  core_addons_namespaces = {
-    csi_driver_nfs = kubernetes_namespace.csi_driver_nfs.metadata[0].name
-    ceph_csi_rbd   = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
-    metallb_system = kubernetes_namespace.metallb_system.metadata[0].name
-    ingress_nginx  = kubernetes_namespace.ingress_nginx.metadata[0].name
-    argocd         = kubernetes_namespace.argocd.metadata[0].name
-    cert_manager   = kubernetes_namespace.cert_manager.metadata[0].name
-    cloudflared    = kubernetes_namespace.cloudflared.metadata[0].name
-    cluster_addons = "cluster-addons"
-  }
+  core_addons_namespaces = merge(
+    {
+      csi_driver_nfs = kubernetes_namespace.csi_driver_nfs.metadata[0].name
+      ceph_csi_rbd   = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
+      metallb_system = kubernetes_namespace.metallb_system.metadata[0].name
+      ingress_nginx  = kubernetes_namespace.ingress_nginx.metadata[0].name
+      argocd         = kubernetes_namespace.argocd.metadata[0].name
+      cert_manager   = kubernetes_namespace.cert_manager.metadata[0].name
+      cluster_addons = "cluster-addons"
+    },
+    # Only when the Cloudflare Tunnel actually exists (var.public_ingress_enabled)
+    # — otherwise there's no cloudflared namespace for these policies to attach
+    # to. See the Cloudflare Tunnel section below.
+    var.public_ingress_enabled ? { cloudflared = kubernetes_namespace.cloudflared[0].metadata[0].name } : {}
+  )
 }
 
 resource "kubernetes_network_policy" "default_deny_all" {
@@ -844,13 +849,27 @@ resource "kubernetes_network_policy" "ceph_csi_rbd_allow_monitor_egress" {
   }
 }
 
-# --- Cloudflare Tunnel: public ingress (#33/#39) ------------------------------
+# --- Cloudflare Tunnel: public ingress (#33/#39/#40) --------------------------
 # Outbound-only connection from cloudflared to Cloudflare's edge — no port-
 # forward, no inbound rule on the router. Transport only, not an auth layer:
 # every app behind it keeps using the exact same Ingress/cert-manager/
 # NetworkPolicy chain LAN traffic already goes through. See
 # docs/src/bootstrap-environment/14-public-ingress.md for the full design.
+#
+# Gated entirely on var.public_ingress_enabled (false for dev): only prod is
+# meant to be publicly exposed long-term. Dev's exposure proved the whole
+# mechanism works end-to-end (including surfacing the Universal SSL and
+# Keycloak redirect_uri gotchas documented below and in 14-public-ingress.md)
+# and was explicitly temporary — the user has an existing Immich elsewhere
+# at photos.thepugh.family they're migrating to a legacy domain before prod
+# is ever stood up, so dev standing up its own conflicting public presence
+# in the meantime isn't worth the redirect_uri/hostname-split complexity it
+# creates. The module code stays generic (env.hcl-driven, not dev-specific)
+# so prod can flip this on later with no code change, same as every other
+# environment-specific value in this repo.
 resource "kubernetes_namespace" "cloudflared" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   metadata {
     name = "cloudflared"
     labels = {
@@ -865,22 +884,28 @@ resource "kubernetes_namespace" "cloudflared" {
 # directly since config_src = "cloudflare" (remote-managed), but the API
 # still requires one to create the tunnel object.
 resource "random_bytes" "cloudflare_tunnel_secret" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   length = 32
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared" "this" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   account_id    = var.cloudflare_account_id
   name          = "homelab-${var.cluster_name}"
   config_src    = "cloudflare"
-  tunnel_secret = random_bytes.cloudflare_tunnel_secret.base64
+  tunnel_secret = random_bytes.cloudflare_tunnel_secret[0].base64
 }
 
 # Ready-to-run connector credential for `cloudflared tunnel run --token`.
 # There's no separate resource attribute for this — Terraform has to ask
 # Cloudflare's API for it explicitly via this data source.
 data "cloudflare_zero_trust_tunnel_cloudflared_token" "this" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this[0].id
 }
 
 # Public hostnames live one level under public_apex_domain (thepugh.family),
@@ -906,8 +931,10 @@ locals {
 # internal/VPN-only: not a denylist rule that could miss a path, but nothing
 # else ever being forwarded through the tunnel in the first place.
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.this[0].id
 
   config = {
     ingress = concat(
@@ -953,35 +980,37 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
 # to cfargotunnel.com with nothing behind it). Same zone/DNS-Edit scope
 # cert-manager's DNS-01 already uses — no new token permission needed here.
 resource "cloudflare_dns_record" "public_apps" {
-  for_each = local.public_hostnames
+  for_each = var.public_ingress_enabled ? local.public_hostnames : {}
 
   zone_id = var.cloudflare_zone_id
   name    = each.value
   type    = "CNAME"
-  content = "${cloudflare_zero_trust_tunnel_cloudflared.this.id}.cfargotunnel.com"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.this[0].id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
 }
 
 resource "cloudflare_dns_record" "keycloak_public" {
-  count = var.public_keycloak_realm ? 1 : 0
+  count = var.public_ingress_enabled && var.public_keycloak_realm ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
   name    = local.keycloak_public_hostname
   type    = "CNAME"
-  content = "${cloudflare_zero_trust_tunnel_cloudflared.this.id}.cfargotunnel.com"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.this[0].id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
 }
 
 resource "kubernetes_secret" "cloudflared_tunnel_token" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   metadata {
     name      = "cloudflared-tunnel-token"
-    namespace = kubernetes_namespace.cloudflared.metadata[0].name
+    namespace = kubernetes_namespace.cloudflared[0].metadata[0].name
   }
 
   data = {
-    token = data.cloudflare_zero_trust_tunnel_cloudflared_token.this.token
+    token = data.cloudflare_zero_trust_tunnel_cloudflared_token.this[0].token
   }
 
   type = "Opaque"
@@ -994,9 +1023,11 @@ resource "kubernetes_secret" "cloudflared_tunnel_token" {
 # connectors on the same tunnel token, so this is real redundancy for free,
 # not just a cosmetic replica count.
 resource "kubernetes_deployment" "cloudflared" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   metadata {
     name      = "cloudflared"
-    namespace = kubernetes_namespace.cloudflared.metadata[0].name
+    namespace = kubernetes_namespace.cloudflared[0].metadata[0].name
     labels    = { app = "cloudflared" }
   }
 
@@ -1025,7 +1056,7 @@ resource "kubernetes_deployment" "cloudflared" {
             name = "TUNNEL_TOKEN"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.cloudflared_tunnel_token.metadata[0].name
+                name = kubernetes_secret.cloudflared_tunnel_token[0].metadata[0].name
                 key  = "token"
               }
             }
@@ -1059,9 +1090,11 @@ resource "kubernetes_deployment" "cloudflared" {
 # cloudflared -> ingress-nginx's ClusterIP Service, the one in-cluster hop
 # every tunneled request makes on its way to the app's own Ingress.
 resource "kubernetes_network_policy" "cloudflared_allow_ingress_nginx_egress" {
+  count = var.public_ingress_enabled ? 1 : 0
+
   metadata {
     name      = "allow-ingress-nginx-egress"
-    namespace = kubernetes_namespace.cloudflared.metadata[0].name
+    namespace = kubernetes_namespace.cloudflared[0].metadata[0].name
   }
 
   spec {

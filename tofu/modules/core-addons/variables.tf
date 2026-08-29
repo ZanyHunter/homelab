@@ -76,6 +76,11 @@ variable "cloudflared_version" {
   type        = string
 }
 
+variable "public_ingress_enabled" {
+  description = "Whether the Cloudflare Tunnel infrastructure exists at all in this environment (#33/#39/#40) — false leaves zero public-ingress resources (no Tunnel object, no cloudflared Deployment, no DNS records), not just empty routing. Only prod is meant to be publicly exposed long-term; dev's exposure was a temporary proof of the mechanism, now torn down. The module code stays generic so prod can flip this on later with no code change."
+  type        = bool
+}
+
 variable "public_apps" {
   description = "Apps exposed publicly via the Cloudflare Tunnel (#33/#39). Each entry's public hostname is <hostname><public_hostname_suffix>.<public_apex_domain> (NOT <hostname>.<domain_name> — see public_hostname_suffix), forwarded to ingress-nginx with the Host header rewritten back to <hostname>.<domain_name> so it still matches the app's existing internal Ingress/cert. Empty list (the default) means the tunnel and cloudflared exist but route nothing yet."
   type = list(object({

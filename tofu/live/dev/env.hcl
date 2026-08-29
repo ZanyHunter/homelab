@@ -112,20 +112,24 @@ locals {
   # Universal SSL only covers *.thepugh.family, not *.dev.thepugh.family —
   # see the comment on public_hostnames in core-addons/main.tf), with a
   # "-dev" suffix so dev and prod never collide on the same public hostname
-  # for the same app.
+  # for the same app. Only matters if public_ingress_enabled is ever
+  # flipped back on here.
   public_apex_domain     = "thepugh.family"
   public_hostname_suffix = "-dev"
 
-  # Apps exposed publicly via the Cloudflare Tunnel (#33/#39) — see
-  # docs/src/bootstrap-environment/14-public-ingress.md's onboarding runbook.
-  # photos.dev.thepugh.family (Immich) is the first; public_keycloak_realm
-  # adds the single allowlisted /realms/homelab/* route it needs for OIDC
-  # login, never a wildcard route for keycloak.dev.thepugh.family — /admin
-  # stays internal/VPN-only by construction.
-  public_apps = [
-    { hostname = "photos" },
-  ]
-  public_keycloak_realm = true
+  # No public ingress in dev, long-term: only prod is meant to be publicly
+  # exposed (#33/#39/#40). Dev's own exposure was a temporary proof that the
+  # whole mechanism (Cloudflare Tunnel, Keycloak's allowlisted realm route,
+  # the Universal SSL hostname split) actually works end-to-end — it did,
+  # and surfaced a real Keycloak `redirect_uri` mismatch once tested from
+  # outside (Immich's OAuth flow computes its redirect_uri from whichever
+  # hostname the browser actually used, and only the internal one was
+  # registered on the Keycloak client) that isn't worth chasing here when
+  # prod's own domain_name is already the bare apex — no hostname split, no
+  # mismatch, ever. See docs/src/bootstrap-environment/14-public-ingress.md.
+  public_ingress_enabled = false
+  public_apps            = []
+  public_keycloak_realm  = false
 
   ksops_version = "4.5.1"
 

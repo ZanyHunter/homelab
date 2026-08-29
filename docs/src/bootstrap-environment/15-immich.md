@@ -1,9 +1,12 @@
 # 16. Immich
 
-[Immich](https://immich.app/) is the first real workload deployed under `apps/` — proving out the app-of-apps GitOps pattern (`docs/src/bootstrap-environment/06-gitops.md`) for something beyond cluster add-ons, and the first real app exposed publicly via the Cloudflare Tunnel design in [Public Ingress](./14-public-ingress.md). Reachable at:
+[Immich](https://immich.app/) is the first real workload deployed under `apps/` — proving out the app-of-apps GitOps pattern (`docs/src/bootstrap-environment/06-gitops.md`) for something beyond cluster add-ons. Reachable on the LAN/VPN at:
 
-- **LAN/VPN**: `https://photos.dev.thepugh.family` (the existing internal wildcard DNS, unchanged)
-- **Public internet**: `https://photos-dev.thepugh.family` (a different hostname than the internal one — see "Public access" below for why)
+```
+https://photos.dev.thepugh.family
+```
+
+It was also the first app to actually prove the Cloudflare Tunnel design in [Public Ingress](./14-public-ingress.md) publicly — briefly reachable at `photos-dev.thepugh.family`, which surfaced two real gotchas (a Universal SSL coverage gap and a Keycloak `redirect_uri` mismatch, both documented there) before that exposure was deliberately torn back down. Only prod is meant to be publicly exposed long-term; see "Public access" below.
 
 ---
 
@@ -45,7 +48,7 @@ The secret is retrieved once (`terragrunt output -raw immich_oidc_client_secret`
 
 ## Public access
 
-`env.hcl`'s `public_apps` includes `{ hostname = "photos" }` and `public_keycloak_realm = true` — Immich is the app that first needed both the Keycloak `/realms/homelab/*` allowlist route *and* the public/internal hostname split, both described in `docs/src/bootstrap-environment/14-public-ingress.md`. Nothing Immich-specific was needed beyond that one `env.hcl` entry; `cloudflared` routes `photos-dev.thepugh.family` to ingress-nginx with the Host header rewritten back to `photos.dev.thepugh.family` exactly like every other app.
+Not enabled today — `dev`'s `env.hcl` has `public_ingress_enabled = false`, `public_apps = []`. It briefly was (`{ hostname = "photos" }`, `public_keycloak_realm = true`), which is exactly what proved the Cloudflare Tunnel mechanism end-to-end and surfaced both gotchas documented in `docs/src/bootstrap-environment/14-public-ingress.md` — that exposure was always meant to be temporary, since only prod is meant to be publicly exposed long-term and prod's own `domain_name` (the bare apex) avoids the hostname-split complexity dev hit entirely. Immich's own internal Ingress/hostname (`photos.dev.thepugh.family`) is completely unaffected either way — only the Cloudflare Tunnel's routing to it was ever added or removed.
 
 ## Verification
 
@@ -54,4 +57,4 @@ kubectl get pvc -n immich
 kubectl get pods -n immich
 ```
 
-Confirms the DB PVC bound on `ceph-rbd-dev` and the media PVC bound on `nfs-dev`, not just that pods exist. A real login (not just "the OAuth button appears") is the actual bar: visiting `https://photos.dev.thepugh.family` (LAN/VPN) or `https://photos-dev.thepugh.family` (public) should redirect through Keycloak and land back in Immich authenticated — the public path is the one check this repo's own tooling can't perform itself, since this session's environment resolves `*.dev.thepugh.family` internally regardless of which DNS resolver is queried, so it has to be confirmed from a real external network.
+Confirms the DB PVC bound on `ceph-rbd-dev` and the media PVC bound on `nfs-dev`, not just that pods exist. A real login (not just "the OAuth button appears") is the actual bar: visiting `https://photos.dev.thepugh.family` should redirect through Keycloak and land back in Immich authenticated.

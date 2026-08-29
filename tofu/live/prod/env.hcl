@@ -27,6 +27,22 @@ locals {
     proxmox_cluster = "homelab" # same 3 physical Proxmox nodes as dev (unresolved question from #21: shared hardware capacity)
   }
 
+  # Mirrors dev's node_resources shape/values for consistency — see dev's
+  # env.hcl for the reasoning. Running both dev and prod at these sizes
+  # simultaneously on the same 3 physical hosts is the same unresolved
+  # shared-hardware-capacity question noted on `cluster` above; revisit
+  # before prod is ever actually applied.
+  node_resources = {
+    controlplane = {
+      cores  = 4
+      memory = 4096
+    }
+    worker = {
+      cores  = 8
+      memory = 16384
+    }
+  }
+
   chart_versions = {
     metallb               = "0.14.8"
     ingress_nginx         = "4.11.2"

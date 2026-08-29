@@ -124,11 +124,11 @@ resource "proxmox_virtual_environment_vm" "nodes" {
 
   cpu {
     type  = "x86-64-v2-AES"
-    cores = 4
+    cores = each.value.role == "controlplane" ? var.node_resources.controlplane.cores : var.node_resources.worker.cores
   }
 
   memory {
-    dedicated = 4096
+    dedicated = each.value.role == "controlplane" ? var.node_resources.controlplane.memory : var.node_resources.worker.memory
   }
 
   disk {

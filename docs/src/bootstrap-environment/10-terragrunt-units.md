@@ -69,7 +69,7 @@ cd core-addons && terragrunt apply
 - Pick a real, unallocated VLAN ID and subnet (a Unifi change — needs sign-off per `CLAUDE.md`, and answers the still-open question from issue #21 about whether prod gets its own VLAN — it does, one VLAN per cluster, same as dev).
 - Pick unallocated `vm_id`/IP ranges that don't collide with dev's.
 - Provision a dedicated NFS export on the NAS (`CLAUDE.md`: "dev/prod will not share infrastructure").
-- Decide the ingress hostname scheme — every hostname in `core-addons`/`keycloak-infra`/`keycloak-realm` is still a hardcoded literal (`argocd.k8s.thepugh.family`, etc.), not derived from an environment variable. Two environments live simultaneously would collide on these today; resolving that is unstarted follow-up work, not solved by this refactor.
+- Pick a real `ingress_ip` reserved in prod's own MetalLB pool range (`env.hcl` still has a placeholder) — the ingress hostname scheme itself no longer needs deciding: `domain_name` already drives every hostname across every unit (#10), and prod's is already set to the real `thepugh.family` apex.
 
 ## Cautions learned from testing this live
 

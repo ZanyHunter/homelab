@@ -28,6 +28,12 @@ locals {
       cloudflare_api_token = data.sops_file.secrets.data["cloudflare_api_token"]
 
       discord_alert_webhook = data.sops_file.secrets.data["discord_alert_webhook"]
+
+      # CephX key for the client manually created against the ceph-rbd pool
+      # (#28) — see docs/src/bootstrap-environment for the bootstrap command.
+      # Not Tofu-generated, unlike most secrets here: it's Ceph's own internal
+      # auth system, which this repo's Tofu providers have no resource for.
+      ceph_rbd_client_key = data.sops_file.secrets.data["ceph_rbd_client_key"]
     }
   EOF
 

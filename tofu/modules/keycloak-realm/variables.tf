@@ -20,3 +20,8 @@ variable "grafana_oidc_client_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "domain_name" {
+  type        = string
+  description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives every hostname/redirect URI this unit manages (sso-demo, the demo user's email, and the argocd/grafana clients' valid_redirect_uris). See tofu/modules/network/variables.tf's domain_name for the full picture."
+}

@@ -31,7 +31,7 @@ resource "keycloak_openid_client" "oauth2_proxy" {
   standard_flow_enabled = true
   client_secret         = random_password.oauth2_proxy_client_secret.result
 
-  valid_redirect_uris = ["https://sso-demo.k8s.thepugh.family/oauth2/callback"]
+  valid_redirect_uris = ["https://sso-demo.${var.domain_name}/oauth2/callback"]
   web_origins         = ["+"]
 }
 
@@ -47,7 +47,7 @@ resource "keycloak_user" "demo" {
   username = "demo"
   enabled  = true
 
-  email          = "demo@k8s.thepugh.family"
+  email          = "demo@${var.domain_name}"
   email_verified = true
   first_name     = "Demo"
   last_name      = "User"
@@ -62,7 +62,7 @@ resource "keycloak_user" "demo" {
 # Access control is group-based, not tied to any specific person's identity:
 # nothing below names a real user. Real accounts and their membership in
 # platform-admins are created/managed by hand in Keycloak's admin console
-# after the fact (https://keycloak.k8s.thepugh.family) — see
+# after the fact (https://keycloak.<domain_name>) — see
 # docs/src/bootstrap-environment/08-sso.md.
 resource "keycloak_group" "platform_admins" {
   realm_id = keycloak_realm.homelab.id
@@ -97,7 +97,7 @@ resource "keycloak_openid_client" "argocd" {
   standard_flow_enabled = true
   client_secret         = var.argocd_oidc_client_secret
 
-  valid_redirect_uris = ["https://argocd.k8s.thepugh.family/auth/callback"]
+  valid_redirect_uris = ["https://argocd.${var.domain_name}/auth/callback"]
   web_origins         = ["+"]
 }
 
@@ -128,7 +128,7 @@ resource "keycloak_openid_client" "grafana" {
   standard_flow_enabled = true
   client_secret         = var.grafana_oidc_client_secret
 
-  valid_redirect_uris = ["https://grafana.k8s.thepugh.family/login/generic_oauth"]
+  valid_redirect_uris = ["https://grafana.${var.domain_name}/login/generic_oauth"]
   web_origins         = ["+"]
 }
 
@@ -216,8 +216,8 @@ resource "helm_release" "oauth2_proxy" {
       }
       extraArgs = {
         provider          = "oidc"
-        "oidc-issuer-url" = "https://keycloak.k8s.thepugh.family/realms/${keycloak_realm.homelab.realm}"
-        "redirect-url"    = "https://sso-demo.k8s.thepugh.family/oauth2/callback"
+        "oidc-issuer-url" = "https://keycloak.${var.domain_name}/realms/${keycloak_realm.homelab.realm}"
+        "redirect-url"    = "https://sso-demo.${var.domain_name}/oauth2/callback"
         "email-domain"    = "*"
         "cookie-secure"   = "true"
         scope             = "openid email profile"
@@ -232,7 +232,7 @@ resource "helm_release" "oauth2_proxy" {
         # oauth2-proxy owns only /oauth2/* on this host; whoami's own
         # Ingress (below) handles "/" behind auth-url/auth-signin.
         path  = "/oauth2"
-        hosts = ["sso-demo.k8s.thepugh.family"]
+        hosts = ["sso-demo.${var.domain_name}"]
         annotations = {
           "nginx.ingress.kubernetes.io/ssl-redirect" = "true"
           # Only this Ingress requests the cert for this host — whoami's
@@ -249,7 +249,7 @@ resource "helm_release" "oauth2_proxy" {
         tls = [
           {
             secretName = "sso-demo-tls"
-            hosts      = ["sso-demo.k8s.thepugh.family"]
+            hosts      = ["sso-demo.${var.domain_name}"]
           }
         ]
       }
@@ -329,7 +329,7 @@ resource "kubernetes_ingress_v1" "whoami" {
     annotations = {
       "nginx.ingress.kubernetes.io/ssl-redirect"          = "true"
       "nginx.ingress.kubernetes.io/auth-url"              = "http://oauth2-proxy.${kubernetes_namespace.sso_demo.metadata[0].name}.svc.cluster.local/oauth2/auth"
-      "nginx.ingress.kubernetes.io/auth-signin"           = "https://sso-demo.k8s.thepugh.family/oauth2/start?rd=$scheme://$host$request_uri"
+      "nginx.ingress.kubernetes.io/auth-signin"           = "https://sso-demo.${var.domain_name}/oauth2/start?rd=$scheme://$host$request_uri"
       "nginx.ingress.kubernetes.io/auth-response-headers" = "X-Auth-Request-User,X-Auth-Request-Email"
     }
   }
@@ -337,7 +337,7 @@ resource "kubernetes_ingress_v1" "whoami" {
   spec {
     ingress_class_name = "nginx"
     rule {
-      host = "sso-demo.k8s.thepugh.family"
+      host = "sso-demo.${var.domain_name}"
       http {
         path {
           path      = "/"
@@ -354,7 +354,7 @@ resource "kubernetes_ingress_v1" "whoami" {
       }
     }
     tls {
-      hosts       = ["sso-demo.k8s.thepugh.family"]
+      hosts       = ["sso-demo.${var.domain_name}"]
       secret_name = "sso-demo-tls"
     }
   }
@@ -450,7 +450,7 @@ resource "kubernetes_network_policy" "allow_ingress_nginx_ingress" {
 }
 
 # oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the *external*
-# keycloak.k8s.thepugh.family hostname, which resolves back through
+# keycloak.<domain_name> hostname, which resolves back through
 # ingress-nginx's LoadBalancer IP rather than directly to the keycloak
 # namespace — so this is the egress rule that actually matters here, not a
 # direct sso-demo -> keycloak one.

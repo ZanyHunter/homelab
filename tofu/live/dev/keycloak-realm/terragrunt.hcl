@@ -100,7 +100,7 @@ generate "provider" {
       client_id = "admin-cli"
       username  = "admin"
       password  = "${dependency.keycloak_infra.outputs.admin_password}"
-      url       = "https://keycloak.k8s.thepugh.family"
+      url       = "https://keycloak.${include.env.locals.domain_name}"
     }
   EOF
 }
@@ -112,4 +112,5 @@ inputs = {
   whoami_version             = include.env.locals.whoami_version
   argocd_oidc_client_secret  = dependency.core_addons.outputs.argocd_oidc_client_secret
   grafana_oidc_client_secret = dependency.observability.outputs.grafana_oidc_client_secret
+  domain_name                = include.env.locals.domain_name
 }

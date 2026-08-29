@@ -28,6 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/tabs-52f01167.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -35,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-6b072187.js";
+            window.path_to_searchindex_js = "../searchindex-79045009.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7d3f73.js"></script>
@@ -189,7 +190,24 @@
 <ul>
 <li><strong>Prometheus</strong> (via the Prometheus Operator) scrapes cluster/node metrics and evaluates alerting rules. Retention is 15 days on a 20Gi NFS-backed PVC.</li>
 <li><strong>Alertmanager</strong> routes firing alerts to a Discord webhook.</li>
-<li><strong>Grafana</strong>, reachable at <code>https://grafana.dev.thepugh.family</code> (<code>admin</code> / a Tofu-generated password in the <code>grafana-admin-credentials</code> Secret, <code>monitoring</code> namespace). Ships with the chart’s own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo.</li>
+</ul>
+<p><strong>Grafana</strong> (<code>admin</code> / a Tofu-generated password in the <code>grafana-admin-credentials</code> Secret, <code>monitoring</code> namespace). Ships with the chart’s own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo. Reachable at:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://grafana.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://grafana.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
+<ul>
 <li><strong>node-exporter</strong> and <strong>kube-state-metrics</strong> — bundled with the chart, give node-level and Kubernetes-object-level metrics respectively.</li>
 <li><strong>Loki</strong>, deployment mode <code>SingleBinary</code> (the chart’s own term for what’s now generally called “Monolithic” mode) — right-sized for homelab log volume, storing chunks on a 20Gi NFS-backed PVC rather than requiring an S3-compatible backend.</li>
 <li><strong>Grafana Alloy</strong>, a DaemonSet on every node (including control planes — see “Talos control-plane taint” below) shipping every pod’s container logs into Loki, labeled by namespace/pod/container. The current, maintained log-shipping agent — Promtail is deprecated upstream.</li>
@@ -273,6 +291,7 @@
         <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="../theme/tabs-0c8cb93b.js"></script>
 
 
 

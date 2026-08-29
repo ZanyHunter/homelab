@@ -28,6 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/tabs-52f01167.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -35,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-6b072187.js";
+            window.path_to_searchindex_js = "../searchindex-79045009.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7d3f73.js"></script>
@@ -190,8 +191,23 @@
 <li>The Unifi provider (<code>ubiquiti-community/unifi</code>, pinned in <code>tofu/modules/network/terraform.tf</code>) manages this via its <code>unifi_dns_record</code> resource — the same feature the UniFi Network Application’s own UI calls <strong>Local DNS Records</strong> (Settings → Routing → DNS), just Tofu-managed instead of clicked through by hand.</li>
 </ul>
 <h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<pre><code class="language-bash">dig +short 'argocd.thepugh.family' @&lt;unifi-gateway-ip&gt;
+</code></pre>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
 <pre><code class="language-bash">dig +short 'argocd.dev.thepugh.family' @&lt;unifi-gateway-ip&gt;
 </code></pre>
+</div>
+
+</div>
+
 <p>Should return the pinned <code>ingress_ip</code> value. Any new service deployed under <code>apps/&lt;app&gt;/</code> resolves automatically under the same wildcard — no DNS step needed, ever, matching the app-of-apps “just add a directory, push” model.</p>
 <h2 id="a-real-hostname-migration"><a class="header" href="#a-real-hostname-migration">A real hostname migration</a></h2>
 <p>This mechanism replaced an older manual wildcard record scoped to <code>k8s.thepugh.family</code> (retired as part of #10 — every hostname moved to the environment’s real <code>domain_name</code> instead, and the old record was imported into Tofu state and destroyed cleanly rather than left as an unmanaged leftover). Two real things worth knowing if this ever needs redoing on a <code>domain_name</code> change:</p>
@@ -251,6 +267,7 @@
         <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="../theme/tabs-0c8cb93b.js"></script>
 
 
 

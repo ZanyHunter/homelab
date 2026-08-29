@@ -29,6 +29,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/tabs-52f01167.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -36,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6b072187.js";
+            window.path_to_searchindex_js = "searchindex-79045009.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-ab7d3f73.js"></script>
@@ -252,8 +253,23 @@ terragrunt output -raw kube_config &gt; ~/.kube/config
 <li>The Unifi provider (<code>ubiquiti-community/unifi</code>, pinned in <code>tofu/modules/network/terraform.tf</code>) manages this via its <code>unifi_dns_record</code> resource — the same feature the UniFi Network Application’s own UI calls <strong>Local DNS Records</strong> (Settings → Routing → DNS), just Tofu-managed instead of clicked through by hand.</li>
 </ul>
 <h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<pre><code class="language-bash">dig +short 'argocd.thepugh.family' @&lt;unifi-gateway-ip&gt;
+</code></pre>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
 <pre><code class="language-bash">dig +short 'argocd.dev.thepugh.family' @&lt;unifi-gateway-ip&gt;
 </code></pre>
+</div>
+
+</div>
+
 <p>Should return the pinned <code>ingress_ip</code> value. Any new service deployed under <code>apps/&lt;app&gt;/</code> resolves automatically under the same wildcard — no DNS step needed, ever, matching the app-of-apps “just add a directory, push” model.</p>
 <h2 id="a-real-hostname-migration"><a class="header" href="#a-real-hostname-migration">A real hostname migration</a></h2>
 <p>This mechanism replaced an older manual wildcard record scoped to <code>k8s.thepugh.family</code> (retired as part of #10 — every hostname moved to the environment’s real <code>domain_name</code> instead, and the old record was imported into Tofu state and destroyed cleanly rather than left as an unmanaged leftover). Two real things worth knowing if this ever needs redoing on a <code>domain_name</code> change:</p>
@@ -386,34 +402,137 @@ kubectl get all -n &lt;namespace&gt;
 <p><a href="https://www.keycloak.org/">Keycloak</a> is the identity provider for homelab services, backed by a dedicated Postgres instance. Both are Tofu-managed, split across two Terragrunt units (see <a href="#11-terragrunt-units-and-multi-environment-layout">Terragrunt Units</a>): <code>keycloak-infra</code> (<code>tofu/modules/keycloak-infra/</code>) stands up Postgres and Keycloak itself, and <code>keycloak-realm</code> (<code>tofu/modules/keycloak-realm/</code>) manages the <code>homelab</code> realm and its clients via the <a href="https://registry.terraform.io/providers/keycloak/keycloak/latest/docs"><code>keycloak</code> Terraform provider</a> — the same “talk to the app’s own API declaratively” pattern already used for <code>unifi_network.this</code>.</p>
 <hr>
 <h2 id="whats-deployed"><a class="header" href="#whats-deployed">What’s deployed</a></h2>
-<ul>
-<li><strong>Postgres</strong>: a hand-rolled single-instance <code>StatefulSet</code> (not a chart — see the comment at the top of <code>tofu/modules/keycloak-infra/main.tf</code> for why), on the same NFS-backed <code>StorageClass</code> as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed <code>StorageClass</code> ever exists (#28).</li>
-<li><strong>Keycloak</strong>: the <a href="https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx">codecentric/keycloakx</a> chart, reachable at <code>https://keycloak.dev.thepugh.family</code>. Chosen over Bitnami’s chart for the same pinned-version reason as MinIO (see <code>tofu/modules/backup/main.tf</code>).</li>
-<li><strong>Realm</strong>: <code>homelab</code>, with a bootstrap admin account (<code>admin</code> / a Tofu-generated password — <code>kubectl get secret -n keycloak keycloak-admin-credentials</code>) for the Keycloak console itself, separate from the realm’s own users.</li>
-<li><strong>A forward-auth demo</strong>: <a href="https://oauth2-proxy.github.io/oauth2-proxy/">oauth2-proxy</a> in front of a minimal <code>whoami</code> echo server, at <code>https://sso-demo.dev.thepugh.family</code>. This exists to prove the Keycloak wiring works end-to-end, and doubles as the copy-paste template for real apps that need forward-auth (see below) — it’s a living reference, not a one-off smoke test that gets torn down.</li>
-</ul>
+<p><strong>Postgres</strong>: a hand-rolled single-instance <code>StatefulSet</code> (not a chart — see the comment at the top of <code>tofu/modules/keycloak-infra/main.tf</code> for why), on the same NFS-backed <code>StorageClass</code> as everything else. Postgres-on-NFS has known caveats (fsync/locking semantics differ from local disk); accepted at this homelab scale and write volume, revisit if a Ceph-backed <code>StorageClass</code> ever exists (#28).</p>
+<p><strong>Keycloak</strong>: the <a href="https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx">codecentric/keycloakx</a> chart. Chosen over Bitnami’s chart for the same pinned-version reason as MinIO (see <code>tofu/modules/backup/main.tf</code>). Reachable at:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://keycloak.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://keycloak.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
+<p><strong>Realm</strong>: <code>homelab</code>, with a bootstrap admin account (<code>admin</code> / a Tofu-generated password — <code>kubectl get secret -n keycloak keycloak-admin-credentials</code>) for the Keycloak console itself, separate from the realm’s own users.</p>
+<p><strong>A forward-auth demo</strong>: <a href="https://oauth2-proxy.github.io/oauth2-proxy/">oauth2-proxy</a> in front of a minimal <code>whoami</code> echo server. This exists to prove the Keycloak wiring works end-to-end, and doubles as the copy-paste template for real apps that need forward-auth (see below) — it’s a living reference, not a one-off smoke test that gets torn down. Reachable at:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://sso-demo.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://sso-demo.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
 <h2 id="admin-access"><a class="header" href="#admin-access">Admin access</a></h2>
 <pre><code class="language-bash">kubectl get secret -n keycloak keycloak-admin-credentials -o jsonpath='{.data.KC_BOOTSTRAP_ADMIN_PASSWORD}' | base64 -d
 </code></pre>
-<p>Log in at <code>https://keycloak.dev.thepugh.family</code> with username <code>admin</code>.</p>
+<p>Log in with username <code>admin</code> at:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://keycloak.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://keycloak.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
 <h2 id="trying-the-forward-auth-demo"><a class="header" href="#trying-the-forward-auth-demo">Trying the forward-auth demo</a></h2>
 <p>A test user (<code>demo</code>) already exists in the <code>homelab</code> realm:</p>
 <pre><code class="language-bash">kubectl get secret -n sso-demo sso-demo-user-credentials -o jsonpath='{.data.password}' | base64 -d
 </code></pre>
-<p>Visit <code>https://sso-demo.dev.thepugh.family</code> from a browser on the LAN — it redirects through Keycloak login, then lands on the <code>whoami</code> page showing the request oauth2-proxy forwarded, including <code>X-Auth-Request-User</code>/<code>X-Auth-Request-Email</code> headers identifying who logged in.</p>
+<p>Visit this from a browser on the LAN:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://sso-demo.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://sso-demo.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
+<p>It redirects through Keycloak login, then lands on the <code>whoami</code> page showing the request oauth2-proxy forwarded, including <code>X-Auth-Request-User</code>/<code>X-Auth-Request-Email</code> headers identifying who logged in.</p>
 <h2 id="management-apps-argocd-and-grafana"><a class="header" href="#management-apps-argocd-and-grafana">Management apps: ArgoCD and Grafana</a></h2>
 <p>Both authenticate through Keycloak (<code>tofu/modules/core-addons/main.tf</code>’s <code>helm_release.argocd</code>, <code>tofu/modules/observability/main.tf</code>’s <code>helm_release.kube_prometheus_stack</code>) using their own native OIDC support — no oauth2-proxy needed, the same “Apps with native OIDC support” pattern documented below. Local admin login is disabled on both (<code>admin.enabled: "false"</code> for ArgoCD, <code>auth.basic.enabled: false</code> for Grafana — the latter needed alongside <code>auth.disable_login_form</code> since that alone still leaves basic-auth reachable via direct API calls).</p>
-<p><strong>Access is group-based, not tied to any specific person.</strong> A <code>platform-admins</code> Keycloak group (<code>tofu/modules/keycloak-realm/main.tf</code>’s <code>keycloak_group.platform_admins</code>) is the only thing either app’s RBAC checks — ArgoCD’s <code>policy.csv</code> is <code>g, platform-admins, role:admin</code>, Grafana’s <code>role_attribute_path</code> checks <code>contains(groups[*], 'platform-admins')</code>. Nothing in the Tofu code names a real user. <strong>To grant someone admin access to ArgoCD/Grafana</strong>: create (or use an existing) account in Keycloak’s admin console (<code>https://keycloak.dev.thepugh.family</code>), open it, go to the <strong>Groups</strong> tab, and <strong>Join Group</strong> → <code>platform-admins</code>. Group membership itself isn’t Tofu-managed, by design — see “Upstream identity federation” below for the reasoning.</p>
+<p><strong>Access is group-based, not tied to any specific person.</strong> A <code>platform-admins</code> Keycloak group (<code>tofu/modules/keycloak-realm/main.tf</code>’s <code>keycloak_group.platform_admins</code>) is the only thing either app’s RBAC checks — ArgoCD’s <code>policy.csv</code> is <code>g, platform-admins, role:admin</code>, Grafana’s <code>role_attribute_path</code> checks <code>contains(groups[*], 'platform-admins')</code>. Nothing in the Tofu code names a real user.</p>
+<p><strong>To grant someone admin access to ArgoCD/Grafana</strong>: open Keycloak’s admin console at:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://keycloak.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://keycloak.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
+<p>create (or use an existing) account, open it, go to the <strong>Groups</strong> tab, and <strong>Join Group</strong> → <code>platform-admins</code>. Group membership itself isn’t Tofu-managed, by design — see “Upstream identity federation” below for the reasoning.</p>
 <p>Under the hood, this needs a <code>groups</code> claim in the token, which isn’t included by default — <code>keycloak_openid_client_scope.groups</code> is a reusable custom client scope with a <code>keycloak_openid_group_membership_protocol_mapper</code> (configured with <code>full_path = false</code>, so the claim is the plain group name rather than <code>/platform-admins</code>), attached to both clients as an <em>optional</em> scope (<code>keycloak_openid_client_optional_scopes</code>) rather than a default one — both apps already explicitly request it (ArgoCD’s <code>requestedScopes</code>, Grafana’s <code>scopes</code> config), so making it default too would only risk fighting Keycloak’s own built-in default-scope list for no benefit.</p>
 <p><strong>Break-glass recovery</strong>: both local admin credentials still exist (<code>kubectl get secret -n argocd argocd-secret -o jsonpath='{.data.admin\.password}' | base64 -d</code>; <code>kubectl get secret -n monitoring grafana-admin-credentials -o jsonpath='{.data.admin-password}' | base64 -d</code>) — if Keycloak itself is ever unreachable, flip <code>admin.enabled</code>/<code>auth.basic.enabled</code> back in Tofu and reapply to regain local access, then flip them off again once Keycloak’s back.</p>
-<p><strong>A real gotcha found live</strong>: the ArgoCD chart ships a default <code>configs.cm.url</code> value of <code>https://argocd.example.com</code> — this is what ArgoCD actually uses to build its OIDC <code>redirect_uri</code> (not the incoming request’s <code>Host</code> header), so leaving it unset produces a real “Invalid redirect URL” rejection from Keycloak on every login attempt. Set explicitly to <code>https://argocd.dev.thepugh.family</code> in <code>configs.cm</code>.</p>
+<p><strong>A real gotcha found live</strong>: the ArgoCD chart ships a default <code>configs.cm.url</code> value of <code>https://argocd.example.com</code> — this is what ArgoCD actually uses to build its OIDC <code>redirect_uri</code> (not the incoming request’s <code>Host</code> header), so leaving it unset produces a real “Invalid redirect URL” rejection from Keycloak on every login attempt. Set <code>configs.cm.url</code> explicitly:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://argocd.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://argocd.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
 <h2 id="adding-a-real-app"><a class="header" href="#adding-a-real-app">Adding a real app</a></h2>
 <h3 id="apps-with-native-oidc-support-eg-immich-paperless-ngx"><a class="header" href="#apps-with-native-oidc-support-eg-immich-paperless-ngx">Apps with native OIDC support (e.g. Immich, Paperless-ngx)</a></h3>
-<p>No forward-auth proxy needed — configure the app directly against the realm:</p>
-<ul>
-<li><strong>Issuer URL</strong>: <code>https://keycloak.dev.thepugh.family/realms/homelab</code></li>
-<li><strong>Client ID/secret</strong>: create a new <code>keycloak_openid_client</code> resource in <code>tofu/modules/keycloak-realm/main.tf</code> (copy <code>keycloak_openid_client.oauth2_proxy</code> as a starting point — <code>access_type = "CONFIDENTIAL"</code>, <code>standard_flow_enabled = true</code>, and the app’s actual callback URL in <code>valid_redirect_uris</code>).</li>
-</ul>
+<p>No forward-auth proxy needed — configure the app directly against the realm. Issuer URL:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://keycloak.thepugh.family/realms/homelab</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://keycloak.dev.thepugh.family/realms/homelab</code></p>
+</div>
+
+</div>
+
+<p><strong>Client ID/secret</strong>: create a new <code>keycloak_openid_client</code> resource in <code>tofu/modules/keycloak-realm/main.tf</code> (copy <code>keycloak_openid_client.oauth2_proxy</code> as a starting point — <code>access_type = "CONFIDENTIAL"</code>, <code>standard_flow_enabled = true</code>, and the app’s actual callback URL in <code>valid_redirect_uris</code>).</p>
 <h3 id="apps-without-native-oidc-support-eg-grocy"><a class="header" href="#apps-without-native-oidc-support-eg-grocy">Apps without native OIDC support (e.g. Grocy)</a></h3>
 <p>Copy the <code>oauth2-proxy</code> + Ingress <code>auth-url</code>/<code>auth-signin</code> pattern from <code>tofu/modules/keycloak-realm/main.tf</code>’s <code>helm_release.oauth2_proxy</code> and <code>kubernetes_ingress_v1.whoami</code>. Two things to change from the demo:</p>
 <ol>
@@ -531,7 +650,24 @@ cd core-addons &amp;&amp; terragrunt apply
 <ul>
 <li><strong>Prometheus</strong> (via the Prometheus Operator) scrapes cluster/node metrics and evaluates alerting rules. Retention is 15 days on a 20Gi NFS-backed PVC.</li>
 <li><strong>Alertmanager</strong> routes firing alerts to a Discord webhook.</li>
-<li><strong>Grafana</strong>, reachable at <code>https://grafana.dev.thepugh.family</code> (<code>admin</code> / a Tofu-generated password in the <code>grafana-admin-credentials</code> Secret, <code>monitoring</code> namespace). Ships with the chart’s own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo.</li>
+</ul>
+<p><strong>Grafana</strong> (<code>admin</code> / a Tofu-generated password in the <code>grafana-admin-credentials</code> Secret, <code>monitoring</code> namespace). Ships with the chart’s own default dashboards for cluster and node metrics — no dashboard JSON authored in this repo. Reachable at:</p>
+<div class="mdbook-tabs-container" data-tabglobal="domain">
+<nav class="mdbook-tabs">
+<button class="mdbook-tab active" data-tabname="Production">Production</button>
+<button class="mdbook-tab" data-tabname="Development">Development</button>
+</nav>
+<div class="mdbook-tab-content" data-tabname="Production">
+<p><code>https://grafana.thepugh.family</code></p>
+</div>
+
+<div class="mdbook-tab-content hidden" data-tabname="Development">
+<p><code>https://grafana.dev.thepugh.family</code></p>
+</div>
+
+</div>
+
+<ul>
 <li><strong>node-exporter</strong> and <strong>kube-state-metrics</strong> — bundled with the chart, give node-level and Kubernetes-object-level metrics respectively.</li>
 <li><strong>Loki</strong>, deployment mode <code>SingleBinary</code> (the chart’s own term for what’s now generally called “Monolithic” mode) — right-sized for homelab log volume, storing chunks on a 20Gi NFS-backed PVC rather than requiring an S3-compatible backend.</li>
 <li><strong>Grafana Alloy</strong>, a DaemonSet on every node (including control planes — see “Talos control-plane taint” below) shipping every pod’s container logs into Loki, labeled by namespace/pod/container. The current, maintained log-shipping agent — Promtail is deprecated upstream.</li>
@@ -646,6 +782,7 @@ kubectl get ns -o custom-columns=NAME:.metadata.name,ENFORCE:.metadata.labels."p
         <script src="book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="theme/tabs-0c8cb93b.js"></script>
 
         <script>
         window.addEventListener('load', function() {

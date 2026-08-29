@@ -41,8 +41,9 @@ generate "provider" {
 }
 
 inputs = {
-  cluster   = include.env.locals.cluster
-  k8s_nodes = include.env.locals.k8s_nodes
-  vlan_id   = dependency.network.outputs.vlan_id
-  ceph      = include.env.locals.ceph
+  cluster        = include.env.locals.cluster
+  k8s_nodes      = include.env.locals.k8s_nodes
+  vlan_id        = dependency.network.outputs.vlan_id
+  ceph           = include.env.locals.ceph
+  node_resources = include.env.locals.node_resources
 }

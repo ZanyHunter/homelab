@@ -29,6 +29,24 @@ locals {
     proxmox_cluster = "homelab"
   }
 
+  # Control-plane nodes carry no scheduled workloads (Talos taints them by
+  # default) and have never shown memory pressure at this size, so they stay
+  # small. Workers went from 4GB/4 vCPU to this after Loki's chunksCache and
+  # Immich's ML service both needed real headroom the old size didn't have —
+  # physical hosts are 3x i9-12900H (14 cores/20 threads, 64GB RAM each), so
+  # there's plenty of room for both this and a future prod cluster alongside
+  # Ceph/Proxmox's own overhead.
+  node_resources = {
+    controlplane = {
+      cores  = 4
+      memory = 4096
+    }
+    worker = {
+      cores  = 8
+      memory = 16384
+    }
+  }
+
   chart_versions = {
     metallb               = "0.14.8"
     ingress_nginx         = "4.11.2"

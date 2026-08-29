@@ -38,3 +38,17 @@ variable "ceph" {
     monitors   = list(string)
   })
 }
+
+variable "node_resources" {
+  description = "Per-role vCPU/memory sizing for this environment's Talos VMs. Split by role (not a single flat value) since control-plane nodes carry no scheduled workloads and stay small, while worker nodes need real headroom for whatever actually runs there — see tofu/live/dev/env.hcl's node_resources block."
+  type = object({
+    controlplane = object({
+      cores  = number
+      memory = number # MB
+    })
+    worker = object({
+      cores  = number
+      memory = number # MB
+    })
+  })
+}

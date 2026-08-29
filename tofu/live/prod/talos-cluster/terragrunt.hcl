@@ -44,4 +44,5 @@ inputs = {
   cluster   = include.env.locals.cluster
   k8s_nodes = include.env.locals.k8s_nodes
   vlan_id   = dependency.network.outputs.vlan_id
+  ceph      = include.env.locals.ceph
 }

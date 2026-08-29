@@ -21,3 +21,10 @@ output "kubernetes_client_configuration" {
   value     = talos_cluster_kubeconfig.this.kubernetes_client_configuration
   sensitive = true
 }
+
+# Consumed by core-addons to configure ceph-csi's StorageClass — output for
+# explicitness even though it's already known from var.ceph.pool_name,
+# matching how other units expose what they actually created.
+output "ceph_pool_name" {
+  value = proxmox_ceph_pool.k8s_rbd.name
+}

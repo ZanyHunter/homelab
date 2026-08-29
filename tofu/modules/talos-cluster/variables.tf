@@ -29,3 +29,12 @@ variable "cluster" {
     proxmox_cluster = string
   })
 }
+
+variable "ceph" {
+  description = "Config for the dedicated Ceph pool this environment's database workloads use (#28) — see tofu/live/dev/env.hcl's ceph block for where the values come from."
+  type = object({
+    pool_name  = string
+    cluster_id = string
+    monitors   = list(string)
+  })
+}

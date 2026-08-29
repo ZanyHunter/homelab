@@ -34,6 +34,7 @@ locals {
     argocd                = "7.3.7"
     argocd_apps           = "2.0.5"
     csi_driver_nfs        = "4.13.4"
+    ceph_csi_rbd          = "3.17.1"
     minio                 = "5.4.0"
     velero                = "12.1.0"
     keycloak              = "7.3.0"
@@ -57,6 +58,20 @@ locals {
   nfs_storage = {
     server = "truenas.thepugh.family"
     share  = "/mnt/Main/k8s-prod" # placeholder — dedicated export, not yet created
+  }
+
+  # Same physical Ceph cluster as dev (shared hardware — see cluster.proxmox_cluster
+  # below), so fsid/monitors are identical; only the pool name is env-scoped so
+  # dev/prod don't collide on the same physical cluster. Pool itself doesn't exist
+  # yet — created when prod's talos-cluster unit is actually applied.
+  ceph = {
+    pool_name  = "k8s-prod-rbd"
+    cluster_id = "d783e88c-059c-4549-8b14-54ec5625add4"
+    monitors = [
+      "192.168.150.2:6789",
+      "192.168.150.3:6789",
+      "192.168.150.4:6789",
+    ]
   }
 
   gitops = {

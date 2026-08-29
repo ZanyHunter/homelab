@@ -36,6 +36,7 @@ locals {
     argocd                = "7.3.7"
     argocd_apps           = "2.0.5"
     csi_driver_nfs        = "4.13.4"
+    ceph_csi_rbd          = "3.17.1"
     minio                 = "5.4.0"
     velero                = "12.1.0"
     keycloak              = "7.3.0"
@@ -59,6 +60,23 @@ locals {
   nfs_storage = {
     server = "truenas.thepugh.family"
     share  = "/mnt/Main/k8s-dev"
+  }
+
+  # The existing Proxmox Ceph cluster (ceph-1 datastore, already backing
+  # Talos VM disks) exposed to Kubernetes as a second StorageClass for
+  # database/block-semantics-sensitive workloads (#28) — a dedicated pool
+  # within that same cluster, not new hardware or a separate cluster. fsid
+  # and monitors are facts about the shared physical cluster (same for any
+  # future prod, since it's the same 3 physical nodes), looked up live via
+  # `ceph mon dump` / the Proxmox Ceph status API rather than guessed.
+  ceph = {
+    pool_name  = "k8s-dev-rbd"
+    cluster_id = "d783e88c-059c-4549-8b14-54ec5625add4"
+    monitors = [
+      "192.168.150.2:6789",
+      "192.168.150.3:6789",
+      "192.168.150.4:6789",
+    ]
   }
 
   gitops = {

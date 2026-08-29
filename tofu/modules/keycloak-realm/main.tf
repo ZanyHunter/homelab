@@ -145,6 +145,38 @@ resource "keycloak_openid_client_optional_scopes" "grafana" {
   ]
 }
 
+# --- Immich (#33/#39): first real app under apps/, native OIDC support ------
+# Client secret is Tofu-generated here (like the oauth2-proxy demo client)
+# rather than passed in from another unit — Immich's own config lives in
+# apps/immich/ under ArgoCD's GitOps management, not in any Terragrunt
+# unit's Helm values, so there's no cross-unit dependency to wire. The value
+# is retrieved once via the sensitive output below and hand-carried into a
+# ksops-encrypted Secret under apps/immich/ — see docs/src/bootstrap-
+# environment/08-sso.md's guidance on real apps' client secrets, and
+# docs/src/bootstrap-environment/15-immich.md for the full picture.
+resource "random_password" "immich_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "immich" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "immich"
+  name      = "Immich"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.immich_client_secret.result
+
+  valid_redirect_uris = [
+    "app.immich:///oauth-callback",
+    "https://photos.${var.domain_name}/auth/login",
+    "https://photos.${var.domain_name}/user-settings",
+  ]
+  web_origins = ["+"]
+}
+
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste
 # template for real apps that need forward-auth (Grocy, etc. — see

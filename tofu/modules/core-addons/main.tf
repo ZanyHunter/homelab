@@ -61,6 +61,85 @@ resource "kubernetes_storage_class" "nfs" {
   depends_on = [helm_release.csi_driver_nfs]
 }
 
+# --- Ceph RBD storage (#28) — database/block-semantics-sensitive workloads,
+# where NFS's fsync/locking semantics are a real correctness risk. External
+# cluster mode: connects to the existing Proxmox Ceph cluster (ceph-1
+# datastore, already backing Talos VM disks) directly — no Ceph daemons run
+# inside Kubernetes. Not the default StorageClass; NFS stays default for
+# general file storage, apps opt into this one per-PVC. -----------------------
+resource "kubernetes_namespace" "ceph_csi_rbd" {
+  metadata {
+    name = "ceph-csi-rbd"
+    labels = {
+      # The node-plugin DaemonSet does real block-device operations
+      # (rbd map/mount) on the host — same justification as csi-driver-nfs's
+      # node-plugin above.
+      "pod-security.kubernetes.io/enforce" = "privileged"
+      "pod-security.kubernetes.io/audit"   = "privileged"
+      "pod-security.kubernetes.io/warn"    = "privileged"
+    }
+  }
+}
+
+# CephX credential for the client manually created against var.ceph.pool_name
+# only (docs/src/bootstrap-environment) — scoped to that one pool, not
+# broad cluster access, since this is the same physical Ceph cluster backing
+# every Proxmox VM disk. Tofu-managed Secret rather than the chart's own
+# secret.create, matching how every other credential in this repo (MinIO,
+# Grafana, Velero) is handled.
+resource "kubernetes_secret" "ceph_csi_rbd_credentials" {
+  metadata {
+    name      = "ceph-csi-rbd-secret"
+    namespace = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
+  }
+
+  data = {
+    userID  = var.ceph_rbd_client_id
+    userKey = local.ceph_rbd_client_key
+  }
+
+  type = "Opaque"
+}
+
+resource "helm_release" "ceph_csi_rbd" {
+  name       = "ceph-csi-rbd"
+  repository = "https://ceph.github.io/csi-charts"
+  chart      = "ceph-csi-rbd"
+  version    = var.chart_versions.ceph_csi_rbd
+  namespace  = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
+
+  values = [
+    yamlencode({
+      csiConfig = [
+        {
+          clusterID = var.ceph.cluster_id
+          monitors  = var.ceph.monitors
+        }
+      ]
+      storageClass = {
+        create        = true
+        name          = "ceph-rbd-${var.cluster_name}"
+        clusterID     = var.ceph.cluster_id
+        pool          = var.ceph.pool_name
+        imageFeatures = "layering"
+        # Not the default — NFS (kubernetes_storage_class.nfs above) stays
+        # default for general file storage; apps opt into this one per-PVC
+        # for database/block-semantics-sensitive volumes only.
+        reclaimPolicy           = "Delete"
+        allowVolumeExpansion    = true
+        provisionerSecret       = kubernetes_secret.ceph_csi_rbd_credentials.metadata[0].name
+        controllerExpandSecret  = kubernetes_secret.ceph_csi_rbd_credentials.metadata[0].name
+        controllerPublishSecret = kubernetes_secret.ceph_csi_rbd_credentials.metadata[0].name
+        nodeStageSecret         = kubernetes_secret.ceph_csi_rbd_credentials.metadata[0].name
+        # *SecretNamespace fields deliberately omitted — they default to the
+        # Helm release namespace, which is where the Secret above already is.
+      }
+    })
+  ]
+
+  depends_on = [kubernetes_secret.ceph_csi_rbd_credentials]
+}
+
 # --- MetalLB / ingress-nginx / ArgoCD -----------------------------------------
 resource "kubernetes_namespace" "metallb_system" {
   metadata {
@@ -421,6 +500,7 @@ locals {
   # applies cleanly before it ever matters.
   core_addons_namespaces = {
     csi_driver_nfs = kubernetes_namespace.csi_driver_nfs.metadata[0].name
+    ceph_csi_rbd   = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
     metallb_system = kubernetes_namespace.metallb_system.metadata[0].name
     ingress_nginx  = kubernetes_namespace.ingress_nginx.metadata[0].name
     argocd         = kubernetes_namespace.argocd.metadata[0].name
@@ -498,13 +578,13 @@ resource "kubernetes_network_policy" "allow_same_namespace" {
   }
 }
 
-# csi-driver-nfs, metallb-system, argocd (application-controller), and
-# cert-manager (+ its webhook, via the CRD conversion path) all watch/write
+# csi-driver-nfs, ceph-csi-rbd, metallb-system, argocd (application-controller),
+# and cert-manager (+ its webhook, via the CRD conversion path) all watch/write
 # Kubernetes objects directly.
 resource "kubernetes_network_policy" "allow_apiserver_egress" {
   for_each = {
     for k, v in local.core_addons_namespaces : k => v
-    if contains(["csi_driver_nfs", "metallb_system", "argocd", "cert_manager"], k)
+    if contains(["csi_driver_nfs", "ceph_csi_rbd", "metallb_system", "argocd", "cert_manager"], k)
   }
 
   metadata {
@@ -715,6 +795,43 @@ resource "kubernetes_network_policy" "csi_driver_nfs_allow_server_egress" {
         ip_block {
           cidr = "0.0.0.0/0"
         }
+      }
+    }
+  }
+}
+
+# ceph-csi's provisioner/node-plugin talk to the Ceph monitors directly —
+# scoped to the exact monitor IPs (var.ceph.monitors) rather than a broad
+# allow like the NFS rule above, since those are precisely known. Both the
+# legacy (6789) and msgr2 (3300) ports: ceph-csi/librbd can negotiate either
+# depending on the client's messenger version, even though var.ceph.monitors
+# itself only lists the 6789 addresses.
+resource "kubernetes_network_policy" "ceph_csi_rbd_allow_monitor_egress" {
+  metadata {
+    name      = "allow-ceph-monitor-egress"
+    namespace = kubernetes_namespace.ceph_csi_rbd.metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+
+    egress {
+      dynamic "to" {
+        for_each = var.ceph.monitors
+        content {
+          ip_block {
+            cidr = "${split(":", to.value)[0]}/32"
+          }
+        }
+      }
+      ports {
+        port     = "6789"
+        protocol = "TCP"
+      }
+      ports {
+        port     = "3300"
+        protocol = "TCP"
       }
     }
   }

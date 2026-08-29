@@ -2,6 +2,12 @@ output "nfs_storage_class_name" {
   value = kubernetes_storage_class.nfs.metadata[0].name
 }
 
+# Consumed by keycloak-infra to migrate Postgres's PVC onto Ceph-backed
+# storage (#28).
+output "ceph_rbd_storage_class_name" {
+  value = "ceph-rbd-${var.cluster_name}"
+}
+
 # Consumed by the keycloak-realm unit to create a matching keycloak_openid_client
 # with this same secret pre-set — mirrors the keycloak-infra.admin_password ->
 # keycloak-realm pattern, since core-addons applies before keycloak-realm in the

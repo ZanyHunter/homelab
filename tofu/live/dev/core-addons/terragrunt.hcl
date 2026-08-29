@@ -67,4 +67,6 @@ inputs = {
   ksops_version = include.env.locals.ksops_version
   nfs_storage   = include.env.locals.nfs_storage
   gitops        = include.env.locals.gitops
+  domain_name   = include.env.locals.domain_name
+  ingress_ip    = include.env.locals.ingress_ip
 }

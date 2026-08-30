@@ -29,11 +29,21 @@ locals {
 
       discord_alert_webhook = data.sops_file.secrets.data["discord_alert_webhook"]
 
-      # CephX key for the client manually created against the ceph-rbd pool
-      # (#28) — see docs/src/guides/deploy-from-scratch.md for the bootstrap command.
-      # Not Tofu-generated, unlike most secrets here: it's Ceph's own internal
-      # auth system, which this repo's Tofu providers have no resource for.
-      ceph_rbd_client_key = data.sops_file.secrets.data["ceph_rbd_client_key"]
+      # CephX key for the client manually created against each environment's
+      # own ceph-rbd pool (#28) — see docs/src/guides/deploy-from-scratch.md
+      # for the bootstrap command. Not Tofu-generated, unlike most secrets
+      # here: it's Ceph's own internal auth system, which this repo's Tofu
+      # providers have no resource for. Keyed by cluster_name (dev/prod each
+      # get their own CephX auth entity against their own pool, so they need
+      # their own key here too) — core-addons selects its own environment's
+      # entry via var.cluster_name. try() so a not-yet-bootstrapped
+      # environment's units (e.g. before its own first apply reaches the
+      # CephX pause) don't hard-fail resolving a sibling environment's
+      # missing key.
+      ceph_rbd_client_key = {
+        dev  = try(data.sops_file.secrets.data["ceph_rbd_client_key.dev"], "")
+        prod = try(data.sops_file.secrets.data["ceph_rbd_client_key.prod"], "")
+      }
     }
   EOF
 

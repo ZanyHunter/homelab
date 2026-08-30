@@ -72,7 +72,14 @@ resource "time_sleep" "unifi_switch_delay" {
   create_duration = "1m"
 }
 
-# Download the image to each proxmox node
+# Download the image to each proxmox node. file_name is explicitly scoped
+# per cluster_name — dev/prod share the same 3 physical Proxmox nodes, and
+# the provider derives a filename from the URL by default (same Talos
+# version/schematic on both environments means an identical URL), so an
+# unscoped filename collides: whichever environment applies second gets
+# "File already exists in the datastore... created outside of Terraform"
+# since that file belongs to the other environment's own Tofu state.
+# Found live standing prod up for the first time.
 resource "proxmox_virtual_environment_download_file" "iso" {
   for_each = toset(distinct([
     for _, obj in var.k8s_nodes : obj.proxmox_node
@@ -84,6 +91,7 @@ resource "proxmox_virtual_environment_download_file" "iso" {
   datastore_id = "local"
   url          = data.talos_image_factory_urls.this.urls.iso
   content_type = "iso"
+  file_name    = "talos-${var.cluster.name}-nocloud-amd64.iso"
 }
 
 # Generate CA certificates and related secrets

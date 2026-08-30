@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-d511c4b9.js";
+            window.path_to_searchindex_js = "../searchindex-40c99d01.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7ce4c0.js"></script>
@@ -195,13 +195,14 @@
 <h3 id="tooling-on-the-bootstrap-machine"><a class="header" href="#tooling-on-the-bootstrap-machine">Tooling (on the bootstrap machine)</a></h3>
 <ul>
 <li>Ubuntu (or similar Linux)</li>
-<li><a href="https://opentofu.org/">OpenTofu</a> and <a href="https://terragrunt.gruntwork.io/">Terragrunt</a></li>
-<li><a href="https://github.com/getsops/sops">sops</a> and <a href="https://github.com/FiloSottile/age">age</a></li>
-<li>The <a href="https://cli.github.com/"><code>gh</code> CLI</a>, authenticated</li>
-<li><code>kubectl</code></li>
-<li>(optional, docs only) <a href="https://rust-lang.github.io/mdBook/">mdBook</a> 0.5+ and <code>mdbook-tabs</code></li>
+<li><a href="https://mise.jdx.dev/">mise</a> — installs everything else. After <a href="https://mise.jdx.dev/installing-mise.html">installing mise itself</a>, from the repo root:
+<pre><code class="language-bash">mise trust
+mise install
+</code></pre>
+This pins and installs OpenTofu, Terragrunt, sops, age, the <code>gh</code> CLI, <code>kubectl</code>, mdBook + <code>mdbook-tabs</code> (docs), and the <code>velero</code> CLI (backup/restore) at the exact versions in <code>mise.toml</code> — no separate per-tool install step. <code>mise activate</code> in your shell rc puts them on <code>PATH</code>; see <code>CLAUDE.md</code>’s Toolchain section for the per-tool notes (in particular: <code>kubectl</code> is a hard dependency of <code>core-addons</code>’s apply, not just an interactive convenience) and how to bump a pin.</li>
+<li><code>gh auth login</code> — mise only installs the <code>gh</code> binary, not an authenticated session.</li>
 </ul>
-<p>See <code>CLAUDE.md</code>’s Toolchain section for exact version notes and gotchas (in particular: <code>kubectl</code> is a hard dependency of <code>core-addons</code>’s apply, not just an interactive convenience).</p>
+<p>See <code>CLAUDE.md</code>’s Toolchain section for exact version notes and gotchas.</p>
 <h3 id="credentials"><a class="header" href="#credentials">Credentials</a></h3>
 <p>All of the following live encrypted in <code>tofu/secrets.enc.yaml</code> — edit it with <code>sops tofu/secrets.enc.yaml</code> (opens decrypted in <code>$EDITOR</code>, re-encrypts on save). See <code>CLAUDE.md</code>’s Secrets management section for the full design.</p>
 <ol>

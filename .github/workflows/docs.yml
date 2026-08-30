@@ -30,11 +30,17 @@ jobs:
 
       # mdBook/mdbook-tabs versions are pinned once, in mise.toml — no
       # separate version env vars to keep in sync here. Scoped to just the
-      # two docs tools (install_args) rather than the whole toolchain, since
-      # this job doesn't need OpenTofu/Terragrunt/kubectl/etc.
+      # docs tools (install_args) rather than the whole toolchain, since this
+      # job doesn't need OpenTofu/Terragrunt/kubectl/etc. `rust` has to be
+      # listed explicitly alongside `cargo:mdbook-tabs` (not left to resolve
+      # via install_args' scoping alone) — mise.toml pins rust's version, and
+      # once a tool has a configured version pin, mise's cargo backend
+      # requires it to actually be installed rather than silently falling
+      # back to whatever cargo happens to be on the runner's PATH. Found live
+      # as a real CI failure when this was just "mdbook cargo:mdbook-tabs".
       - uses: jdx/mise-action@v4
         with:
-          install_args: "mdbook cargo:mdbook-tabs"
+          install_args: "mdbook rust cargo:mdbook-tabs"
 
       - name: Build book
         run: mdbook build docs

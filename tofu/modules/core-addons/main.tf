@@ -95,7 +95,7 @@ resource "kubernetes_secret" "ceph_csi_rbd_credentials" {
 
   data = {
     userID  = var.ceph_rbd_client_id
-    userKey = local.ceph_rbd_client_key
+    userKey = local.ceph_rbd_client_key[var.cluster_name]
   }
 
   type = "Opaque"

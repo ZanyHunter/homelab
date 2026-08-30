@@ -1,7 +1,7 @@
 # The per-environment values this app's base/ manifests reference as
 # __APP_HOSTNAME__/__KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__/
 # __STORAGE_CLASS_NFS__ tokens — see
-# docs/src/bootstrap-environment/06-gitops.md for the base/overlays pattern.
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 apiVersion: v1
 kind: ConfigMap
 metadata:

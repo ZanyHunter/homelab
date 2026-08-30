@@ -12,8 +12,8 @@ resource "keycloak_realm" "homelab" {
 }
 
 # A real per-app client secret should be ksops-encrypted under that app's
-# apps/<app>/ directory once a real app lands (see docs/src/bootstrap-
-# environment/06-gitops.md) — this demo client is Tofu-managed end-to-end
+# apps/<app>/ directory once a real app lands (see
+# docs/src/explanation/gitops-app-of-apps.md) — this demo client is Tofu-managed end-to-end
 # instead, since oauth2-proxy here exists purely to prove the Keycloak wiring
 # works, not as a real app.
 resource "random_password" "oauth2_proxy_client_secret" {
@@ -63,7 +63,7 @@ resource "keycloak_user" "demo" {
 # nothing below names a real user. Real accounts and their membership in
 # platform-admins are created/managed by hand in Keycloak's admin console
 # after the fact (https://keycloak.<domain_name>) — see
-# docs/src/bootstrap-environment/08-sso.md.
+# docs/src/explanation/sso-and-keycloak.md.
 resource "keycloak_group" "platform_admins" {
   realm_id = keycloak_realm.homelab.id
   name     = "platform-admins"
@@ -150,10 +150,10 @@ resource "keycloak_openid_client_optional_scopes" "grafana" {
 # rather than passed in from another unit — Immich's own config lives in
 # apps/immich/ under ArgoCD's GitOps management, not in any Terragrunt
 # unit's Helm values, so there's no cross-unit dependency to wire. The value
-# is retrieved once via the sensitive output below and hand-carried into a
-# ksops-encrypted Secret under apps/immich/ — see docs/src/bootstrap-
-# environment/08-sso.md's guidance on real apps' client secrets, and
-# docs/src/bootstrap-environment/15-immich.md for the full picture.
+# reaches the running Immich automatically via ExternalSecrets Operator (#42)
+# rather than a manual hand-carry step — see
+# docs/src/explanation/sso-and-keycloak.md's guidance on real apps' client secrets, and
+# docs/src/explanation/immich.md for the full picture.
 resource "random_password" "immich_client_secret" {
   length  = 32
   special = false
@@ -195,7 +195,7 @@ resource "keycloak_openid_client" "immich" {
 # login (a newer, not-yet-released Immich version does re-evaluate on every
 # login — worth revisiting when that ships). A role change here won't
 # retroactively fix an already-created Immich user; see
-# docs/src/bootstrap-environment/15-immich.md.
+# docs/src/explanation/immich.md.
 resource "keycloak_role" "immich_admin" {
   realm_id    = keycloak_realm.homelab.id
   client_id   = keycloak_openid_client.immich.id
@@ -228,7 +228,7 @@ resource "keycloak_openid_user_client_role_protocol_mapper" "immich_role" {
 
 # --- Five more real apps under apps/, same "generated here, hand-carried
 # into a ksops-encrypted Secret under that app's own apps/<app>/ directory"
-# shape as Immich above. See docs/src/bootstrap-environment/16-self-hosted-apps.md.
+# shape as Immich above. See docs/src/explanation/self-hosted-apps.md.
 
 resource "random_password" "actual_client_secret" {
   length  = 32
@@ -376,7 +376,7 @@ resource "keycloak_openid_client" "changedetection_oauth2_proxy" {
 # (apps/cluster-addons/base/, GitOps-managed) reads from via its kubernetes
 # provider, mirroring each Secret out into that app's own namespace through
 # an ExternalSecret living in that app's own apps/<app>/base/ — see
-# docs/src/bootstrap-environment/06-gitops.md. No pods run here; this
+# docs/src/explanation/gitops-app-of-apps.md. No pods run here; this
 # namespace exists purely to hold secret material and the RBAC scoping read
 # access to it.
 #
@@ -481,7 +481,7 @@ resource "kubernetes_secret" "changedetection_oauth2_proxy_client_secret" {
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste
 # template for real apps that need forward-auth (changedetection.io above is
 # the first real one to actually use it — see
-# docs/src/bootstrap-environment/08-sso.md). Kept as a living reference
+# docs/src/explanation/sso-and-keycloak.md). Kept as a living reference
 # rather than torn down after verification, since future app integrations
 # will want something to copy.
 resource "kubernetes_namespace" "sso_demo" {

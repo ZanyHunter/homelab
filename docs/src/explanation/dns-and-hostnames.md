@@ -1,4 +1,4 @@
-# 5. DNS Configuration
+# DNS and Ingress Hostnames
 
 Every ingress hostname in this repo (ArgoCD, Keycloak, Grafana, sso-demo, and any future `apps/<app>/` addition) lives under one **domain suffix** for the environment — `dev.thepugh.family` for `dev`, the real `thepugh.family` apex for `prod` (see `env.hcl`'s `domain_name`). Local DNS resolution for that whole suffix is a single **Tofu-managed wildcard record** in the Unifi controller (`unifi_dns_record.wildcard_ingress`, `tofu/modules/network/main.tf`), created automatically as part of a from-scratch stand-up — no manual step, and no per-hostname records to maintain as new apps land under `apps/`.
 

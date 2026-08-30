@@ -3,7 +3,7 @@
 # needed as of v3). Native OIDC via django-allauth's openid_connect
 # provider — see paperless-config.enc.yaml for the PAPERLESS_APPS /
 # PAPERLESS_SOCIALACCOUNT_PROVIDERS / PAPERLESS_SOCIAL_ACCOUNT_SYNC_* wiring
-# and docs/src/bootstrap-environment/16-self-hosted-apps.md for the full
+# and docs/src/explanation/self-hosted-apps.md for the full
 # picture, including the exact allauth callback URL this depends on.
 #
 # The default container starts as root and chowns volumes to an internal
@@ -113,7 +113,7 @@ spec:
             # social login, never this unrelated local row) and can never
             # itself be used to log in, since DISABLE_REGULAR_LOGIN rejects
             # password auth unconditionally. See
-            # docs/src/bootstrap-environment/16-self-hosted-apps.md.
+            # docs/src/explanation/self-hosted-apps.md.
             - name: PAPERLESS_ADMIN_USER
               value: bootstrap-admin
             - name: PAPERLESS_ADMIN_PASSWORD

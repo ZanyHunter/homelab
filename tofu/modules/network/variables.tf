@@ -20,7 +20,7 @@ variable "vlan_id" {
 
 variable "domain_name" {
   type        = string
-  description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives every ingress hostname/OIDC redirect URI across every unit, and is set as the Unifi network's own domain_name here. Resolved LAN-wide via a Tofu-managed wildcard DNS record (unifi_dns_record.wildcard_ingress, this unit) pointed at var.ingress_ip. See docs/src/bootstrap-environment/04-dns-configuration.md."
+  description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives every ingress hostname/OIDC redirect URI across every unit, and is set as the Unifi network's own domain_name here. Resolved LAN-wide via a Tofu-managed wildcard DNS record (unifi_dns_record.wildcard_ingress, this unit) pointed at var.ingress_ip. See docs/src/explanation/dns-and-hostnames.md."
 }
 
 variable "ingress_ip" {

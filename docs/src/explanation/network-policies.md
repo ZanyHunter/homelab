@@ -1,6 +1,6 @@
-# 13. NetworkPolicies and Pod Security Admission
+# NetworkPolicies and Pod Security Admission
 
-Every namespace this repo manages is now default-deny on both ingress and egress, with explicit allow rules for only the traffic that's actually needed — and carries an explicit, justified Pod Security Admission (PSA) level instead of the cluster's implicit unrestricted default. Both are Tofu-managed `kubernetes_network_policy`/namespace-label resources, living in whichever unit already owns that namespace (`core-addons`, `backup`, `keycloak-infra`, `keycloak-realm`, `observability`) — no new Terragrunt unit or `dependency` wiring needed, since every cross-namespace rule below references another namespace purely by its automatic `kubernetes.io/metadata.name` label, not a Terragrunt output.
+Every namespace this repo manages is default-deny on both ingress and egress, with explicit allow rules for only the traffic that's actually needed — and carries an explicit, justified Pod Security Admission (PSA) level instead of the cluster's implicit unrestricted default. Both are Tofu-managed `kubernetes_network_policy`/namespace-label resources, living in whichever unit already owns that namespace (`core-addons`, `backup`, `keycloak-infra`, `keycloak-realm`, `observability`) — no new Terragrunt unit or `dependency` wiring needed, since every cross-namespace rule below references another namespace purely by its automatic `kubernetes.io/metadata.name` label, not a Terragrunt output.
 
 ---
 

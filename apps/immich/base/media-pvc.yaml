@@ -1,7 +1,7 @@
 # Photo/video library storage — bulk files, sequential reads, no
 # locking-sensitivity, so NFS (nfs-dev) rather than the Ceph-backed
-# StorageClass. See docs/src/bootstrap-environment/13-ceph-storage.md's
-# rule of thumb and docs/src/bootstrap-environment/15-immich.md.
+# StorageClass. See docs/src/explanation/ceph-backed-storage.md's
+# rule of thumb and docs/src/explanation/immich.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

@@ -16,7 +16,7 @@
 #
 # IMMICH_ALLOW_SETUP=false: disables the local admin-setup wizard
 # (independent of immich-config.enc.yaml's passwordLogin.enabled) — see
-# docs/src/bootstrap-environment/15-immich.md's "Local login is disabled"
+# docs/src/explanation/immich.md's "Local login is disabled"
 # section for the two real Keycloak role-mapper gotchas this required.
 # Bumped v3.0.0 -> v3.1.0: the release that ships re-evaluating the OIDC
 # role claim on every login and supporting array claim values, rather than
@@ -28,7 +28,7 @@
 #
 # To upgrade: `helm pull oci://ghcr.io/immich-app/immich-charts/immich
 # --version <new> --untar`, re-render with the values below (see
-# docs/src/bootstrap-environment/15-immich.md), review the diff, replace
+# docs/src/explanation/immich.md), review the diff, replace
 # this file.
 #
 # helm template immich <chart> --namespace immich -f -  <<'VALUES'

@@ -50,7 +50,7 @@ resource "kubernetes_storage_class" "nfs" {
 
   # No subDir parameter: the driver creates one subdirectory per PV under this
   # share automatically, which is exactly what root-squash being disabled on
-  # the dev export (see docs/src/bootstrap-environment/05-nfs-storage-access.md)
+  # the dev export (see docs/src/reference/nfs-export-settings.md)
   # was for — the same should apply to whatever export var.nfs_storage points at
   # for other clusters.
   parameters = {
@@ -82,7 +82,7 @@ resource "kubernetes_namespace" "ceph_csi_rbd" {
 }
 
 # CephX credential for the client manually created against var.ceph.pool_name
-# only (docs/src/bootstrap-environment) — scoped to that one pool, not
+# only (docs/src/guides/deploy-from-scratch.md) — scoped to that one pool, not
 # broad cluster access, since this is the same physical Ceph cluster backing
 # every Proxmox VM disk. Tofu-managed Secret rather than the chart's own
 # secret.create, matching how every other credential in this repo (MinIO,
@@ -298,7 +298,7 @@ resource "helm_release" "argocd" {
           # Group-based, not tied to any specific person's identity: anyone
           # in the "platform-admins" Keycloak group gets admin. Real accounts
           # and their group membership are managed by hand in Keycloak's
-          # admin console (see docs/src/bootstrap-environment/08-sso.md), not
+          # admin console (see docs/src/explanation/sso-and-keycloak.md), not
           # in Tofu.
           "policy.csv" = "g, platform-admins, role:admin"
           "scopes"     = "[groups]"
@@ -309,7 +309,7 @@ resource "helm_release" "argocd" {
     # time. Patches the repo-server with the ksops/kustomize binaries (an
     # init container copies them in, overriding the built-in kustomize) and
     # mounts the same age key already used for tofu/secrets.enc.yaml so it
-    # can actually decrypt. See docs/src/bootstrap-environment/06-gitops.md.
+    # can actually decrypt. See docs/src/explanation/gitops-app-of-apps.md.
     yamlencode({
       configs = {
         cm = {
@@ -399,7 +399,7 @@ resource "kubernetes_secret" "cloudflare_api_token" {
 
 # The letsencrypt-prod and letsencrypt-staging ClusterIssuers themselves are
 # managed by ArgoCD (apps/cluster-addons/), not Tofu — see
-# docs/src/bootstrap-environment/06-gitops.md. This Secret stays here because
+# docs/src/explanation/gitops-app-of-apps.md. This Secret stays here because
 # it's sourced from tofu/secrets.enc.yaml (the Cloudflare API token), and the
 # ClusterIssuers' dns01.cloudflare.apiTokenSecretRef just references it by name.
 
@@ -587,7 +587,7 @@ resource "kubernetes_secret" "sops_age_key" {
 # ever syncs its own overlay, never the other's. path[1] (not
 # path.basename, which would resolve to "dev"/"prod" here) picks out the
 # app-name path segment regardless of overlay depth — see
-# docs/src/bootstrap-environment/06-gitops.md for the base/overlays
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays
 # structure and the checklist for adding a new app or a new environment.
 resource "helm_release" "argocd_apps" {
   name       = "argocd-apps"
@@ -1032,7 +1032,7 @@ resource "kubernetes_network_policy" "ceph_csi_rbd_allow_monitor_egress" {
 # forward, no inbound rule on the router. Transport only, not an auth layer:
 # every app behind it keeps using the exact same Ingress/cert-manager/
 # NetworkPolicy chain LAN traffic already goes through. See
-# docs/src/bootstrap-environment/14-public-ingress.md for the full design.
+# docs/src/explanation/public-ingress.md for the full design.
 #
 # Gated entirely on var.public_ingress_enabled (false for dev): only prod is
 # meant to be publicly exposed long-term. Dev's exposure proved the whole

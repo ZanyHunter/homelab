@@ -1,6 +1,6 @@
-# 10. Remote Tofu State
+# Remote Tofu State
 
-Tofu's state lives under `tofu/state/` — a gitignored directory meant to be an SMB mount of a share on the NAS, set up out-of-band, outside of Tofu entirely. Since the [Terragrunt refactor](./10-terragrunt-units.md), it's no longer one flat state file: each unit gets its own, at a path Terragrunt computes from directory structure rather than a single hand-typed literal.
+Tofu's state lives under `tofu/state/` — a gitignored directory meant to be an SMB mount of a share on the NAS, set up out-of-band, outside of Tofu entirely (see the [Deploy From Scratch](../guides/deploy-from-scratch.md) guide for the one-time mount step on a new machine). Since the [Terragrunt refactor](./terragrunt-units.md), it's no longer one flat state file: each unit gets its own, at a path Terragrunt computes from directory structure rather than a single hand-typed literal.
 
 ```
 tofu/state/
@@ -10,6 +10,7 @@ tofu/state/
     core-addons/terraform.tfstate
     backup/terraform.tfstate
     keycloak-infra/terraform.tfstate
+    observability/terraform.tfstate
     keycloak-realm/terraform.tfstate
   prod/
     ... (same shape, once prod is ever actually applied)
@@ -19,18 +20,9 @@ tofu/state/
 
 ---
 
-## One-time setup on a new machine
+## Locking
 
-`mkdir -p tofu/state` and mount the NAS share onto it, e.g.:
-   ```bash
-   sudo mount -t cifs //truenas.thepugh.family/<share> /home/hpugh/homelab/tofu/state \
-     -o credentials=/path/to/smb-creds,uid=$(id -u),gid=$(id -g),vers=3.0
-   ```
-   (or the equivalent `/etc/fstab` entry for a persistent mount across WSL restarts). This is a per-machine setup step, not something `terragrunt apply` does — same category as installing `sops`/`age`/`terragrunt` or fetching the age key from KeePass.
-
-**Check the mount is actually live before running `terragrunt`.** If the share isn't mounted, `tofu/state/` is just an empty local directory — `terragrunt init`/`plan`/`apply` won't error, they'll silently create (or use) fresh, empty local state files at those paths instead of finding the real ones. `mountpoint /home/hpugh/homelab/tofu/state` (exit code `0` means mounted) is a quick sanity check before trusting any `terragrunt plan` output.
-
-**Don't mount with the `nobrl` option.** Tofu's `local` backend locks state via `flock()`; Linux's CIFS client translates that into an SMB byte-range lock by default, which is what actually prevents two concurrent applies to the *same unit* from corrupting its state — `nobrl` disables that translation and silently turns off locking. (Two different units never contend for the same lock regardless, since each has its own state file.)
+Tofu's `local` backend locks state via `flock()`; Linux's CIFS client translates that into an SMB byte-range lock by default, which is what actually prevents two concurrent applies to the *same unit* from corrupting its state. **Never mount with the `nobrl` option** — it disables that translation and silently turns off locking. (Two different units never contend for the same lock regardless, since each has its own state file.)
 
 ## Why the earlier MinIO/S3 approach was abandoned
 

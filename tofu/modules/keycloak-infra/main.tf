@@ -177,7 +177,7 @@ resource "kubernetes_stateful_set_v1" "keycloak_postgres" {
         # via a real pg_dump/restore, not an in-place change: Kubernetes
         # doesn't allow changing a bound PVC's StorageClass, and this
         # template change creates a fresh empty PVC — see
-        # docs/src/bootstrap-environment/13-ceph-storage.md.
+        # docs/src/explanation/ceph-backed-storage.md.
         storage_class_name = var.ceph_storage_class_name
         resources {
           requests = {
@@ -197,7 +197,7 @@ resource "random_password" "keycloak_admin_password" {
 
 # Keys match what Keycloak 26.x parses at first startup to bootstrap the
 # initial admin account (KC_BOOTSTRAP_ADMIN_*) — see
-# docs/src/bootstrap-environment/08-sso.md.
+# docs/src/explanation/sso-and-keycloak.md.
 resource "kubernetes_secret" "keycloak_admin_credentials" {
   metadata {
     name      = "keycloak-admin-credentials"

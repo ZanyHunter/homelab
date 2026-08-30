@@ -1,11 +1,13 @@
 locals {
-  network_cidr = "192.168.160.0/27"
-  vlan_id      = 1601
-  # Kept exactly as-is ("K8s-Cluster-Prod", even though this is the dev
-  # cluster) rather than fixed here — Unifi guardrail: this refactor moves
-  # state around but doesn't change what's actually deployed to Unifi
-  # without separate sign-off. Worth fixing in its own small change later.
-  network_name = "K8s-Cluster-Prod"
+  # Moved off VLAN 1601 / 192.168.160.0/27 (the /27 expanded from a /28,
+  # see issue #3) as part of the dev/prod VLAN reorg — that range and its
+  # "K8s-Cluster-Prod" name (a leftover from before dev/prod were split
+  # apart) now belong to prod, whose Unifi network object was already
+  # named that. Dev takes a new, same-sized (/27) block instead. See
+  # CLAUDE.md's History.
+  network_cidr = "192.168.160.32/27"
+  vlan_id      = 1602
+  network_name = "K8s-Cluster-Dev"
   # Drives every ingress hostname and OIDC redirect URI in the codebase
   # (core-addons/keycloak-infra/keycloak-realm/observability all read this
   # directly, no Terragrunt dependency wiring needed) — the "k8s" subdomain
@@ -17,14 +19,14 @@ locals {
   # otherwise). core-addons pins ingress-nginx's Service to this exact IP
   # via the metallb.universe.tf/loadBalancerIPs annotation instead of
   # letting MetalLB assign it dynamically. Already what's live today.
-  ingress_ip = "192.168.160.5"
+  ingress_ip = "192.168.160.41"
 
   cluster = {
     name = "dev"
     # Floating control-plane VIP (Talos-managed, not any single node's address) — see
-    # modules/talos-cluster's local.k8s_virtual_ip. Lives in the range the /27 expansion freed up.
-    endpoint        = "192.168.160.16"
-    gateway         = "192.168.160.1"
+    # modules/talos-cluster's local.k8s_virtual_ip. First address after the gateway.
+    endpoint        = "192.168.160.34"
+    gateway         = "192.168.160.33"
     talos_version   = "v1.12.0"
     proxmox_cluster = "homelab"
   }
@@ -134,48 +136,53 @@ locals {
 
   ksops_version = "4.5.1"
 
+  # "dev" inserted after the role so hostnames self-identify the
+  # environment (prod keeps the clean, unprefixed k8s-ctrl-00/k8s-node-00
+  # names) — vm_ids share prod's "160" third-octet prefix (both
+  # environments' subnets fall in 192.168.160.0/24) but use a disjoint
+  # node-index band (20-25, vs. prod's 10-15) to avoid colliding.
   k8s_nodes = {
-    "k8s-ctrl-00" = {
+    "k8s-dev-ctrl-00" = {
       proxmox_node  = "pve-node-0"
       role          = "controlplane"
       startup_order = 3
-      vm_id         = 16010
-      ip_address    = "192.168.160.2/27"
+      vm_id         = 16020
+      ip_address    = "192.168.160.35/27"
     },
-    "k8s-ctrl-01" = {
+    "k8s-dev-ctrl-01" = {
       proxmox_node  = "pve-node-1"
       role          = "controlplane"
       startup_order = 4
-      vm_id         = 16011
-      ip_address    = "192.168.160.3/27"
+      vm_id         = 16021
+      ip_address    = "192.168.160.36/27"
     },
-    "k8s-ctrl-02" = {
+    "k8s-dev-ctrl-02" = {
       proxmox_node  = "pve-node-2"
       role          = "controlplane"
       startup_order = 5
-      vm_id         = 16012
-      ip_address    = "192.168.160.4/27"
+      vm_id         = 16022
+      ip_address    = "192.168.160.37/27"
     },
-    "k8s-node-00" = {
+    "k8s-dev-node-00" = {
       proxmox_node  = "pve-node-0"
       role          = "worker"
       startup_order = 6
-      vm_id         = 16013
-      ip_address    = "192.168.160.9/27"
+      vm_id         = 16023
+      ip_address    = "192.168.160.38/27"
     },
-    "k8s-node-01" = {
+    "k8s-dev-node-01" = {
       proxmox_node  = "pve-node-1"
       role          = "worker"
       startup_order = 7
-      vm_id         = 16014
-      ip_address    = "192.168.160.10/27"
+      vm_id         = 16024
+      ip_address    = "192.168.160.39/27"
     },
-    "k8s-node-02" = {
+    "k8s-dev-node-02" = {
       proxmox_node  = "pve-node-2"
       role          = "worker"
       startup_order = 8
-      vm_id         = 16015
-      ip_address    = "192.168.160.11/27"
+      vm_id         = 16025
+      ip_address    = "192.168.160.40/27"
     }
   }
 }

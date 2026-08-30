@@ -71,4 +71,5 @@ inputs = {
   }
   nfs_storage_class_name = dependency.core_addons.outputs.nfs_storage_class_name
   domain_name            = include.env.locals.domain_name
+  network_cidr           = include.env.locals.network_cidr
 }

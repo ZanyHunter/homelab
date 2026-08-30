@@ -59,7 +59,7 @@ dependency "core_addons" {
 
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
-    argocd_oidc_client_secret = "mock-secret-not-used-at-apply"
+    argocd_oidc_client_secret  = "mock-secret-not-used-at-apply"
     keycloak_secrets_namespace = "mock-keycloak-secrets"
   }
 }

@@ -61,13 +61,13 @@ generate "provider" {
 inputs = {
   cluster_name = include.env.locals.cluster.name
   chart_versions = {
-    csi_driver_nfs = include.env.locals.chart_versions.csi_driver_nfs
-    ceph_csi_rbd   = include.env.locals.chart_versions.ceph_csi_rbd
-    metallb        = include.env.locals.chart_versions.metallb
-    ingress_nginx  = include.env.locals.chart_versions.ingress_nginx
-    cert_manager   = include.env.locals.chart_versions.cert_manager
-    argocd         = include.env.locals.chart_versions.argocd
-    argocd_apps    = include.env.locals.chart_versions.argocd_apps
+    csi_driver_nfs   = include.env.locals.chart_versions.csi_driver_nfs
+    ceph_csi_rbd     = include.env.locals.chart_versions.ceph_csi_rbd
+    metallb          = include.env.locals.chart_versions.metallb
+    ingress_nginx    = include.env.locals.chart_versions.ingress_nginx
+    cert_manager     = include.env.locals.chart_versions.cert_manager
+    argocd           = include.env.locals.chart_versions.argocd
+    argocd_apps      = include.env.locals.chart_versions.argocd_apps
     external_secrets = include.env.locals.chart_versions.external_secrets
   }
   ksops_version = include.env.locals.ksops_version
@@ -79,6 +79,7 @@ inputs = {
   ceph_rbd_client_id = include.env.locals.ceph.pool_name
   domain_name        = include.env.locals.domain_name
   ingress_ip         = include.env.locals.ingress_ip
+  network_cidr       = include.env.locals.network_cidr
 
   # Same connection details the kubernetes/helm providers above already
   # receive, threaded in separately for null_resource.external_secrets_crds'

@@ -17,7 +17,7 @@ Specific cross-namespace traffic gets its own additional policy, e.g. `velero`'s
 ## Two rules worth knowing about
 
 - **Anything that calls the apiserver directly** (ArgoCD's application-controller, cert-manager, Velero, csi-driver-nfs, kube-state-metrics, MetalLB's controller, Prometheus itself) needs egress to `10.96.0.1/32:443` — the in-cluster `kubernetes.default.svc` ClusterIP. It's stable and has no pod selector to match against, hence an `ipBlock` instead of a namespace/pod selector.
-- **Admission/conversion webhooks** (`cert-manager-webhook`, `metallb-webhook-service`) need ingress on their port from the control-plane node subnet (`192.168.160.0/27`), not from any pod — the apiserver calls webhooks directly from a control-plane node's real IP, which a `namespaceSelector`/`podSelector` can't express.
+- **Admission/conversion webhooks** (`cert-manager-webhook`, `metallb-webhook-service`) need ingress on their port from the control-plane node subnet — not from any pod, since the apiserver calls webhooks directly from a control-plane node's real IP, which a `namespaceSelector`/`podSelector` can't express. Scoped via `var.network_cidr` (this environment's `env.hcl` value — `192.168.160.0/27` for prod, `192.168.160.32/27` for dev), threaded into `core-addons`/`observability` rather than hardcoded, since a single literal here would have silently been wrong for whichever environment applied second.
 
 ## Pod Security Admission: what landed where, and why
 

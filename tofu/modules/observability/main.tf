@@ -594,7 +594,7 @@ resource "kubernetes_network_policy" "allow_kubelet_egress" {
     egress {
       to {
         ip_block {
-          cidr = "192.168.160.0/27"
+          cidr = var.network_cidr
         }
       }
       ports {

@@ -59,6 +59,11 @@ variable "ingress_ip" {
   description = "Static IP ingress-nginx's LoadBalancer Service is pinned to (metallb.universe.tf/loadBalancerIPs), matching the network unit's wildcard DNS record target exactly. See tofu/modules/network/variables.tf's ingress_ip for why this is static rather than MetalLB-assigned."
 }
 
+variable "network_cidr" {
+  type        = string
+  description = "This environment's k8s VLAN subnet (e.g. 192.168.160.0/27) — used to scope NetworkPolicy CIDR blocks that allow traffic from node IPs (apiserver -> webhook ingress). See tofu/modules/network/variables.tf's network_cidr for the full picture."
+}
+
 variable "ceph" {
   description = "Config for ceph-csi's connection to the existing external Ceph cluster (#28) — pool_name comes from the talos-cluster unit's output (the pool it actually created), cluster_id/monitors are static env.hcl facts about the shared physical cluster. See tofu/modules/talos-cluster/variables.tf's ceph variable for the full picture."
   type = object({

@@ -821,7 +821,7 @@ resource "kubernetes_network_policy" "allow_webhook_ingress" {
     ingress {
       from {
         ip_block {
-          cidr = "192.168.160.0/27"
+          cidr = var.network_cidr
         }
       }
       ports {

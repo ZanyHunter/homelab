@@ -106,14 +106,17 @@ locals {
   public_hostname_suffix = ""
 
   # Prod is the one environment meant to be publicly exposed long-term
-  # (#33/#39/#40) — dev proved the mechanism and had its own exposure torn
-  # down. public_apps stays empty until real services are actually migrated
-  # here (the user's existing Immich, etc., moving to legacy domains first)
-  # — prod stays a placeholder like everything else here (see CLAUDE.md's
-  # Dev/prod separation) until that happens.
+  # (#33/#39/#40). The legacy Immich instance (and the other legacy apps)
+  # have been moved to <service>-legacy.thepugh.family, freeing
+  # photos.thepugh.family for prod's own Immich — confirmed live via a
+  # real showmount-style check before this went in. public_keycloak_realm
+  # gates the one narrow ^/realms/homelab/.* tunnel route Immich's public
+  # OIDC login needs; the admin console stays internal/VPN-only regardless.
   public_ingress_enabled = true
-  public_apps            = []
-  public_keycloak_realm  = false
+  public_apps = [
+    { hostname = "photos" },
+  ]
+  public_keycloak_realm = true
 
 
   ksops_version = "4.5.1"

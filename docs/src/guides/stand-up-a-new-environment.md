@@ -1,6 +1,6 @@
 # Stand Up a New Environment
 
-`tofu/live/prod/` already has the full seven-unit shape with placeholder values in `env.hcl` — nobody has run `terragrunt apply` there yet. This guide covers what's needed to make a new environment (prod, or any environment beyond `dev`) real. See [Terragrunt Units](../explanation/terragrunt-units.md) for why each environment is just another directory of the same units.
+Both `tofu/live/dev/` and `tofu/live/prod/` are real, applied environments today. This guide covers what's needed to stand up any *additional* environment beyond those two, following the same pattern prod's own stand-up did. See [Terragrunt Units](../explanation/terragrunt-units.md) for why each environment is just another directory of the same units.
 
 ---
 

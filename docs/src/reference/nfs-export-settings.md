@@ -6,16 +6,16 @@ The Kubernetes cluster's persistent storage (Immich, Paperless-ngx, and other st
 
 ## Network path
 
-The NAS lives on VLAN 1 (`192.168.0.11`), while the k8s cluster lives on VLAN 1601 (`192.168.160.0/27`). No additional Unifi firewall/routing rule is needed — inter-VLAN reachability to the NAS on the NFS port (2049) already works when tested from a pod on the cluster.
+The NAS lives on VLAN 1 (`192.168.0.11`), while each k8s cluster lives on its own VLAN — prod on VLAN 1601 (`192.168.160.0/27`), dev on VLAN 1602 (`192.168.160.32/27`). No additional Unifi firewall/routing rule is needed — inter-VLAN reachability to the NAS on the NFS port (2049) already works when tested from a pod on either cluster.
 
 The NAS is also reachable via `truenas.thepugh.family` — prefer the hostname over the raw IP in any k8s-side configuration (StorageClass, PV definitions, etc.), since the NAS may move to a different VLAN/IP in the future and the hostname would keep working without a k8s-side config change.
 
 ## Export settings
 
-A dedicated NFS export exists for Kubernetes, separate from the NAS's other exports (which serve the existing Docker Compose Immich instance and Proxmox itself, and are IP-restricted to those specific hosts):
+Dev and prod each get their own dedicated NFS export — CLAUDE.md's "dev/prod will not share infrastructure" applies here too — separate from the NAS's other exports (which serve the existing Docker Compose Immich instance and Proxmox itself, and are IP-restricted to those specific hosts):
 
-* **Path**: `/mnt/Main/k8s-dev`
-* **Authorized network**: `192.168.160.0/27` (the k8s VLAN, network-restricted rather than open to the whole LAN)
+* **Path**: `/mnt/Main/k8s-prod` (prod), `/mnt/Main/k8s-dev` (dev)
+* **Authorized network**: that environment's own k8s VLAN subnet — `192.168.160.0/27` for prod, `192.168.160.32/27` for dev (network-restricted rather than open to the whole LAN)
 * **Maproot user/group**: `root`/`wheel` (root squash disabled)
 * **NFS service version**: NFSv4 must be enabled (Services → NFS on TrueNAS, separate from the per-share config above)
 
@@ -37,7 +37,7 @@ Should list the export along with its authorized network:
 
 ```text
 Export list for truenas.thepugh.family:
-/mnt/Main/k8s-dev 192.168.160.0/27
+/mnt/Main/k8s-dev 192.168.160.32/27
 etc.
 ```
 

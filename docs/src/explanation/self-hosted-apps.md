@@ -1,22 +1,14 @@
-# 17. Self-Hosted Apps: Actual Budget, Paperless-ngx, Vaultwarden, Homebox, changedetection.io
+# Self-Hosted Apps: Actual Budget, Paperless-ngx, Vaultwarden, Homebox, changedetection.io
 
-Five more real workloads under `apps/`, following [Immich](./15-immich.md)'s pattern: one `apps/<app>/` directory each, storage split by locking-sensitivity (Ceph-backed for anything SQLite/Postgres, NFS-backed for bulk files), and Keycloak SSO wherever the app supports it. Reachable on the LAN/VPN at:
+Five more real workloads under `apps/`, following [Immich](./immich.md)'s pattern: one `apps/<app>/` directory each, storage split by locking-sensitivity (Ceph-backed for anything SQLite/Postgres, NFS-backed for bulk files), and Keycloak SSO wherever the app supports it. See [Deployed Apps](../reference/deployed-apps.md) for the hostname table.
 
-| App | Subdomain | Hostname |
-| --- | --- | --- |
-| [Actual Budget](https://actualbudget.org/) | `actual` | `actual.dev.thepugh.family` |
-| [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless` | `paperless.dev.thepugh.family` |
-| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | `vaultwarden` | `vaultwarden.dev.thepugh.family` |
-| [Homebox](https://homebox.software/) | `inventory` | `inventory.dev.thepugh.family` |
-| [changedetection.io](https://github.com/dgtlmoon/changedetection.io) | `changedetection` | `changedetection.dev.thepugh.family` |
-
-None of these are public — same LAN/VPN-only posture Immich started at, before public exposure was scoped to prod-only (see [Public Ingress](./14-public-ingress.md)).
+None of these are public — same LAN/VPN-only posture Immich started at, before public exposure was scoped to prod-only (see [Public Ingress](./public-ingress.md)).
 
 ---
 
 ## Storage
 
-Every app here persists to either SQLite or Postgres except changedetection.io (JSON-based watch/history files) — all five land on the Ceph-backed `ceph-rbd-dev` StorageClass rather than NFS, for the same fsync/locking-correctness reasoning as Immich's and Keycloak's Postgres (see [Ceph-Backed Storage](./13-ceph-storage.md)). Paperless-ngx is the one exception with a *second* PVC: its document library (originals, thumbnails, search index, consume-folder) is bulk file storage with no locking-sensitivity, so it's on `nfs-dev`, split the same way Immich splits database vs. media.
+Every app here persists to either SQLite or Postgres except changedetection.io (JSON-based watch/history files) — all five land on the Ceph-backed `ceph-rbd-dev` StorageClass rather than NFS, for the same fsync/locking-correctness reasoning as Immich's and Keycloak's Postgres (see [Ceph-Backed Storage](./ceph-backed-storage.md)). Paperless-ngx is the one exception with a *second* PVC: its document library (originals, thumbnails, search index, consume-folder) is bulk file storage with no locking-sensitivity, so it's on `nfs-dev`, split the same way Immich splits database vs. media.
 
 | App | Database | Storage |
 | --- | --- | --- |
@@ -46,7 +38,7 @@ Paperless-ngx carries the same risk for the identical reason: its own internal l
 
 ### Native OIDC: Actual Budget, Paperless-ngx, Vaultwarden, Homebox
 
-All four support Keycloak login directly — no oauth2-proxy needed, same pattern as Immich/ArgoCD/Grafana. Each has its own `keycloak_openid_client` in `tofu/modules/keycloak-realm/main.tf`, secret Tofu-generated and synced automatically into that app's namespace via ExternalSecrets Operator (#42), following `docs/src/bootstrap-environment/08-sso.md`'s "Apps with native OIDC support" guidance and `06-gitops.md`'s ExternalSecrets section.
+All four support Keycloak login directly — no oauth2-proxy needed, same pattern as Immich/ArgoCD/Grafana. Each has its own `keycloak_openid_client` in `tofu/modules/keycloak-realm/main.tf`, secret Tofu-generated and synced automatically into that app's namespace via ExternalSecrets Operator (#42), following the [Onboard a New App](../guides/onboard-a-new-app.md) guide's "apps with native OIDC support" path and [GitOps: App-of-Apps and Secrets](./gitops-app-of-apps.md)'s ExternalSecrets section.
 
 - **Actual Budget**: `ACTUAL_OPENID_*` env vars (`ACTUAL_LOGIN_METHOD=openid`, `ACTUAL_ALLOWED_LOGIN_METHODS=openid` — no password fallback). No per-user roles to wire; Actual's whole model is one shared server login, not per-user RBAC.
 - **Paperless-ngx**: native OIDC via django-allauth's `openid_connect` provider, configured through `PAPERLESS_SOCIALACCOUNT_PROVIDERS` (a JSON blob — see `apps/paperless/base/paperless-oidc-config.yaml`, an `ExternalSecret` templating the client secret into it) and `PAPERLESS_APPS=allauth.socialaccount.providers.openid_connect`. **platform-admins → Django superuser**: `PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS=true` + `PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP=platform-admins`, matched against the same reusable `groups` claim (plain group name, `full_path = false`) already used for ArgoCD/Grafana's RBAC — re-evaluated on *every* login, unlike Immich v3.0.0's account-creation-only behavior, so removing someone from `platform-admins` correctly demotes them here too. Getting the group claim into the token at all needs Paperless's Keycloak client to request the `groups` optional scope (`keycloak_openid_client_optional_scopes.paperless`) *and* the provider's own `SCOPE` array in `PAPERLESS_SOCIALACCOUNT_PROVIDERS` to include `"groups"` — both sides have to ask for it. `PAPERLESS_DISABLE_REGULAR_LOGIN=true` blocks the frontend password form and rejects any password-based login attempt server-side, regardless of whether a local account exists (see the gotcha below on why one now does).
@@ -61,7 +53,7 @@ The fix isn't a config toggle (none exists), it's removing the precondition: `PA
 
 ### Forward-auth: changedetection.io
 
-changedetection.io has no OIDC/SSO integration at all — confirmed against the project's own tracker (a feature request has been open since 2022 with no implementation), it only supports a single shared password. This is the first *real* app to use the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` forward-auth template documented in `08-sso.md` and proven by the `sso-demo` reference deployment — copied as plain manifests under `apps/changedetection/base/` (`oauth2-proxy.yaml`) rather than the Tofu-managed Helm release `sso-demo` uses, matching every other app under `apps/` being plain Kustomize resources.
+changedetection.io has no OIDC/SSO integration at all — confirmed against the project's own tracker (a feature request has been open since 2022 with no implementation), it only supports a single shared password. This is the first *real* app to use the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` forward-auth template documented in the [Onboard a New App](../guides/onboard-a-new-app.md) guide and proven by the `sso-demo` reference deployment — copied as plain manifests under `apps/changedetection/base/` (`oauth2-proxy.yaml`) rather than the Tofu-managed Helm release `sso-demo` uses, matching every other app under `apps/` being plain Kustomize resources.
 
 Two Ingresses share one hostname, same split as `sso-demo`/`whoami`: oauth2-proxy's own Ingress owns `/oauth2` and the actual TLS Certificate (`cert-manager.io/cluster-issuer` annotation); changedetection's Ingress handles `/` and reuses the same `secretName` without its own cluster-issuer annotation, avoiding two Certificates racing to manage one Secret. The same `proxy-buffer-size: "16k"` annotation `sso-demo` needed (oauth2-proxy's session cookie bundles Keycloak's access/ID/refresh tokens, routinely exceeding ingress-nginx's default buffer) is carried over here too, applied proactively rather than waiting to hit the same 502 live again.
 
@@ -72,4 +64,4 @@ kubectl get pvc -n actual -n paperless -n vaultwarden -n inventory -n changedete
 kubectl get pods -n actual -n paperless -n vaultwarden -n inventory -n changedetection
 ```
 
-Confirms every PVC bound on its intended StorageClass and every pod healthy, not just that resources exist. Real logins (not just "the login button appears") are the actual bar for each: visiting each hostname above should redirect through Keycloak (or, for changedetection.io, oauth2-proxy's own login page) and land back in the app authenticated.
+Confirms every PVC bound on its intended StorageClass and every pod healthy, not just that resources exist. Real logins (not just "the login button appears") are the actual bar for each: visiting each hostname in the [Deployed Apps](../reference/deployed-apps.md) table should redirect through Keycloak (or, for changedetection.io, oauth2-proxy's own login page) and land back in the app authenticated.

@@ -69,7 +69,7 @@ variable "ceph" {
 }
 
 variable "ceph_rbd_client_id" {
-  description = "CephX client name (without the \"client.\" prefix) ceph-csi authenticates as — manually created, scoped to only var.ceph.pool_name. See docs/src/bootstrap-environment for the bootstrap command."
+  description = "CephX client name (without the \"client.\" prefix) ceph-csi authenticates as — manually created, scoped to only var.ceph.pool_name. See docs/src/guides/deploy-from-scratch.md for the bootstrap command."
   type        = string
 }
 

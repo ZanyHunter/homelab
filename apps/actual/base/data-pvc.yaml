@@ -2,7 +2,7 @@
 # SQLite DB in its own right) lives under one data directory — Ceph-backed,
 # not NFS, for the same file-locking-correctness reason as every other
 # SQLite-on-Kubernetes app in this repo (see
-# docs/src/bootstrap-environment/13-ceph-storage.md).
+# docs/src/explanation/ceph-backed-storage.md).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

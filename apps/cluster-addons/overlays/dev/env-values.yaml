@@ -1,6 +1,6 @@
 # The per-environment values this directory's base/ manifests reference as
 # __LB_POOL_RANGE_1__/__LB_POOL_RANGE_2__ tokens — see
-# docs/src/bootstrap-environment/06-gitops.md for the base/overlays pattern.
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 apiVersion: v1
 kind: ConfigMap
 metadata:

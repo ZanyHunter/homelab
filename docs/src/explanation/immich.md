@@ -1,18 +1,18 @@
-# 16. Immich
+# Immich
 
-[Immich](https://immich.app/) is the first real workload deployed under `apps/` — proving out the app-of-apps GitOps pattern (`docs/src/bootstrap-environment/06-gitops.md`) for something beyond cluster add-ons. Reachable on the LAN/VPN at:
+[Immich](https://immich.app/) is the first real workload deployed under `apps/` — proving out the app-of-apps GitOps pattern ([GitOps: App-of-Apps and Secrets](./gitops-app-of-apps.md)) for something beyond cluster add-ons. Reachable on the LAN/VPN at:
 
 ```
 https://photos.dev.thepugh.family
 ```
 
-It was also the first app to actually prove the Cloudflare Tunnel design in [Public Ingress](./14-public-ingress.md) publicly — briefly reachable at `photos-dev.thepugh.family`, which surfaced two real gotchas (a Universal SSL coverage gap and a Keycloak `redirect_uri` mismatch, both documented there) before that exposure was deliberately torn back down. Only prod is meant to be publicly exposed long-term; see "Public access" below.
+It was also the first app to actually prove the Cloudflare Tunnel design in [Public Ingress](./public-ingress.md) publicly — briefly reachable at `photos-dev.thepugh.family`, which surfaced two real gotchas (a Universal SSL coverage gap and a Keycloak `redirect_uri` mismatch, both documented there) before that exposure was deliberately torn back down. Only prod is meant to be publicly exposed long-term; see "Public access" below.
 
 ---
 
 ## Storage split
 
-- **Database** (`immich-postgres`, a hand-rolled `StatefulSet`): the Ceph-backed `ceph-rbd-dev` StorageClass — real block storage, since Postgres's fsync/locking needs are exactly what that StorageClass exists for (see `docs/src/bootstrap-environment/13-ceph-storage.md`).
+- **Database** (`immich-postgres`, a hand-rolled `StatefulSet`): the Ceph-backed `ceph-rbd-dev` StorageClass — real block storage, since Postgres's fsync/locking needs are exactly what that StorageClass exists for (see [Ceph-Backed Storage](./ceph-backed-storage.md)).
 - **Media library** (`immich-media`, a `ReadWriteMany` PVC): the NFS-backed `nfs-dev` StorageClass — bulk files, sequential reads, no locking-sensitivity, and it's what the NAS's disks are for.
 
 ## The database: VectorChord, not vanilla Postgres
@@ -40,9 +40,9 @@ The file's header comment has the exact values used and the upgrade procedure. R
 
 ## Authentication: Keycloak, native OIDC
 
-Immich has native OIDC support (see the "Apps with native OIDC support" section of `docs/src/bootstrap-environment/08-sso.md`) — no oauth2-proxy needed. `keycloak_openid_client.immich` (`tofu/modules/keycloak-realm/main.tf`) is Tofu-managed like ArgoCD/Grafana's clients, but its secret is generated *here* directly (`random_password.immich_client_secret`) rather than passed in from another unit — Immich's own config lives in `apps/immich/` under GitOps, not in any Terragrunt unit's Helm values, so there's no cross-unit dependency to wire.
+Immich has native OIDC support (see the [Onboard a New App](../guides/onboard-a-new-app.md) guide's "apps with native OIDC support" path) — no oauth2-proxy needed. `keycloak_openid_client.immich` (`tofu/modules/keycloak-realm/main.tf`) is Tofu-managed like ArgoCD/Grafana's clients, but its secret is generated *here* directly (`random_password.immich_client_secret`) rather than passed in from another unit — Immich's own config lives in `apps/immich/` under GitOps, not in any Terragrunt unit's Helm values, so there's no cross-unit dependency to wire.
 
-The secret reaches the running Immich automatically (#42, no manual `terragrunt output`/hand-carry step): `keycloak-realm` also writes it into a plain `kubernetes_secret.immich_oidc_client_secret` in the `keycloak-secrets` namespace (owned by `core-addons`, populated by `keycloak-realm`), and `apps/immich/base/immich-config-externalsecret.yaml` — an `ExternalSecret` reading from that namespace via ESO's `ClusterSecretStore` (`apps/cluster-addons/base/`) — renders the full `immich-config.yaml` (note: **YAML**, not JSON — the chart mounts it at `IMMICH_CONFIG_FILE=/config/immich-config.yaml`) with the `oauth` block, interpolating just `clientSecret` from the live value. Referenced via `immich.existingConfiguration: immich-config` / `immich.configurationKind: Secret` in the chart values, rather than threading the secret through the Kustomize helm-chart values pipeline directly. See `docs/src/bootstrap-environment/06-gitops.md`'s ExternalSecrets section for the general mechanism.
+The secret reaches the running Immich automatically (#42, no manual `terragrunt output`/hand-carry step): `keycloak-realm` also writes it into a plain `kubernetes_secret.immich_oidc_client_secret` in the `keycloak-secrets` namespace (owned by `core-addons`, populated by `keycloak-realm`), and `apps/immich/base/immich-config-externalsecret.yaml` — an `ExternalSecret` reading from that namespace via ESO's `ClusterSecretStore` (`apps/cluster-addons/base/`) — renders the full `immich-config.yaml` (note: **YAML**, not JSON — the chart mounts it at `IMMICH_CONFIG_FILE=/config/immich-config.yaml`) with the `oauth` block, interpolating just `clientSecret` from the live value. Referenced via `immich.existingConfiguration: immich-config` / `immich.configurationKind: Secret` in the chart values, rather than threading the secret through the Kustomize helm-chart values pipeline directly. See [GitOps: App-of-Apps and Secrets](./gitops-app-of-apps.md)'s ExternalSecrets section for the general mechanism.
 
 `autoRegister: true` — any homelab Keycloak account can log into Immich on first OIDC login, matching how this is a personal/family photo app where Keycloak account creation itself is already the real gate (managed by hand in Keycloak's admin console, same as every other real account in this repo).
 
@@ -63,7 +63,7 @@ Bumped `v3.0.0` → `v3.1.0` shortly after the initial deploy, specifically beca
 
 ## Public access
 
-Not enabled today — `dev`'s `env.hcl` has `public_ingress_enabled = false`, `public_apps = []`. It briefly was (`{ hostname = "photos" }`, `public_keycloak_realm = true`), which is exactly what proved the Cloudflare Tunnel mechanism end-to-end and surfaced both gotchas documented in `docs/src/bootstrap-environment/14-public-ingress.md` — that exposure was always meant to be temporary, since only prod is meant to be publicly exposed long-term and prod's own `domain_name` (the bare apex) avoids the hostname-split complexity dev hit entirely. Immich's own internal Ingress/hostname (`photos.dev.thepugh.family`) is completely unaffected either way — only the Cloudflare Tunnel's routing to it was ever added or removed.
+Not enabled today — `dev`'s `env.hcl` has `public_ingress_enabled = false`, `public_apps = []`. It briefly was (`{ hostname = "photos" }`, `public_keycloak_realm = true`), which is exactly what proved the Cloudflare Tunnel mechanism end-to-end and surfaced both gotchas documented in [Public Ingress via Cloudflare Tunnel](./public-ingress.md) — that exposure was always meant to be temporary, since only prod is meant to be publicly exposed long-term and prod's own `domain_name` (the bare apex) avoids the hostname-split complexity dev hit entirely. Immich's own internal Ingress/hostname (`photos.dev.thepugh.family`) is completely unaffected either way — only the Cloudflare Tunnel's routing to it was ever added or removed.
 
 ## Verification
 

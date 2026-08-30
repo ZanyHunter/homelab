@@ -75,7 +75,7 @@ inputs = {
   gitops        = include.env.locals.gitops
   ceph          = include.env.locals.ceph
   # Same name as the pool (client.<pool_name>) — see the CephX bootstrap
-  # command in docs/src/bootstrap-environment.
+  # command in docs/src/guides/deploy-from-scratch.md.
   ceph_rbd_client_id = include.env.locals.ceph.pool_name
   domain_name        = include.env.locals.domain_name
   ingress_ip         = include.env.locals.ingress_ip

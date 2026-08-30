@@ -105,7 +105,7 @@ locals {
 
   # Not secrets in Cloudflare's own model (identifiers, not credentials) —
   # visible on the dashboard's Overview page for the domain. See
-  # docs/src/bootstrap-environment/14-public-ingress.md's manual step.
+  # docs/src/explanation/public-ingress.md's manual step.
   cloudflare_account_id = "7eee532c0b49dbdd2f93dcb13de9df7a"
   cloudflare_zone_id    = "f57b43e69b149c9be3483b4452f483d4"
   cloudflared_version   = "2026.8.2"
@@ -127,7 +127,7 @@ locals {
   # hostname the browser actually used, and only the internal one was
   # registered on the Keycloak client) that isn't worth chasing here when
   # prod's own domain_name is already the bare apex — no hostname split, no
-  # mismatch, ever. See docs/src/bootstrap-environment/14-public-ingress.md.
+  # mismatch, ever. See docs/src/explanation/public-ingress.md.
   public_ingress_enabled = false
   public_apps            = []
   public_keycloak_realm  = false

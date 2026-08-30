@@ -1,4 +1,4 @@
-# 12. Observability
+# Observability
 
 Metrics, logs, and alerting are handled by [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) (Prometheus + Alertmanager + Grafana + node-exporter + kube-state-metrics) plus [Loki](https://grafana.com/oss/loki/) + [Grafana Alloy](https://grafana.com/docs/alloy/latest/) for log aggregation — all installed via Tofu (`tofu/modules/observability/main.tf`), not GitOps, same reasoning as `backup`/`keycloak-infra`: their configuration is expressed entirely through Helm chart values, not a separate hand-rolled object.
 
@@ -6,7 +6,7 @@ Metrics, logs, and alerting are handled by [kube-prometheus-stack](https://githu
 
 ## Why a separate unit
 
-`observability` sits alongside `backup`/`keycloak-infra` in the Terragrunt dependency graph (`core-addons` → {`backup`, `keycloak-infra`, `observability`} → `keycloak-realm`) rather than folding into `core-addons` — nothing downstream depends on its outputs, and it's a distinct operational concern, the same reasoning that already kept `backup` and `keycloak-infra` split out. See `docs/src/bootstrap-environment/10-terragrunt-units.md` for the full unit layout.
+`observability` sits alongside `backup`/`keycloak-infra` in the Terragrunt dependency graph (`core-addons` → {`backup`, `keycloak-infra`, `observability`} → `keycloak-realm`) rather than folding into `core-addons` — nothing downstream depends on its outputs, and it's a distinct operational concern, the same reasoning that already kept `backup` and `keycloak-infra` split out. See [Terragrunt Units](./terragrunt-units.md) for the full unit layout.
 
 ## What's deployed
 
@@ -33,7 +33,7 @@ Metrics, logs, and alerting are handled by [kube-prometheus-stack](https://githu
 Node down/not-ready, pod crash-looping, and PVC-nearly-full are already covered by kube-prometheus-stack's own bundled default alert rules (`defaultRules.create`, on by default) — no extra work needed for those. Two more are added explicitly via the chart's `additionalPrometheusRulesMap` value:
 
 - **`CertManagerCertificateExpiringSoon`** — fires when any cert-manager-managed certificate is within 7 days of expiry.
-- **`VeleroBackupStale`** — fires when a Velero schedule hasn't produced a successful backup in the last ~28 hours (a buffer past the daily 03:00 schedule — see `docs/src/bootstrap-environment/07-backup-restore.md`).
+- **`VeleroBackupStale`** — fires when a Velero schedule hasn't produced a successful backup in the last ~28 hours (a buffer past the daily 03:00 schedule — see [Backup and Restore](./backup-and-restore.md)).
 
 Every alert (aside from the chart's always-firing `Watchdog` heartbeat, deliberately routed to a `null` receiver) routes to a **Discord** webhook, configured via `alertmanager.config` in `tofu/modules/observability/main.tf`'s `helm_release.kube_prometheus_stack`. The webhook URL lives encrypted at `discord_alert_webhook` in `tofu/secrets.enc.yaml` — see "Secrets management" in `CLAUDE.md`.
 
@@ -53,7 +53,7 @@ kube-prometheus-stack's default scrape jobs for `kube-proxy`, `kube-scheduler`, 
 
 ### Loki's chunks-cache defaults to an 8Gi memory request
 
-Loki's `chunksCache` (an optional memcached-based query-performance cache, enabled by default) requests `allocatedMemory: 8192` — sized for a much larger deployment than any single worker had on the original 4GB-RAM-per-node cluster, leaving `loki-chunks-cache-0` permanently `Pending` ("Insufficient memory" on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO (`docs/src/bootstrap-environment/07-backup-restore.md`).
+Loki's `chunksCache` (an optional memcached-based query-performance cache, enabled by default) requests `allocatedMemory: 8192` — sized for a much larger deployment than any single worker had on the original 4GB-RAM-per-node cluster, leaving `loki-chunks-cache-0` permanently `Pending` ("Insufficient memory" on all 6 nodes) on the first real apply. Same class of oversized-chart-default problem already hit with MinIO ([Backup and Restore](./backup-and-restore.md)).
 
 `allocatedMemory` turned out to be an independently tunable number, not an enabled/disabled-only toggle, and workers were later resized to 16GB (see `node_resources` in `env.hcl`) — so both `chunksCache` and `resultsCache` are enabled at `allocatedMemory: 512` (512MB) rather than left off, giving real query-caching benefit at a size this log volume actually needs.
 
@@ -71,4 +71,4 @@ Everything (`kube-prometheus-stack-*`, `loki-0`, `alloy-*` DaemonSet pods) shoul
 
 ## Restoring into a fresh cluster
 
-Same shape as every other add-on unit: `terragrunt run --all apply` after a full destroy (or onto new hardware) recreates the `observability` unit from scratch — a fresh Prometheus/Loki with empty history, since neither is covered by Velero's object-level backups (see `docs/src/bootstrap-environment/07-backup-restore.md`) or has any external persistence beyond its own NFS-backed PVC. That's an accepted tradeoff: historical metrics/logs aren't disaster-recovery-critical the way the workloads they observe are.
+Same shape as every other add-on unit: `terragrunt run --all apply` after a full destroy (or onto new hardware) recreates the `observability` unit from scratch — a fresh Prometheus/Loki with empty history, since neither is covered by Velero's object-level backups (see [Backup and Restore](./backup-and-restore.md)) or has any external persistence beyond its own NFS-backed PVC. That's an accepted tradeoff: historical metrics/logs aren't disaster-recovery-critical the way the workloads they observe are.

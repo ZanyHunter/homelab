@@ -7,7 +7,7 @@
 # counterpart. __KEYCLOAK_HOSTNAME__ is still a placeholder token here —
 # substituted per-environment by overlays/{dev,prod}/kustomization.yaml's
 # replacements:, retargeted from the old plain Secret to this ExternalSecret's
-# spec.target.template.data field. See docs/src/bootstrap-environment/06-gitops.md.
+# spec.target.template.data field. See docs/src/explanation/gitops-app-of-apps.md.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

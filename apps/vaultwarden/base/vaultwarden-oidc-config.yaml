@@ -4,7 +4,7 @@
 # keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
 # terragrunt output/hand-carry step (#42). vaultwarden-config.enc.yaml stays
 # ksops-encrypted for admin-token, which has no Tofu counterpart. See
-# docs/src/bootstrap-environment/06-gitops.md.
+# docs/src/explanation/gitops-app-of-apps.md.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

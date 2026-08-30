@@ -30,7 +30,7 @@ locals {
       discord_alert_webhook = data.sops_file.secrets.data["discord_alert_webhook"]
 
       # CephX key for the client manually created against the ceph-rbd pool
-      # (#28) — see docs/src/bootstrap-environment for the bootstrap command.
+      # (#28) — see docs/src/guides/deploy-from-scratch.md for the bootstrap command.
       # Not Tofu-generated, unlike most secrets here: it's Ceph's own internal
       # auth system, which this repo's Tofu providers have no resource for.
       ceph_rbd_client_key = data.sops_file.secrets.data["ceph_rbd_client_key"]
@@ -40,7 +40,7 @@ locals {
 }
 
 # State lives on an SMB-mounted NAS share (tofu/state/, gitignored, mounted
-# out-of-band — see docs/src/bootstrap-environment/09-remote-state.md), one
+# out-of-band — see docs/src/explanation/remote-state.md), one
 # file per unit, path computed here rather than hand-typed per unit.
 remote_state {
   backend = "local"

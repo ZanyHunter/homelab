@@ -32,7 +32,7 @@ spec:
       annotations:
         # Opts this pod's "data" volume into Velero's File System Backup —
         # actual database contents, not just the StatefulSet's own object
-        # definition. See docs/src/bootstrap-environment/07-backup-restore.md.
+        # definition. See docs/src/explanation/backup-and-restore.md.
         backup.velero.io/backup-volumes: "data"
     spec:
       # See apps/actual/actual.yaml's comment — defensive across every app

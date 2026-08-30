@@ -2,23 +2,37 @@
 
 [Introduction](./introduction.md)
 
-# Bootstrap Environment
+# Guides
 
-- [1. Prerequisites](./bootstrap-environment/00-prerequisites.md)
-- [2. Prepare Infrastructure](./bootstrap-environment/01-prepare-infrastructure.md)
-- [3. Deploy Kubernetes Cluster](./bootstrap-environment/02-deploy-k8s-cluster.md)
-- [4. Connect to Cluster](./bootstrap-environment/03-connect-to-cluster.md)
-- [5. DNS Configuration](./bootstrap-environment/04-dns-configuration.md)
-- [6. NFS Storage Access](./bootstrap-environment/05-nfs-storage-access.md)
-- [7. GitOps: App-of-Apps and Encrypted Secrets](./bootstrap-environment/06-gitops.md)
-- [8. Backup and Restore](./bootstrap-environment/07-backup-restore.md)
-- [9. Single Sign-On (Keycloak)](./bootstrap-environment/08-sso.md)
-- [10. Remote Tofu State](./bootstrap-environment/09-remote-state.md)
-- [11. Terragrunt Units and Multi-Environment Layout](./bootstrap-environment/10-terragrunt-units.md)
-- [12. Observability](./bootstrap-environment/11-observability.md)
-- [13. NetworkPolicies and Pod Security Admission](./bootstrap-environment/12-network-policies.md)
-- [14. Ceph-Backed Storage for Databases](./bootstrap-environment/13-ceph-storage.md)
-- [15. Public Ingress via Cloudflare Tunnel](./bootstrap-environment/14-public-ingress.md)
-- [16. Immich](./bootstrap-environment/15-immich.md)
-- [17. Self-Hosted Apps](./bootstrap-environment/16-self-hosted-apps.md)
+- [Deploy From Scratch](./guides/deploy-from-scratch.md)
+- [Onboard a New App](./guides/onboard-a-new-app.md)
+- [Stand Up a New Environment](./guides/stand-up-a-new-environment.md)
+- [Expose an App Publicly](./guides/expose-an-app-publicly.md)
+- [Restore From a Backup](./guides/restore-from-a-backup.md)
+- [Migrate Storage to Ceph](./guides/migrate-storage-to-ceph.md)
+- [Grant Platform-Admin Access](./guides/grant-platform-admin-access.md)
 
+# Tutorials
+
+- [Tutorials](./tutorials/README.md)
+
+# Reference
+
+- [Repository Layout](./reference/repository-layout.md)
+- [NFS Export Settings](./reference/nfs-export-settings.md)
+- [Deployed Apps](./reference/deployed-apps.md)
+
+# Explanation
+
+- [Terragrunt Units and Multi-Environment Layout](./explanation/terragrunt-units.md)
+- [Remote Tofu State](./explanation/remote-state.md)
+- [DNS and Ingress Hostnames](./explanation/dns-and-hostnames.md)
+- [Ceph-Backed Storage for Databases](./explanation/ceph-backed-storage.md)
+- [NetworkPolicies and Pod Security Admission](./explanation/network-policies.md)
+- [GitOps: App-of-Apps and Secrets](./explanation/gitops-app-of-apps.md)
+- [Single Sign-On (Keycloak)](./explanation/sso-and-keycloak.md)
+- [Observability](./explanation/observability.md)
+- [Backup and Restore](./explanation/backup-and-restore.md)
+- [Public Ingress via Cloudflare Tunnel](./explanation/public-ingress.md)
+- [Immich](./explanation/immich.md)
+- [Self-Hosted Apps](./explanation/self-hosted-apps.md)

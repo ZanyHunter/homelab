@@ -5,7 +5,7 @@
 # (avoids the pinning risk of a full chart/operator like CloudNativePG for
 # one single-instance database). Debian-based (postgres:18-bookworm), so
 # uid 999 — NOT Keycloak's Alpine-based uid 70. See
-# docs/src/bootstrap-environment/15-immich.md.
+# docs/src/explanation/immich.md.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -46,7 +46,7 @@ spec:
       annotations:
         # Opts this pod's "data" volume into Velero's File System Backup —
         # actual database contents, not just the StatefulSet's own object
-        # definition. See docs/src/bootstrap-environment/07-backup-restore.md.
+        # definition. See docs/src/explanation/backup-and-restore.md.
         backup.velero.io/backup-volumes: "data"
     spec:
       securityContext:

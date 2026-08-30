@@ -429,12 +429,133 @@ resource "kubernetes_namespace" "external_secrets" {
   }
 }
 
+# The external-secrets chart bundles its CRDs as regular chart templates
+# (gated by its own installCRDs value), not Helm's protected crds/ folder —
+# meaning a plain `helm uninstall` tries to delete them like any other
+# templated object. Deleting a CRD blocks until every one of its CR
+# instances is gone, but the 6 GitOps-managed ExternalSecret objects each
+# carry ESO's own cleanup finalizer, removable only by ESO's own controller —
+# which is torn down as part of that same uninstall. A real full
+# `terragrunt destroy` hit exactly this deadlock (#44): Tofu's helm timeout
+# expired mid-uninstall, hard-failing this whole unit's destroy and
+# correctly blocking every unit downstream of it in the DAG from running at
+# all. installCRDs=false below stops Helm from ever touching CRD lifecycle
+# (create or delete) so this can't recur; the CRDs are applied once here
+# instead, via a plain `kubectl apply` a create-only local-exec provisioner
+# runs (a Terraform provisioner's shell can't reach the kubernetes/helm
+# providers' own authenticated session, hence the throwaway kubeconfig built
+# from var.kubernetes_client_configuration). No destroy provisioner is
+# defined, so a `terraform destroy` just drops this resource from state
+# without touching the live CRDs — on a full environment teardown they
+# vanish along with the VMs themselves (talos-cluster destroys after
+# core-addons in the DAG) rather than through a synchronous, blockable
+# delete. (A destroy-time local-exec that force-strips finalizers from every
+# live ExternalSecret before the Helm uninstall runs was considered instead
+# and rejected — it would need the same temp-kubeconfig plumbing on the
+# riskier destroy path, for no benefit over simply never asking Tofu to
+# delete the CRDs at all.)
+#
+# files/external-secrets-crds.yaml is a pinned `helm template` render of
+# templates/crds/ from this same chart version — the same "committed static
+# render" idiom apps/immich/immich.yaml already uses, here because Tofu has
+# no other create-only-apply primitive rather than immich.yaml's live-OCI-
+# rendering bug. Regenerate it by hand whenever chart_versions.external_secrets
+# bumps (the triggers block below forces a re-apply when that happens, but
+# won't regenerate the file's contents for you).
+resource "null_resource" "external_secrets_crds" {
+  triggers = {
+    chart_version = var.chart_versions.external_secrets
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+      kubeconfig_file=$(mktemp)
+      trap 'rm -f "$kubeconfig_file"' EXIT
+      cat > "$kubeconfig_file" <<KCFG
+      apiVersion: v1
+      kind: Config
+      clusters:
+        - name: core-addons
+          cluster:
+            server: ${var.kubernetes_client_configuration.host}
+            certificate-authority-data: ${var.kubernetes_client_configuration.ca_certificate}
+      users:
+        - name: core-addons
+          user:
+            client-certificate-data: ${var.kubernetes_client_configuration.client_certificate}
+            client-key-data: ${var.kubernetes_client_configuration.client_key}
+      contexts:
+        - name: core-addons
+          context:
+            cluster: core-addons
+            user: core-addons
+      current-context: core-addons
+      KCFG
+      kubectl --kubeconfig "$kubeconfig_file" apply --server-side --force-conflicts -f "${path.module}/files/external-secrets-crds.yaml"
+    EOT
+  }
+}
+
 resource "helm_release" "external_secrets" {
   name       = "external-secrets"
   repository = "https://charts.external-secrets.io"
   chart      = "external-secrets"
   version    = var.chart_versions.external_secrets
   namespace  = kubernetes_namespace.external_secrets.metadata[0].name
+
+  values = [
+    yamlencode({
+      installCRDs = false
+    })
+  ]
+
+  depends_on = [null_resource.external_secrets_crds]
+}
+
+# Created here (alongside ArgoCD, early in this unit's own apply) rather
+# than in keycloak-realm, which populates the real Secret values into it —
+# keycloak-realm is the last of core-addons' 4 dependents to apply, often
+# several minutes after ArgoCD is already up and syncing
+# apps/cluster-addons/'s RBAC against this same namespace name. A real
+# from-scratch apply hit that race directly (#44): ArgoCD's automated sync
+# hit a missing-namespace error, retried its default 5 times, then gave up
+# rather than continuing — needing a manual forced sync once the namespace
+# (created late, by keycloak-realm) finally existed. See
+# keycloak-realm/main.tf's kubernetes_secret.*_oidc_client_secret resources
+# and this unit's keycloak_secrets_namespace output.
+resource "kubernetes_namespace" "keycloak_secrets" {
+  metadata {
+    name = "keycloak-secrets"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
+}
+
+# cluster-addons is Tofu-managed for the identical reason keycloak-secrets
+# above now is: it used to be a bare string in local.core_addons_namespaces,
+# left for ArgoCD's own CreateNamespace=true to create — true on every
+# previously-live cluster (ArgoCD had already synced by the time anyone
+# looked), false on a real from-scratch apply, where this unit's own
+# NetworkPolicies for it can be applied before ArgoCD has synced anything at
+# all (#44), failing with "namespaces \"cluster-addons\" not found".
+# CreateNamespace=true stays in the ApplicationSet template below regardless
+# — harmless no-op once Tofu already owns the namespace, and removing it
+# would mean special-casing one app out of the template every other app
+# shares.
+resource "kubernetes_namespace" "cluster_addons" {
+  metadata {
+    name = "cluster-addons"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
 }
 
 # --- GitOps: app-of-apps + ksops age key --------------------------------------
@@ -522,6 +643,22 @@ resource "helm_release" "argocd_apps" {
                   selfHeal = true
                 }
                 syncOptions = ["CreateNamespace=true"]
+                # ArgoCD's own default (5 attempts, short backoff) gave up
+                # permanently on a real from-scratch apply (#44) while
+                # apps/cluster-addons/'s RBAC was still waiting on
+                # keycloak-realm's namespace to exist, needing a manual
+                # forced sync to recover. A much higher limit with a capped
+                # backoff means a future race of this same shape (a
+                # dependent namespace/CRD/RBAC object created by a
+                # slower-to-apply Tofu unit) self-heals on its own instead.
+                retry = {
+                  limit = 30
+                  backoff = {
+                    duration    = "10s"
+                    factor      = 2
+                    maxDuration = "3m"
+                  }
+                }
               }
             }
           }
@@ -540,11 +677,6 @@ resource "helm_release" "argocd_apps" {
 # --- NetworkPolicies: default-deny + only the traffic each namespace
 # actually needs (#31) ---------------------------------------------------
 locals {
-  # cluster-addons isn't a Tofu-managed namespace (ArgoCD's app-of-apps
-  # creates it via CreateNamespace=true — see the ApplicationSet above), but
-  # it already exists by the time this unit applies and holds no pods, so a
-  # default-deny here is a harmless, zero-risk way to prove the base pattern
-  # applies cleanly before it ever matters.
   core_addons_namespaces = merge(
     {
       csi_driver_nfs   = kubernetes_namespace.csi_driver_nfs.metadata[0].name
@@ -554,7 +686,8 @@ locals {
       argocd           = kubernetes_namespace.argocd.metadata[0].name
       cert_manager     = kubernetes_namespace.cert_manager.metadata[0].name
       external_secrets = kubernetes_namespace.external_secrets.metadata[0].name
-      cluster_addons   = "cluster-addons"
+      cluster_addons   = kubernetes_namespace.cluster_addons.metadata[0].name
+      keycloak_secrets = kubernetes_namespace.keycloak_secrets.metadata[0].name
     },
     # Only when the Cloudflare Tunnel actually exists (var.public_ingress_enabled)
     # — otherwise there's no cloudflared namespace for these policies to attach

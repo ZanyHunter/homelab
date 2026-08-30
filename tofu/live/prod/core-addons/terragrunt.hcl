@@ -80,6 +80,12 @@ inputs = {
   domain_name        = include.env.locals.domain_name
   ingress_ip         = include.env.locals.ingress_ip
 
+  # Same connection details the kubernetes/helm providers above already
+  # receive, threaded in separately for null_resource.external_secrets_crds'
+  # local-exec provisioner (#44) — a provisioner's shell can't reach a
+  # Terraform provider's own authenticated session.
+  kubernetes_client_configuration = dependency.talos_cluster.outputs.kubernetes_client_configuration
+
   cloudflare_account_id  = include.env.locals.cloudflare_account_id
   cloudflare_zone_id     = include.env.locals.cloudflare_zone_id
   cloudflared_version    = include.env.locals.cloudflared_version

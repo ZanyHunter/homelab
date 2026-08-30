@@ -17,6 +17,17 @@ variable "chart_versions" {
   })
 }
 
+variable "kubernetes_client_configuration" {
+  description = "Raw talos-cluster connection details (same values the kubernetes/helm providers already receive via the Terragrunt-generated provider.tf), threaded in separately so null_resource.external_secrets_crds's local-exec provisioner can build its own throwaway kubeconfig — a provisioner's shell can't reach a Terraform provider's own authenticated session, so there's no way to reuse the provider's connection directly."
+  type = object({
+    host               = string
+    client_certificate = string
+    client_key         = string
+    ca_certificate     = string
+  })
+  sensitive = true
+}
+
 variable "ksops_version" {
   description = "Pinned viaductoss/ksops image tag used to install the ksops/kustomize binaries into ArgoCD's repo-server, so it can decrypt SOPS-encrypted manifests under apps/. Plain numbers.periods only, no leading \"v\"."
   type        = string

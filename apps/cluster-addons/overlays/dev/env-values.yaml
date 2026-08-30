@@ -1,10 +1,13 @@
 # The per-environment values this directory's base/ manifests reference as
 # __LB_POOL_RANGE_1__/__LB_POOL_RANGE_2__ tokens — see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+# Dev moved to 192.168.160.32/27 (VLAN 1602) as part of the dev/prod VLAN
+# reorg — gateway/VIP/nodes/ingress_ip occupy .33-.41, so these pools start
+# past that. See tofu/live/dev/env.hcl.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: env-values
 data:
-  lb-pool-range-1: 192.168.160.5-192.168.160.8
-  lb-pool-range-2: 192.168.160.12-192.168.160.14
+  lb-pool-range-1: 192.168.160.42-192.168.160.45
+  lb-pool-range-2: 192.168.160.52-192.168.160.54

@@ -2,12 +2,17 @@
 # __LB_POOL_RANGE_1__/__LB_POOL_RANGE_2__ tokens — see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 # Prod took over 192.168.160.0/27 (VLAN 1601, the range dev used to occupy)
-# as part of the dev/prod VLAN reorg — gateway/VIP/nodes/ingress_ip occupy
-# .1-.9, so these pools start past that. See tofu/live/prod/env.hcl.
+# as part of the dev/prod VLAN reorg — gateway/VIP/nodes occupy .1-.8.
+# ingress_ip (.9, env.hcl) must itself fall inside one of these ranges (not
+# just past the reserved block) since core-addons pins ingress-nginx's
+# Service to it via the metallb.universe.tf/loadBalancerIPs annotation, and
+# MetalLB only assigns addresses that are actually inside a configured
+# pool — found live on dev as a real stuck-<pending> LoadBalancer Service
+# when its equivalent range started one address past its own ingress_ip.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: env-values
 data:
-  lb-pool-range-1: 192.168.160.10-192.168.160.13
+  lb-pool-range-1: 192.168.160.9-192.168.160.13
   lb-pool-range-2: 192.168.160.20-192.168.160.22

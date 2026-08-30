@@ -2,12 +2,17 @@
 # __LB_POOL_RANGE_1__/__LB_POOL_RANGE_2__ tokens — see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 # Dev moved to 192.168.160.32/27 (VLAN 1602) as part of the dev/prod VLAN
-# reorg — gateway/VIP/nodes/ingress_ip occupy .33-.41, so these pools start
-# past that. See tofu/live/dev/env.hcl.
+# reorg — gateway/VIP/nodes occupy .33-.40. ingress_ip (.41, env.hcl) must
+# itself fall inside one of these ranges (not just past the reserved block)
+# since core-addons pins ingress-nginx's Service to it via the
+# metallb.universe.tf/loadBalancerIPs annotation, and MetalLB only assigns
+# addresses that are actually inside a configured pool — found live as a
+# real stuck-<pending> LoadBalancer Service when range-1 started at .42
+# instead of .41.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: env-values
 data:
-  lb-pool-range-1: 192.168.160.42-192.168.160.45
+  lb-pool-range-1: 192.168.160.41-192.168.160.45
   lb-pool-range-2: 192.168.160.52-192.168.160.54

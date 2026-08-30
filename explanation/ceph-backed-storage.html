@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40c99d01.js";
+            window.path_to_searchindex_js = "../searchindex-e2e909e8.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7ce4c0.js"></script>
@@ -196,7 +196,7 @@
 <li><strong>ceph-csi (RBD), external-cluster mode</strong> — connects directly to the existing Ceph cluster; no Ceph daemons run inside Kubernetes. Deployed in <code>core-addons</code> (<code>tofu/modules/core-addons/main.tf</code>, <code>helm_release.ceph_csi_rbd</code>), parallel to <code>csi-driver-nfs</code>. Not the default StorageClass — NFS stays default, apps opt into <code>ceph-rbd-&lt;cluster_name&gt;</code> per-PVC.</li>
 <li><strong><code>env.hcl</code>’s <code>ceph</code> block</strong> (<code>pool_name</code>, <code>cluster_id</code>, <code>monitors</code>) holds the facts about the shared physical cluster — the fsid/monitor addresses are the same regardless of environment (same 3 physical nodes), only the pool name is environment-scoped so dev/prod don’t collide on the same physical cluster.</li>
 </ul>
-<p><strong>CephX credentials</strong> (Ceph’s own internal auth, separate from Proxmox’s PVE user management) can’t be Tofu-managed — see the <a href="../guides/deploy-from-scratch.html">Deploy From Scratch</a> guide’s prerequisites for the required manual bootstrap step, and <a href="../guides/stand-up-a-new-environment.html">Stand Up a New Environment</a> for repeating it on a new environment.</p>
+<p><strong>CephX credentials</strong> (Ceph’s own internal auth, separate from Proxmox’s PVE user management) can’t be Tofu-managed — see the <a href="../guides/deploy-from-scratch.html">Deploy From Scratch</a> guide’s prerequisites for the required manual bootstrap step, and <a href="../guides/stand-up-a-new-environment.html">Stand Up a New Environment</a> for repeating it on a new environment. <code>ceph_rbd_client_key</code> in <code>secrets.enc.yaml</code> is keyed <strong>per environment</strong> (<code>{dev: ..., prod: ...}</code>), not a single flat value — dev and prod each get their own CephX auth entity scoped to their own pool, and a shared single key silently breaks whichever environment doesn’t currently own the stored value (found live the first time dev and prod coexisted: <code>ceph-csi</code>’s connection failed <code>rados: ret=-13, Permission denied</code> rather than the Tofu apply itself hard-failing). If <code>ceph-csi</code>’s provisioner already attempted and failed a connection before the correct key was in place, it can cache that failure — <code>kubectl rollout restart deployment -n ceph-csi-rbd ceph-csi-rbd-provisioner</code> forces it to reconnect with the current Secret.</p>
 <h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
 <pre><code class="language-bash">kubectl get storageclass ceph-rbd-dev
 kubectl get pods -n ceph-csi-rbd

@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40c99d01.js";
+            window.path_to_searchindex_js = "../searchindex-e2e909e8.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7ce4c0.js"></script>
@@ -182,7 +182,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="stand-up-a-new-environment"><a class="header" href="#stand-up-a-new-environment">Stand Up a New Environment</a></h1>
-<p><code>tofu/live/prod/</code> already has the full seven-unit shape with placeholder values in <code>env.hcl</code> — nobody has run <code>terragrunt apply</code> there yet. This guide covers what’s needed to make a new environment (prod, or any environment beyond <code>dev</code>) real. See <a href="../explanation/terragrunt-units.html">Terragrunt Units</a> for why each environment is just another directory of the same units.</p>
+<p>Both <code>tofu/live/dev/</code> and <code>tofu/live/prod/</code> are real, applied environments today. This guide covers what’s needed to stand up any <em>additional</em> environment beyond those two, following the same pattern prod’s own stand-up did. See <a href="../explanation/terragrunt-units.html">Terragrunt Units</a> for why each environment is just another directory of the same units.</p>
 <hr>
 <h2 id="1-infrastructure-decisions"><a class="header" href="#1-infrastructure-decisions">1. Infrastructure decisions</a></h2>
 <ul>

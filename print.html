@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-40c99d01.js";
+            window.path_to_searchindex_js = "searchindex-e2e909e8.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-ab7ce4c0.js"></script>
@@ -240,19 +240,20 @@ Add the resulting credentials to <code>tofu/secrets.enc.yaml</code>.</li>
 <pre><code class="language-bash">terragrunt run --all --non-interactive -- apply -auto-approve
 </code></pre>
 </li>
-<li><strong>On a genuine from-scratch apply, this will pause partway through with <code>core-addons</code> failing</strong> — its <code>ceph-csi</code> deployment needs a CephX credential that doesn’t exist yet, and that credential can’t be created until the Ceph pool this same apply just created (<code>talos-cluster</code>’s <code>proxmox_ceph_pool.k8s_rbd</code>) actually exists. When that happens:
+<li><strong>On a genuine from-scratch apply, <code>core-addons</code> needs a CephX credential that doesn’t exist yet</strong>, and that credential can’t be created until the Ceph pool this same apply just created (<code>talos-cluster</code>’s <code>proxmox_ceph_pool.k8s_rbd</code>) actually exists. <code>ceph_rbd_client_key</code> is keyed <strong>per environment</strong> in <code>secrets.enc.yaml</code> (<code>dev</code>/<code>prod</code> each have their own CephX auth entity against their own pool) — found live the first time dev and prod coexisted (a single flat key silently broke whichever environment <em>didn’t</em> own the currently-stored value, with <code>ceph-csi</code>‘s connection failing <code>rados: ret=-13, Permission denied</code> rather than core-addons’ own apply hard-failing). When the pause happens:
 <ol>
-<li>On any Proxmox node, scoped to only the new pool:
-<pre><code class="language-bash">ceph auth get-or-create client.k8s-dev-rbd \
+<li>On any Proxmox node, scoped to only the new pool (substitute <code>dev</code>/<code>prod</code> for <code>&lt;env&gt;</code> throughout):
+<pre><code class="language-bash">ceph auth get-or-create client.k8s-&lt;env&gt;-rbd \
   mon 'profile rbd' \
-  osd 'profile rbd pool=k8s-dev-rbd'
+  osd 'profile rbd pool=k8s-&lt;env&gt;-rbd'
 </code></pre>
 </li>
-<li>Add the printed <code>key = ...</code> value to <code>tofu/secrets.enc.yaml</code> as <code>ceph_rbd_client_key</code>:
-<pre><code class="language-bash">sops set tofu/secrets.enc.yaml '["ceph_rbd_client_key"]' '"&lt;the key value&gt;"'
+<li>Add the printed <code>key = ...</code> value to <code>tofu/secrets.enc.yaml</code> under this environment’s own entry:
+<pre><code class="language-bash">sops set tofu/secrets.enc.yaml '["ceph_rbd_client_key"]["&lt;env&gt;"]' '"&lt;the key value&gt;"'
 </code></pre>
 </li>
 <li>Re-run the command from step 4 — it picks up exactly where it left off. See <a href="#ceph-backed-storage-for-databases">Ceph-Backed Storage</a> for why this can’t be automated.</li>
+<li><strong>If <code>ceph-csi</code>’s provisioner already attempted (and failed) to provision a volume before the key was added</strong>, it can cache that failed connection and keep failing even after the Secret updates — a stuck-<code>Pending</code> PVC showing <code>rados: ret=-13, Permission denied</code> in its events well after step 2 is a sign of this. Force a fresh connection: <code>kubectl rollout restart deployment -n ceph-csi-rbd ceph-csi-rbd-provisioner</code>.</li>
 </ol>
 </li>
 <li>Fetch cluster config to the default locations (from <code>tofu/live/dev/talos-cluster/</code>):
@@ -364,7 +365,7 @@ kubectl get pods -n my-app
 <p>The new <code>Application</code> should reach <code>Synced</code>/<code>Healthy</code>; any <code>ExternalSecret</code> should show <code>STATUS: SecretSynced</code>, <code>READY: True</code> (its value should match <code>terragrunt output -raw my_app_oidc_client_secret</code> exactly); every PVC should be bound on its intended StorageClass. The real bar, though, is a live login: visiting the app’s hostname should redirect through Keycloak (or oauth2-proxy’s own login page, for a forward-auth app) and land back in the app authenticated — not just “the login button appears.”</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="stand-up-a-new-environment"><a class="header" href="#stand-up-a-new-environment">Stand Up a New Environment</a></h1>
-<p><code>tofu/live/prod/</code> already has the full seven-unit shape with placeholder values in <code>env.hcl</code> — nobody has run <code>terragrunt apply</code> there yet. This guide covers what’s needed to make a new environment (prod, or any environment beyond <code>dev</code>) real. See <a href="#terragrunt-units-and-multi-environment-layout">Terragrunt Units</a> for why each environment is just another directory of the same units.</p>
+<p>Both <code>tofu/live/dev/</code> and <code>tofu/live/prod/</code> are real, applied environments today. This guide covers what’s needed to stand up any <em>additional</em> environment beyond those two, following the same pattern prod’s own stand-up did. See <a href="#terragrunt-units-and-multi-environment-layout">Terragrunt Units</a> for why each environment is just another directory of the same units.</p>
 <hr>
 <h2 id="1-infrastructure-decisions"><a class="header" href="#1-infrastructure-decisions">1. Infrastructure decisions</a></h2>
 <ul>
@@ -536,13 +537,13 @@ kubectl get pods -n ceph-csi-rbd
 <p>The Kubernetes cluster’s persistent storage (Immich, Paperless-ngx, and other stateful workloads) is backed by the homelab’s NFS NAS (TrueNAS), reached over the network rather than managed by Tofu — see the “Known gaps” section of <code>CLAUDE.md</code> for why the NAS itself isn’t under IaC management yet. This page documents the export’s exact settings and how the cluster reaches it, since neither is visible from the Tofu config alone. Creating this export is a one-time manual prerequisite — see the <a href="#deploy-from-scratch">Deploy From Scratch</a> guide.</p>
 <hr>
 <h2 id="network-path"><a class="header" href="#network-path">Network path</a></h2>
-<p>The NAS lives on VLAN 1 (<code>192.168.0.11</code>), while the k8s cluster lives on VLAN 1601 (<code>192.168.160.0/27</code>). No additional Unifi firewall/routing rule is needed — inter-VLAN reachability to the NAS on the NFS port (2049) already works when tested from a pod on the cluster.</p>
+<p>The NAS lives on VLAN 1 (<code>192.168.0.11</code>), while each k8s cluster lives on its own VLAN — prod on VLAN 1601 (<code>192.168.160.0/27</code>), dev on VLAN 1602 (<code>192.168.160.32/27</code>). No additional Unifi firewall/routing rule is needed — inter-VLAN reachability to the NAS on the NFS port (2049) already works when tested from a pod on either cluster.</p>
 <p>The NAS is also reachable via <code>truenas.thepugh.family</code> — prefer the hostname over the raw IP in any k8s-side configuration (StorageClass, PV definitions, etc.), since the NAS may move to a different VLAN/IP in the future and the hostname would keep working without a k8s-side config change.</p>
 <h2 id="export-settings"><a class="header" href="#export-settings">Export settings</a></h2>
-<p>A dedicated NFS export exists for Kubernetes, separate from the NAS’s other exports (which serve the existing Docker Compose Immich instance and Proxmox itself, and are IP-restricted to those specific hosts):</p>
+<p>Dev and prod each get their own dedicated NFS export — CLAUDE.md’s “dev/prod will not share infrastructure” applies here too — separate from the NAS’s other exports (which serve the existing Docker Compose Immich instance and Proxmox itself, and are IP-restricted to those specific hosts):</p>
 <ul>
-<li><strong>Path</strong>: <code>/mnt/Main/k8s-dev</code></li>
-<li><strong>Authorized network</strong>: <code>192.168.160.0/27</code> (the k8s VLAN, network-restricted rather than open to the whole LAN)</li>
+<li><strong>Path</strong>: <code>/mnt/Main/k8s-prod</code> (prod), <code>/mnt/Main/k8s-dev</code> (dev)</li>
+<li><strong>Authorized network</strong>: that environment’s own k8s VLAN subnet — <code>192.168.160.0/27</code> for prod, <code>192.168.160.32/27</code> for dev (network-restricted rather than open to the whole LAN)</li>
 <li><strong>Maproot user/group</strong>: <code>root</code>/<code>wheel</code> (root squash disabled)</li>
 <li><strong>NFS service version</strong>: NFSv4 must be enabled (Services → NFS on TrueNAS, separate from the per-share config above)</li>
 </ul>
@@ -555,7 +556,7 @@ kubectl get pods -n ceph-csi-rbd
 </code></pre>
 <p>Should list the export along with its authorized network:</p>
 <pre><code class="language-text">Export list for truenas.thepugh.family:
-/mnt/Main/k8s-dev 192.168.160.0/27
+/mnt/Main/k8s-dev 192.168.160.32/27
 etc.
 </code></pre>
 <p>A mount/write/read round-trip confirms the export is actually usable, not just visible:</p>
@@ -626,6 +627,17 @@ umount /mnt/test
 <li><strong>oauth2-proxy’s Ingress needed <code>nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"</code></strong> (<code>tofu/modules/keycloak-realm/main.tf</code>). A real scripted login through Keycloak consistently 502’d on <code>/oauth2/callback</code> with <code>upstream sent too big header while reading response header from upstream</code> in the ingress-nginx logs — oauth2-proxy’s session cookie bundles Keycloak’s access/ID/refresh tokens, comfortably exceeding ingress-nginx’s default proxy buffer. This one predates the Terragrunt refactor (same architecture, same missing annotation, on the original flat module too) — it just hadn’t been hit before. Verified fixed with the full scripted login flow again, confirming a real 200 with <code>X-Auth-Request-User</code>/<code>-Email</code> present.</li>
 </ul>
 <p>Beyond those three, repeated back-to-back destroy/recreate cycles against the same physical Proxmox hardware (done deliberately, well beyond a single verification pass, to pressure-test the one-command claim under adverse conditions) surfaced real flakiness that current evidence points at environmental strain rather than a defect in this refactor: a transient DNS failure resolving <code>factory.talos.dev</code>, and Talos VMs that repeatedly failed to become network-reachable for several cycles in a row, even though Proxmox reported them created and the VLAN’s own gateway stayed reachable throughout — resolved by simply trying the apply again once the physical hardware had a chance to settle. A single destroy/recreate (not four in an hour) is the realistic operating pattern.</p>
+<p>Standing up prod for the first time (rather than just re-testing dev in isolation) surfaced a different class of bug: dev and prod had never actually <em>coexisted</em> against the same 3 physical Proxmox nodes before, so anything implicitly assuming there was only ever one environment went untested until then.</p>
+<ul>
+<li><strong><code>proxmox_virtual_environment_download_file.iso</code>’s filename was derived from the download URL</strong> (<code>tofu/modules/talos-cluster/main.tf</code>), and dev/prod share an identical Talos version and schematic, so the URL — and therefore the default filename (<code>nocloud-amd64.iso</code>) — was identical too. Prod’s first-ever apply hit <code>File already exists in the datastore, it was created outside of Terraform</code> on every shared Proxmox node, since that file already belonged to dev’s own Tofu state. Fixed with an explicit <code>file_name = "talos-${var.cluster.name}-nocloud-amd64.iso"</code>.</li>
+<li><strong><code>ceph_rbd_client_key</code> in <code>secrets.enc.yaml</code> was a single flat value</strong>, silently correct only for whichever environment’s key happened to be stored there — see <a href="#ceph-backed-storage-for-databases">Ceph-Backed Storage</a> for the fix (a per-environment map) and the <code>ceph-csi</code> provisioner-caching gotcha it surfaced alongside it.</li>
+<li><strong>A <code>kubernetes</code> provider “Unexpected Identity Change” error</strong> on <code>keycloak_postgres</code>’s <code>StatefulSet</code>, blocking every subsequent plan/apply against that unit. Root cause: the resource was created during an <em>earlier</em> apply that failed partway through (a <code>StatefulSet ... is not finished rolling out</code> timeout, itself caused by the PVC being stuck on the <code>ceph_rbd_client_key</code> bug above) — its provider-tracked identity metadata never got populated correctly as a result. <code>terragrunt state rm kubernetes_stateful_set_v1.keycloak_postgres</code> followed by <code>terragrunt import ... keycloak/keycloak-postgres</code> (the real resource was already correct; only Tofu’s own state needed re-syncing) resolved it. Worth knowing this class of error can recur any time an apply is interrupted partway through creating a resource under this provider/OpenTofu combo — not specific to Postgres or to Ceph.</li>
+</ul>
+<p>The <em>destroy</em> path surfaced two more, both transient rather than code bugs, on the final verification pass:</p>
+<ul>
+<li><strong><code>keycloak-realm</code>’s destroy issues real DELETE calls against the live Keycloak API</strong> (to remove clients/users/the realm itself) — a <code>Delete "https://keycloak.&lt;domain&gt;/admin/realms/homelab/users/...": EOF</code> hit once, apparently from something else in the same <code>run --all destroy</code> making that connection briefly unreachable mid-request. Resolved by simply retrying; nothing to fix in code.</li>
+<li><strong>A leftover cert-manager ACME <code>Challenge</code> CR can wedge a namespace in <code>Terminating</code> forever.</strong> <code>core-addons</code> destroys cert-manager itself before some namespaces that had certificates mid-renewal finish cleaning up — if a <code>Challenge</code> object’s <code>finalizer.acme.cert-manager.io</code> hasn’t cleared yet, it never will once cert-manager’s own controller is gone, and <code>kubectl get namespace &lt;ns&gt; -o json</code>’s <code>.status.conditions</code> shows <code>SomeFinalizersRemain</code> indefinitely. <code>kubectl patch challenge &lt;name&gt; -n &lt;ns&gt; -p '{"metadata":{"finalizers":[]}}' --type=merge</code> clears it (the Challenge is a transient ACME-flow tracking object, not real data — safe to force through). Same deadlock shape as the <code>external-secrets</code> CRD-finalizer issue above, different controller.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="remote-tofu-state"><a class="header" href="#remote-tofu-state">Remote Tofu State</a></h1>
 <p>Tofu’s state lives under <code>tofu/state/</code> — a gitignored directory meant to be an SMB mount of a share on the NAS, set up out-of-band, outside of Tofu entirely (see the <a href="#deploy-from-scratch">Deploy From Scratch</a> guide for the one-time mount step on a new machine). Since the <a href="#terragrunt-units-and-multi-environment-layout">Terragrunt refactor</a>, it’s no longer one flat state file: each unit gets its own, at a path Terragrunt computes from directory structure rather than a single hand-typed literal.</p>
@@ -700,7 +712,7 @@ umount /mnt/test
 <li><strong>ceph-csi (RBD), external-cluster mode</strong> — connects directly to the existing Ceph cluster; no Ceph daemons run inside Kubernetes. Deployed in <code>core-addons</code> (<code>tofu/modules/core-addons/main.tf</code>, <code>helm_release.ceph_csi_rbd</code>), parallel to <code>csi-driver-nfs</code>. Not the default StorageClass — NFS stays default, apps opt into <code>ceph-rbd-&lt;cluster_name&gt;</code> per-PVC.</li>
 <li><strong><code>env.hcl</code>’s <code>ceph</code> block</strong> (<code>pool_name</code>, <code>cluster_id</code>, <code>monitors</code>) holds the facts about the shared physical cluster — the fsid/monitor addresses are the same regardless of environment (same 3 physical nodes), only the pool name is environment-scoped so dev/prod don’t collide on the same physical cluster.</li>
 </ul>
-<p><strong>CephX credentials</strong> (Ceph’s own internal auth, separate from Proxmox’s PVE user management) can’t be Tofu-managed — see the <a href="#deploy-from-scratch">Deploy From Scratch</a> guide’s prerequisites for the required manual bootstrap step, and <a href="#stand-up-a-new-environment">Stand Up a New Environment</a> for repeating it on a new environment.</p>
+<p><strong>CephX credentials</strong> (Ceph’s own internal auth, separate from Proxmox’s PVE user management) can’t be Tofu-managed — see the <a href="#deploy-from-scratch">Deploy From Scratch</a> guide’s prerequisites for the required manual bootstrap step, and <a href="#stand-up-a-new-environment">Stand Up a New Environment</a> for repeating it on a new environment. <code>ceph_rbd_client_key</code> in <code>secrets.enc.yaml</code> is keyed <strong>per environment</strong> (<code>{dev: ..., prod: ...}</code>), not a single flat value — dev and prod each get their own CephX auth entity scoped to their own pool, and a shared single key silently breaks whichever environment doesn’t currently own the stored value (found live the first time dev and prod coexisted: <code>ceph-csi</code>’s connection failed <code>rados: ret=-13, Permission denied</code> rather than the Tofu apply itself hard-failing). If <code>ceph-csi</code>’s provisioner already attempted and failed a connection before the correct key was in place, it can cache that failure — <code>kubectl rollout restart deployment -n ceph-csi-rbd ceph-csi-rbd-provisioner</code> forces it to reconnect with the current Secret.</p>
 <h2 id="verification-4"><a class="header" href="#verification-4">Verification</a></h2>
 <pre><code class="language-bash">kubectl get storageclass ceph-rbd-dev
 kubectl get pods -n ceph-csi-rbd
@@ -721,7 +733,7 @@ kubectl get pods -n ceph-csi-rbd
 <h2 id="two-rules-worth-knowing-about"><a class="header" href="#two-rules-worth-knowing-about">Two rules worth knowing about</a></h2>
 <ul>
 <li><strong>Anything that calls the apiserver directly</strong> (ArgoCD’s application-controller, cert-manager, Velero, csi-driver-nfs, kube-state-metrics, MetalLB’s controller, Prometheus itself) needs egress to <code>10.96.0.1/32:443</code> — the in-cluster <code>kubernetes.default.svc</code> ClusterIP. It’s stable and has no pod selector to match against, hence an <code>ipBlock</code> instead of a namespace/pod selector.</li>
-<li><strong>Admission/conversion webhooks</strong> (<code>cert-manager-webhook</code>, <code>metallb-webhook-service</code>) need ingress on their port from the control-plane node subnet (<code>192.168.160.0/27</code>), not from any pod — the apiserver calls webhooks directly from a control-plane node’s real IP, which a <code>namespaceSelector</code>/<code>podSelector</code> can’t express.</li>
+<li><strong>Admission/conversion webhooks</strong> (<code>cert-manager-webhook</code>, <code>metallb-webhook-service</code>) need ingress on their port from the control-plane node subnet — not from any pod, since the apiserver calls webhooks directly from a control-plane node’s real IP, which a <code>namespaceSelector</code>/<code>podSelector</code> can’t express. Scoped via <code>var.network_cidr</code> (this environment’s <code>env.hcl</code> value — <code>192.168.160.0/27</code> for prod, <code>192.168.160.32/27</code> for dev), threaded into <code>core-addons</code>/<code>observability</code> rather than hardcoded, since a single literal here would have silently been wrong for whichever environment applied second.</li>
 </ul>
 <h2 id="pod-security-admission-what-landed-where-and-why"><a class="header" href="#pod-security-admission-what-landed-where-and-why">Pod Security Admission: what landed where, and why</a></h2>
 <div class="table-wrapper">

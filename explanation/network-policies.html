@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40c99d01.js";
+            window.path_to_searchindex_js = "../searchindex-e2e909e8.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7ce4c0.js"></script>
@@ -195,7 +195,7 @@
 <h2 id="two-rules-worth-knowing-about"><a class="header" href="#two-rules-worth-knowing-about">Two rules worth knowing about</a></h2>
 <ul>
 <li><strong>Anything that calls the apiserver directly</strong> (ArgoCD’s application-controller, cert-manager, Velero, csi-driver-nfs, kube-state-metrics, MetalLB’s controller, Prometheus itself) needs egress to <code>10.96.0.1/32:443</code> — the in-cluster <code>kubernetes.default.svc</code> ClusterIP. It’s stable and has no pod selector to match against, hence an <code>ipBlock</code> instead of a namespace/pod selector.</li>
-<li><strong>Admission/conversion webhooks</strong> (<code>cert-manager-webhook</code>, <code>metallb-webhook-service</code>) need ingress on their port from the control-plane node subnet (<code>192.168.160.0/27</code>), not from any pod — the apiserver calls webhooks directly from a control-plane node’s real IP, which a <code>namespaceSelector</code>/<code>podSelector</code> can’t express.</li>
+<li><strong>Admission/conversion webhooks</strong> (<code>cert-manager-webhook</code>, <code>metallb-webhook-service</code>) need ingress on their port from the control-plane node subnet — not from any pod, since the apiserver calls webhooks directly from a control-plane node’s real IP, which a <code>namespaceSelector</code>/<code>podSelector</code> can’t express. Scoped via <code>var.network_cidr</code> (this environment’s <code>env.hcl</code> value — <code>192.168.160.0/27</code> for prod, <code>192.168.160.32/27</code> for dev), threaded into <code>core-addons</code>/<code>observability</code> rather than hardcoded, since a single literal here would have silently been wrong for whichever environment applied second.</li>
 </ul>
 <h2 id="pod-security-admission-what-landed-where-and-why"><a class="header" href="#pod-security-admission-what-landed-where-and-why">Pod Security Admission: what landed where, and why</a></h2>
 <div class="table-wrapper">

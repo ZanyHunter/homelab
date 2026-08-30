@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40c99d01.js";
+            window.path_to_searchindex_js = "../searchindex-e2e909e8.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-ab7ce4c0.js"></script>
@@ -232,19 +232,20 @@ Add the resulting credentials to <code>tofu/secrets.enc.yaml</code>.</li>
 <pre><code class="language-bash">terragrunt run --all --non-interactive -- apply -auto-approve
 </code></pre>
 </li>
-<li><strong>On a genuine from-scratch apply, this will pause partway through with <code>core-addons</code> failing</strong> — its <code>ceph-csi</code> deployment needs a CephX credential that doesn’t exist yet, and that credential can’t be created until the Ceph pool this same apply just created (<code>talos-cluster</code>’s <code>proxmox_ceph_pool.k8s_rbd</code>) actually exists. When that happens:
+<li><strong>On a genuine from-scratch apply, <code>core-addons</code> needs a CephX credential that doesn’t exist yet</strong>, and that credential can’t be created until the Ceph pool this same apply just created (<code>talos-cluster</code>’s <code>proxmox_ceph_pool.k8s_rbd</code>) actually exists. <code>ceph_rbd_client_key</code> is keyed <strong>per environment</strong> in <code>secrets.enc.yaml</code> (<code>dev</code>/<code>prod</code> each have their own CephX auth entity against their own pool) — found live the first time dev and prod coexisted (a single flat key silently broke whichever environment <em>didn’t</em> own the currently-stored value, with <code>ceph-csi</code>‘s connection failing <code>rados: ret=-13, Permission denied</code> rather than core-addons’ own apply hard-failing). When the pause happens:
 <ol>
-<li>On any Proxmox node, scoped to only the new pool:
-<pre><code class="language-bash">ceph auth get-or-create client.k8s-dev-rbd \
+<li>On any Proxmox node, scoped to only the new pool (substitute <code>dev</code>/<code>prod</code> for <code>&lt;env&gt;</code> throughout):
+<pre><code class="language-bash">ceph auth get-or-create client.k8s-&lt;env&gt;-rbd \
   mon 'profile rbd' \
-  osd 'profile rbd pool=k8s-dev-rbd'
+  osd 'profile rbd pool=k8s-&lt;env&gt;-rbd'
 </code></pre>
 </li>
-<li>Add the printed <code>key = ...</code> value to <code>tofu/secrets.enc.yaml</code> as <code>ceph_rbd_client_key</code>:
-<pre><code class="language-bash">sops set tofu/secrets.enc.yaml '["ceph_rbd_client_key"]' '"&lt;the key value&gt;"'
+<li>Add the printed <code>key = ...</code> value to <code>tofu/secrets.enc.yaml</code> under this environment’s own entry:
+<pre><code class="language-bash">sops set tofu/secrets.enc.yaml '["ceph_rbd_client_key"]["&lt;env&gt;"]' '"&lt;the key value&gt;"'
 </code></pre>
 </li>
 <li>Re-run the command from step 4 — it picks up exactly where it left off. See <a href="../explanation/ceph-backed-storage.html">Ceph-Backed Storage</a> for why this can’t be automated.</li>
+<li><strong>If <code>ceph-csi</code>’s provisioner already attempted (and failed) to provision a volume before the key was added</strong>, it can cache that failed connection and keep failing even after the Secret updates — a stuck-<code>Pending</code> PVC showing <code>rados: ret=-13, Permission denied</code> in its events well after step 2 is a sign of this. Force a fresh connection: <code>kubectl rollout restart deployment -n ceph-csi-rbd ceph-csi-rbd-provisioner</code>.</li>
 </ol>
 </li>
 <li>Fetch cluster config to the default locations (from <code>tofu/live/dev/talos-cluster/</code>):

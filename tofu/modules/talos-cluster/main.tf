@@ -59,11 +59,26 @@ data "talos_image_factory_urls" "this" {
   platform      = "nocloud"
 }
 
+# Unifi switches take up to a minute to receive new VLAN configuration and
+# briefly bounce their NICs while doing so — undelayed, this reliably broke
+# ISO downloads (DNS resolution failures reaching factory.talos.dev) on a
+# from-scratch apply, since talos-cluster's own apply starts right after
+# the network unit creates the VLAN. Only actually sleeps once, the first
+# time this unit is applied (time_sleep only delays on create, not on
+# every subsequent plan/apply) — this predates the Terragrunt refactor
+# (originally lived alongside unifi_network.this in one flat module) but
+# splitting network/talos-cluster into separate units/applies lost it.
+resource "time_sleep" "unifi_switch_delay" {
+  create_duration = "1m"
+}
+
 # Download the image to each proxmox node
 resource "proxmox_virtual_environment_download_file" "iso" {
   for_each = toset(distinct([
     for _, obj in var.k8s_nodes : obj.proxmox_node
   ]))
+
+  depends_on = [time_sleep.unifi_switch_delay]
 
   node_name    = each.value
   datastore_id = "local"

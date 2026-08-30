@@ -16,13 +16,15 @@ Everything needed to stand up this repo's infrastructure on fresh hardware, or r
 ### Tooling (on the bootstrap machine)
 
 - Ubuntu (or similar Linux)
-- [OpenTofu](https://opentofu.org/) and [Terragrunt](https://terragrunt.gruntwork.io/)
-- [sops](https://github.com/getsops/sops) and [age](https://github.com/FiloSottile/age)
-- The [`gh` CLI](https://cli.github.com/), authenticated
-- `kubectl`
-- (optional, docs only) [mdBook](https://rust-lang.github.io/mdBook/) 0.5+ and `mdbook-tabs`
+- [mise](https://mise.jdx.dev/) — installs everything else. After [installing mise itself](https://mise.jdx.dev/installing-mise.html), from the repo root:
+  ```bash
+  mise trust
+  mise install
+  ```
+  This pins and installs OpenTofu, Terragrunt, sops, age, the `gh` CLI, `kubectl`, mdBook + `mdbook-tabs` (docs), and the `velero` CLI (backup/restore) at the exact versions in `mise.toml` — no separate per-tool install step. `mise activate` in your shell rc puts them on `PATH`; see `CLAUDE.md`'s Toolchain section for the per-tool notes (in particular: `kubectl` is a hard dependency of `core-addons`'s apply, not just an interactive convenience) and how to bump a pin.
+- `gh auth login` — mise only installs the `gh` binary, not an authenticated session.
 
-See `CLAUDE.md`'s Toolchain section for exact version notes and gotchas (in particular: `kubectl` is a hard dependency of `core-addons`'s apply, not just an interactive convenience).
+See `CLAUDE.md`'s Toolchain section for exact version notes and gotchas.
 
 ### Credentials
 

@@ -21,10 +21,6 @@ concurrency:
   group: gh-pages-deploy
   cancel-in-progress: false
 
-env:
-  MDBOOK_VERSION: 0.5.4
-  MDBOOK_TABS_VERSION: 1.0.4
-
 jobs:
   build:
     if: github.event.action != 'closed'
@@ -32,17 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install mdBook
-        run: |
-          mkdir -p "${HOME}/.local/bin"
-          curl -sSL "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C "${HOME}/.local/bin"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-
-      - name: Install mdbook-tabs
-        run: |
-          mkdir -p "${HOME}/.local/bin"
-          curl -sSL "https://github.com/RustForWeb/mdbook-plugins/releases/download/v${MDBOOK_TABS_VERSION}/mdbook-tabs-v${MDBOOK_TABS_VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C "${HOME}/.local/bin"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      # mdBook/mdbook-tabs versions are pinned once, in mise.toml — no
+      # separate version env vars to keep in sync here. Scoped to just the
+      # two docs tools (install_args) rather than the whole toolchain, since
+      # this job doesn't need OpenTofu/Terragrunt/kubectl/etc.
+      - uses: jdx/mise-action@v4
+        with:
+          install_args: "mdbook cargo:mdbook-tabs"
 
       - name: Build book
         run: mdbook build docs

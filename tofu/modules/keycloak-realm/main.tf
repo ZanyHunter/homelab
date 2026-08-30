@@ -371,28 +371,26 @@ resource "keycloak_openid_client" "changedetection_oauth2_proxy" {
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
 # file — which silently drifts the moment this unit is destroyed/recreated or
 # a secret is deliberately rotated, since nothing updates the already-
-# committed file. This namespace is the canonical source ESO's
-# ClusterSecretStore (apps/cluster-addons/base/, GitOps-managed) reads from
-# via its kubernetes provider, mirroring each Secret out into that app's own
-# namespace through an ExternalSecret living in that app's own apps/<app>/base/
-# — see docs/src/bootstrap-environment/06-gitops.md. No pods run here; this
+# committed file. var.keycloak_secrets_namespace (the "keycloak-secrets"
+# namespace) is the canonical source ESO's ClusterSecretStore
+# (apps/cluster-addons/base/, GitOps-managed) reads from via its kubernetes
+# provider, mirroring each Secret out into that app's own namespace through
+# an ExternalSecret living in that app's own apps/<app>/base/ — see
+# docs/src/bootstrap-environment/06-gitops.md. No pods run here; this
 # namespace exists purely to hold secret material and the RBAC scoping read
 # access to it.
-resource "kubernetes_namespace" "keycloak_secrets" {
-  metadata {
-    name = "keycloak-secrets"
-    labels = {
-      "pod-security.kubernetes.io/enforce" = "restricted"
-      "pod-security.kubernetes.io/audit"   = "restricted"
-      "pod-security.kubernetes.io/warn"    = "restricted"
-    }
-  }
-}
-
+#
+# The namespace itself (and its NetworkPolicies) is created in core-addons,
+# not here (#44) — this unit is the last of core-addons' 4 dependents to
+# apply, often minutes after ArgoCD (also part of core-addons) is already up
+# and syncing apps/cluster-addons/'s RBAC against this exact namespace name;
+# creating it there instead means it reliably exists well before ArgoCD's
+# first sync pass. See core-addons/main.tf's kubernetes_namespace.keycloak_secrets
+# and this variable's own description.
 resource "kubernetes_secret" "immich_oidc_client_secret" {
   metadata {
     name      = "immich-oidc-client-secret"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+    namespace = var.keycloak_secrets_namespace
   }
 
   data = {
@@ -405,7 +403,7 @@ resource "kubernetes_secret" "immich_oidc_client_secret" {
 resource "kubernetes_secret" "actual_oidc_client_secret" {
   metadata {
     name      = "actual-oidc-client-secret"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+    namespace = var.keycloak_secrets_namespace
   }
 
   data = {
@@ -418,7 +416,7 @@ resource "kubernetes_secret" "actual_oidc_client_secret" {
 resource "kubernetes_secret" "paperless_oidc_client_secret" {
   metadata {
     name      = "paperless-oidc-client-secret"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+    namespace = var.keycloak_secrets_namespace
   }
 
   data = {
@@ -431,7 +429,7 @@ resource "kubernetes_secret" "paperless_oidc_client_secret" {
 resource "kubernetes_secret" "vaultwarden_oidc_client_secret" {
   metadata {
     name      = "vaultwarden-oidc-client-secret"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+    namespace = var.keycloak_secrets_namespace
   }
 
   data = {
@@ -444,7 +442,7 @@ resource "kubernetes_secret" "vaultwarden_oidc_client_secret" {
 resource "kubernetes_secret" "homebox_oidc_client_secret" {
   metadata {
     name      = "homebox-oidc-client-secret"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+    namespace = var.keycloak_secrets_namespace
   }
 
   data = {
@@ -462,7 +460,7 @@ resource "kubernetes_secret" "homebox_oidc_client_secret" {
 resource "kubernetes_secret" "changedetection_oauth2_proxy_client_secret" {
   metadata {
     name      = "changedetection-oidc-client-secret"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
+    namespace = var.keycloak_secrets_namespace
   }
 
   data = {
@@ -473,21 +471,11 @@ resource "kubernetes_secret" "changedetection_oauth2_proxy_client_secret" {
   type = "Opaque"
 }
 
-# --- NetworkPolicies for keycloak-secrets: default-deny is enough (no pods
-# run here), applied purely for consistency with this repo's "every managed
-# namespace shows the same base trio" convention (see
-# docs/src/bootstrap-environment/12-network-policies.md).
-resource "kubernetes_network_policy" "keycloak_secrets_default_deny_all" {
-  metadata {
-    name      = "default-deny-all"
-    namespace = kubernetes_namespace.keycloak_secrets.metadata[0].name
-  }
-
-  spec {
-    pod_selector {}
-    policy_types = ["Ingress", "Egress"]
-  }
-}
+# NetworkPolicies for keycloak-secrets (default-deny-all + the rest of the
+# base trio) now come from core-addons' shared for_each, alongside every
+# other namespace it owns — see that unit's local.core_addons_namespaces and
+# this file's kubernetes_secret.*_oidc_client_secret resources above, which
+# is why the namespace itself moved there too (#44).
 
 # --- oauth2-proxy + whoami: the forward-auth demo/template -------------------
 # Proves the Keycloak wiring end-to-end and doubles as the copy-paste

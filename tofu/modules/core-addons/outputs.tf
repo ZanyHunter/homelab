@@ -17,3 +17,12 @@ output "argocd_oidc_client_secret" {
   value     = random_password.argocd_oidc_client_secret.result
   sensitive = true
 }
+
+# Consumed by the keycloak-realm unit, which populates the 6 real Secret
+# values into this namespace (#44) — created here instead, alongside ArgoCD
+# itself, so it reliably exists well before ArgoCD's first sync pass of
+# apps/cluster-addons/'s RBAC (which targets this same namespace) rather than
+# racing keycloak-realm's own apply, the last of core-addons' 4 dependents.
+output "keycloak_secrets_namespace" {
+  value = kubernetes_namespace.keycloak_secrets.metadata[0].name
+}

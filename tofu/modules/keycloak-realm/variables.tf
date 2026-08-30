@@ -25,3 +25,8 @@ variable "domain_name" {
   type        = string
   description = "Domain suffix for this environment (e.g. dev.thepugh.family) — drives every hostname/redirect URI this unit manages (sso-demo, the demo user's email, and the argocd/grafana clients' valid_redirect_uris). See tofu/modules/network/variables.tf's domain_name for the full picture."
 }
+
+variable "keycloak_secrets_namespace" {
+  description = "Name of the keycloak-secrets namespace this unit's kubernetes_secret.*_oidc_client_secret resources populate — created in core-addons (dependency.core_addons.outputs.keycloak_secrets_namespace), not this unit, so it reliably exists before ArgoCD's first sync of apps/cluster-addons/'s RBAC against it (#44). See core-addons/main.tf's kubernetes_namespace.keycloak_secrets for why."
+  type        = string
+}

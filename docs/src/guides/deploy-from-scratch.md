@@ -60,18 +60,19 @@ The **CephX credential** for Ceph-backed storage can't be created yet at this po
    ```bash
    terragrunt run --all --non-interactive -- apply -auto-approve
    ```
-5. **On a genuine from-scratch apply, this will pause partway through with `core-addons` failing** — its `ceph-csi` deployment needs a CephX credential that doesn't exist yet, and that credential can't be created until the Ceph pool this same apply just created (`talos-cluster`'s `proxmox_ceph_pool.k8s_rbd`) actually exists. When that happens:
-   1. On any Proxmox node, scoped to only the new pool:
+5. **On a genuine from-scratch apply, `core-addons` needs a CephX credential that doesn't exist yet**, and that credential can't be created until the Ceph pool this same apply just created (`talos-cluster`'s `proxmox_ceph_pool.k8s_rbd`) actually exists. `ceph_rbd_client_key` is keyed **per environment** in `secrets.enc.yaml` (`dev`/`prod` each have their own CephX auth entity against their own pool) — found live the first time dev and prod coexisted (a single flat key silently broke whichever environment *didn't* own the currently-stored value, with `ceph-csi`'s connection failing `rados: ret=-13, Permission denied` rather than core-addons' own apply hard-failing). When the pause happens:
+   1. On any Proxmox node, scoped to only the new pool (substitute `dev`/`prod` for `<env>` throughout):
       ```bash
-      ceph auth get-or-create client.k8s-dev-rbd \
+      ceph auth get-or-create client.k8s-<env>-rbd \
         mon 'profile rbd' \
-        osd 'profile rbd pool=k8s-dev-rbd'
+        osd 'profile rbd pool=k8s-<env>-rbd'
       ```
-   2. Add the printed `key = ...` value to `tofu/secrets.enc.yaml` as `ceph_rbd_client_key`:
+   2. Add the printed `key = ...` value to `tofu/secrets.enc.yaml` under this environment's own entry:
       ```bash
-      sops set tofu/secrets.enc.yaml '["ceph_rbd_client_key"]' '"<the key value>"'
+      sops set tofu/secrets.enc.yaml '["ceph_rbd_client_key"]["<env>"]' '"<the key value>"'
       ```
    3. Re-run the command from step 4 — it picks up exactly where it left off. See [Ceph-Backed Storage](../explanation/ceph-backed-storage.md) for why this can't be automated.
+   4. **If `ceph-csi`'s provisioner already attempted (and failed) to provision a volume before the key was added**, it can cache that failed connection and keep failing even after the Secret updates — a stuck-`Pending` PVC showing `rados: ret=-13, Permission denied` in its events well after step 2 is a sign of this. Force a fresh connection: `kubectl rollout restart deployment -n ceph-csi-rbd ceph-csi-rbd-provisioner`.
 6. Fetch cluster config to the default locations (from `tofu/live/dev/talos-cluster/`):
    ```bash
    terragrunt output -raw talosctl_config > ~/.talos/config

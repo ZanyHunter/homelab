@@ -8,6 +8,7 @@
 - [Onboard a New App](./guides/onboard-a-new-app.md)
 - [Stand Up a New Environment](./guides/stand-up-a-new-environment.md)
 - [Expose an App Publicly](./guides/expose-an-app-publicly.md)
+- [Public Exposure Readiness Checklist](./guides/public-exposure-readiness-checklist.md)
 - [Restore From a Backup](./guides/restore-from-a-backup.md)
 - [Migrate Storage to Ceph](./guides/migrate-storage-to-ceph.md)
 - [Grant Platform-Admin Access](./guides/grant-platform-admin-access.md)

@@ -97,6 +97,7 @@ Keep `docs/src/` in sync with infrastructure changes as part of the same change/
 Worth revisiting as this repo matures further:
 
 - **No CI** — no automated `tofu plan`/`validate` on PRs yet. Worth adding once the branch/PR workflow is in regular use.
+- **No automated dependency/version-bump tooling** (no Renovate/Dependabot) — every version pin in this repo (Tofu providers, Helm `chart_versions`, container image tags, `mise.toml` CLI pins, GitHub Actions) is checked and bumped by hand today. See `docs/src/guides/patch-and-update-everything.md` for the current manual process and cadence, and its closing section for why Renovate (not Dependabot) is the recommended tool if this gets automated later.
 - **NAS is not IaC-managed** — manual today.
 - **Single age key covers all secrets** — see Secrets management design note above.
 - **Immich is the only public app today** — prod's Cloudflare Tunnel is live at `photos.thepugh.family` (plus Keycloak's path-scoped `/realms/homelab/*` route the login flow needs), after the legacy Immich instance was migrated off that hostname to `<service>-legacy.thepugh.family` to free it (see the History entry below). The other five real apps under `apps/` (Actual Budget, Paperless-ngx, Vaultwarden, Homebox, changedetection.io) still need their own onboarding pass through `docs/src/explanation/public-ingress.md`'s runbook — nothing about the mechanism blocks it, they just haven't been added to `public_apps` yet.

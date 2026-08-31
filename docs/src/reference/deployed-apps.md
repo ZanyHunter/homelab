@@ -1,6 +1,6 @@
 # Deployed Apps
 
-All hostnames below use `dev`'s domain suffix (`dev.thepugh.family`) — see [DNS and Ingress Hostnames](../explanation/dns-and-hostnames.md) for how the suffix is derived per environment, and the tabbed blocks on individual pages for the production form. None of the real apps below are publicly exposed today — see [Public Ingress via Cloudflare Tunnel](../explanation/public-ingress.md).
+All hostnames below use `dev`'s domain suffix (`dev.thepugh.family`) — see [DNS and Ingress Hostnames](../explanation/dns-and-hostnames.md) for how the suffix is derived per environment, and the tabbed blocks on individual pages for the production form. Immich is the only app in the list below publicly exposed today, on prod only (`photos.thepugh.family`) — see [Public Ingress via Cloudflare Tunnel](../explanation/public-ingress.md) and the [Public Exposure Readiness Checklist](../guides/public-exposure-readiness-checklist.md) before adding another.
 
 ## Cluster add-ons
 

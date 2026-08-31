@@ -1,0 +1,313 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Patch and Update Everything - ZanyHunter&#x27;s Homelab</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Infrastructure-as-Code documentation for ZanyHunter&#x27;s homelab">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/tabs-52f01167.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-dae0ed95.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-d90d3991.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">ZanyHunter&#x27;s Homelab</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab/edit/main/docs/src/guides/patch-and-update-everything.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="patch-and-update-everything"><a class="header" href="#patch-and-update-everything">Patch and Update Everything</a></h1>
+<p><strong>Recommended cadence</strong>: a monthly batched sweep through every category below, plus an independent weekly <code>trivy image</code> CVE scan against every app’s currently-pinned image (not just public ones — see the <a href="./public-exposure-readiness-checklist.html">Public Exposure Readiness Checklist</a>, which only mandates this for apps going public). A <code>HIGH</code>/<code>CRITICAL</code> finding gets patched out-of-cycle, not held for the next monthly sweep.</p>
+<p>Every bump — however small — goes through the same two-stage pipeline as any other change (see <code>CLAUDE.md</code>’s Git workflow): a branch off <code>development</code>, apply and verify live on dev, PR into <code>development</code>, then a second PR promotes it to <code>main</code> for you to apply to prod. This doc doesn’t repeat that mechanic per category below — assume it for every step.</p>
+<p>This repo has no automated dependency-update tooling today (no Renovate/Dependabot) — every check below is manual. See the note at the bottom on Renovate as a future option.</p>
+<hr>
+<h2 id="1-tofu-provider-versions"><a class="header" href="#1-tofu-provider-versions">1. Tofu provider versions</a></h2>
+<p>Each unit’s <code>terraform.tf</code> pins providers with a <code>~&gt;</code> constraint (e.g. <code>~&gt; 2.38.0</code>), resolved to an exact version in that unit’s <code>.terraform.lock.hcl</code>. A <code>~&gt;</code> constraint already allows patch-level updates automatically on the next <code>init</code> — what needs a deliberate check is whether a new <em>minor</em> version is available, which the constraint itself won’t pick up.</p>
+<ul>
+<li><strong>Check</strong>: for each <code>tofu/modules/*/terraform.tf</code>, look up the provider’s latest release (e.g. <code>hashicorp/kubernetes</code>, <code>hashicorp/helm</code>, <code>cloudflare/cloudflare</code>, <code>siderolabs/talos</code>, <code>bpg/proxmox</code>, <code>keycloak/keycloak</code>, <code>paultyng/unifi</code>, <code>carlpett/sops</code>, <code>hashicorp/random</code> — all on the <a href="https://registry.terraform.io/">Terraform Registry</a>).</li>
+<li><strong>Bump</strong>: edit the <code>~&gt; X.Y.Z</code> constraint in the relevant <code>terraform.tf</code>, then run <code>terragrunt init -upgrade</code> in that unit’s <code>tofu/live/dev/&lt;unit&gt;/</code> directory — this regenerates <code>.terraform.lock.hcl</code> with the new resolved version. Commit the updated lock file alongside the constraint edit.</li>
+<li><strong>Verify</strong>: <code>terragrunt plan</code> should show no unexpected diff (a provider bump alone shouldn’t change any resource); apply and confirm the unit’s normal health signals (see each unit’s own explanation page).</li>
+</ul>
+<h2 id="2-helm-chart-versions-chart_versions-in-envhcl"><a class="header" href="#2-helm-chart-versions-chart_versions-in-envhcl">2. Helm chart versions (<code>chart_versions</code> in <code>env.hcl</code>)</a></h2>
+<p>Every Tofu-installed Helm release reads its version from the <code>chart_versions</code> object — set independently in <code>tofu/live/dev/env.hcl</code> and <code>tofu/live/prod/env.hcl</code> (per this repo’s per-environment design). Bump dev’s copy, verify live, then bump prod’s copy as part of the same promotion PR (there’s no reason for the two to drift once a version is verified good).</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th><code>chart_versions</code> key</th><th>Helm repository</th><th>Installed by</th></tr>
+</thead>
+<tbody>
+<tr><td><code>metallb</code></td><td><code>https://metallb.github.io/metallb</code></td><td><code>core-addons</code></td></tr>
+<tr><td><code>ingress_nginx</code></td><td><code>https://kubernetes.github.io/ingress-nginx</code></td><td><code>core-addons</code></td></tr>
+<tr><td><code>cert_manager</code></td><td><code>https://charts.jetstack.io</code></td><td><code>core-addons</code> — <strong>note</strong>: the Tofu code prepends <code>v</code> to this value (<code>version = "v${var.chart_versions.cert_manager}"</code>), so the pin itself is unprefixed (<code>1.15.1</code>) even though cert-manager’s own releases are tagged <code>v1.15.1</code></td></tr>
+<tr><td><code>argocd</code>, <code>argocd_apps</code></td><td><code>https://argoproj.github.io/argo-helm</code></td><td><code>core-addons</code> (both charts live in the same repo)</td></tr>
+<tr><td><code>csi_driver_nfs</code></td><td><code>https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts</code></td><td><code>core-addons</code></td></tr>
+<tr><td><code>ceph_csi_rbd</code></td><td><code>https://ceph.github.io/csi-charts</code></td><td><code>core-addons</code></td></tr>
+<tr><td><code>external_secrets</code></td><td><code>https://charts.external-secrets.io</code></td><td><code>core-addons</code> — <strong>extra step</strong>: <code>files/external-secrets-crds.yaml</code> is a pinned <code>helm template</code> render of this chart’s CRDs, committed separately from the Helm release (see <a href="../explanation/gitops-app-of-apps.html">GitOps: App-of-Apps and Secrets</a>). Regenerate it by hand on every bump — the live chart won’t install its own CRDs (<code>installCRDs = false</code>), so a stale render means the new chart version runs against old CRD schemas.</td></tr>
+<tr><td><code>minio</code></td><td><code>https://charts.min.io/</code></td><td><code>backup</code></td></tr>
+<tr><td><code>velero</code></td><td><code>https://vmware-tanzu.github.io/helm-charts/</code></td><td><code>backup</code> — <strong>extra step</strong>: the <code>velero</code> CLI pin in <code>mise.toml</code> must move in lockstep with this value (its <code>Chart.yaml</code> <code>appVersion</code> is the matching CLI/server version) — see <code>CLAUDE.md</code>’s Toolchain section and <a href="../explanation/backup-and-restore.html">Backup and Restore</a>.</td></tr>
+<tr><td><code>keycloak</code></td><td><code>https://codecentric.github.io/helm-charts</code></td><td><code>keycloak-infra</code></td></tr>
+<tr><td><code>oauth2_proxy</code></td><td><code>https://oauth2-proxy.github.io/manifests</code></td><td><code>keycloak-realm</code> — this is the <strong>sso-demo</strong> deployment specifically; changedetection.io runs its own separate, hand-rolled oauth2-proxy (see §4 below) with its own image tag to check independently.</td></tr>
+<tr><td><code>kube_prometheus_stack</code></td><td><code>https://prometheus-community.github.io/helm-charts</code></td><td><code>observability</code></td></tr>
+<tr><td><code>loki</code>, <code>alloy</code></td><td><code>https://grafana.github.io/helm-charts</code></td><td><code>observability</code></td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li><strong>Check</strong>: each repository URL above serves a standard Helm <code>index.yaml</code> — search it on <a href="https://artifacthub.io/">Artifact Hub</a> (which aggregates all of these) for the latest version, or check the chart’s own upstream GitHub repo’s releases/<code>Chart.yaml</code>.</li>
+<li><strong>Bump</strong>: edit the value in both <code>tofu/live/dev/env.hcl</code> and <code>tofu/live/prod/env.hcl</code>’s <code>chart_versions</code> object, <code>terragrunt apply</code> the owning unit on dev.</li>
+<li><strong>Verify</strong>: unit-specific — <code>terragrunt plan</code> clean, the workload’s pods healthy, and (where applicable) a real functional check per that unit’s own explanation page (a real login, a real backup, a real alert). Don’t assume “pods Running” alone is sufficient for anything with its own documented verification bar.</li>
+</ul>
+<h2 id="3-other-envhcl-version-scalars"><a class="header" href="#3-other-envhcl-version-scalars">3. Other <code>env.hcl</code> version scalars</a></h2>
+<p>A handful of pins outside <code>chart_versions</code> follow the same “edit <code>env.hcl</code>, <code>terragrunt apply</code>” mechanic but aren’t Helm charts:</p>
+<ul>
+<li><code>velero_plugin_for_aws_version</code> — the AWS plugin <code>helm_release.velero</code> installs alongside the chart itself; check compatibility against the <code>velero</code> chart version being run before bumping independently.</li>
+<li><code>postgres_version</code> — Keycloak’s own hand-rolled Postgres <code>StatefulSet</code> image tag (<code>keycloak-infra</code>), not a chart.</li>
+<li><code>whoami_version</code> — the sso-demo reference deployment’s image tag.</li>
+<li><code>cloudflared_version</code> — the hand-rolled <code>cloudflared</code> Deployment’s image tag (<code>core-addons</code>, only relevant where <code>public_ingress_enabled = true</code>).</li>
+<li><code>ksops_version</code> — the <code>ksops</code>/<code>kustomize</code> binary version ArgoCD’s repo-server init container installs. Check compatibility against the ArgoCD version being run (<code>chart_versions.argocd</code>) before bumping independently — see <a href="../explanation/gitops-app-of-apps.html">GitOps: App-of-Apps and Secrets</a>.</li>
+<li><code>cluster.talos_version</code> — <strong>the riskiest pin in this repo.</strong> This repo has no documented in-place Talos upgrade procedure — don’t assume one is safe without testing it. The proven-safe path is what every major infra change here already uses: bump it on dev, run a full <code>terragrunt run --all destroy</code> + <code>apply</code> (a verified, repeatable procedure — see <code>CLAUDE.md</code>’s History), and confirm dev comes back healthy before ever touching prod’s pin. Check <a href="https://github.com/siderolabs/talos/releases">Talos releases</a> for what’s new, and read the release notes for breaking changes before bumping, not after.</li>
+</ul>
+<h2 id="4-gitops-managed-app-images-apps"><a class="header" href="#4-gitops-managed-app-images-apps">4. GitOps-managed app images (<code>apps/</code>)</a></h2>
+<p>Two different shapes here, patched differently:</p>
+<ul>
+<li><strong>Static Helm-template renders</strong> — today just Immich (<code>apps/immich/immich.yaml</code>). This is a pinned <code>helm template</code> output committed as plain YAML, not a live Helm release (see <a href="../explanation/immich.html">Immich</a> for why). Bumping the chart or app version means re-rendering the chart at the new version, then carefully re-applying this repo’s placeholder tokens (<code>__APP_HOSTNAME__</code>, <code>__STORAGE_CLASS_CEPH__</code>, etc. — see <a href="../explanation/gitops-app-of-apps.html">GitOps: App-of-Apps and Secrets</a>) into the fresh render by hand, since a plain re-render would overwrite them with real values. Diff carefully against the previous render before committing.</li>
+<li><strong>Hand-rolled Kustomize manifests with literal image tags</strong> — every other real app, plus sidecars (Postgres/Redis for Paperless-ngx, changedetection.io’s own separate oauth2-proxy). These live directly in each app’s <code>base/*.yaml</code>, shared across environments by the <code>base/</code>/<code>overlays/&lt;env&gt;/</code> split, so one edit patches both dev and prod once promoted. Enumerate every current pin with:
+<pre><code class="language-bash">grep -rn "image:" apps/*/base/*.yaml
+</code></pre>
+This command — not a hardcoded list in this doc — is the source of truth for what needs checking, so this section doesn’t need editing every time a new app under <code>apps/</code> lands. Check each image’s registry (GHCR/Docker Hub) tags page or the project’s GitHub releases for what’s current, bump the literal tag, and re-verify that app’s own functional check (see <a href="../reference/deployed-apps.html">Deployed Apps</a> for what each app needs — an OIDC login, a working data write, etc.).</li>
+</ul>
+<h2 id="5-misetoml-pinned-cli-tools"><a class="header" href="#5-misetoml-pinned-cli-tools">5. <code>mise.toml</code>-pinned CLI tools</a></h2>
+<pre><code class="language-bash">mise outdated
+</code></pre>
+<p>lists every pinned tool with a newer version available. Bump the pin in <code>mise.toml</code>, run <code>mise install</code>. Remember <code>velero</code>’s lockstep requirement with <code>chart_versions.velero</code> (§2 above) — the one pin here that can’t be bumped in isolation.</p>
+<h2 id="6-github-actions-versions-githubworkflowsdocsyml"><a class="header" href="#6-github-actions-versions-githubworkflowsdocsyml">6. GitHub Actions versions (<code>.github/workflows/docs.yml</code>)</a></h2>
+<p>Five pinned actions: <code>actions/checkout</code>, <code>jdx/mise-action</code>, <code>actions/upload-artifact</code>, <code>peaceiris/actions-gh-pages</code>, <code>rossjrw/pr-preview-action</code>. Check each action’s own GitHub releases page for its latest major/minor tag, bump the <code>@vX</code> reference. Low-risk relative to everything else in this doc (docs-only workflow, no cluster blast radius) — fine to batch into the same monthly sweep without extra caution.</p>
+<hr>
+<h2 id="on-automating-this-renovate-not-dependabot"><a class="header" href="#on-automating-this-renovate-not-dependabot">On automating this: Renovate, not Dependabot</a></h2>
+<p>Not adopted today — this is a recommendation for a future, separate decision, not something this doc’s existence implies is already in place.</p>
+<p><strong>Renovate over Dependabot</strong> specifically because Dependabot only understands fixed ecosystems (npm, pip, Docker, GitHub Actions, basic Terraform provider blocks) — it has no way to detect a version bump embedded in a <code>chart_versions</code> HCL object, a raw Kustomize <code>image:</code> tag, or a <code>mise.toml</code> pin. Renovate’s custom regex managers can be pointed at each of those exact patterns, and — once configured — would open PRs against <code>development</code>, fitting the two-stage pipeline directly: Renovate proposes, a normal dev-verify-then-promote cycle handles the rest.</p>
+<p>What it wouldn’t remove: the Talos upgrade risk (§3) and the Immich static-render re-templating step (§4) both need human judgment regardless of how the version bump itself is detected. And granting a bot repo write/PR-creation access is its own decision worth making deliberately, with the regex managers tested per file type before trusting its output — not something to bolt on casually.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../guides/public-exposure-readiness-checklist.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../guides/restore-from-a-backup.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../guides/public-exposure-readiness-checklist.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../guides/restore-from-a-backup.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../theme/tabs-0c8cb93b.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

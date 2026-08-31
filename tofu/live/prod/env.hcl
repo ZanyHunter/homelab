@@ -89,7 +89,11 @@ locals {
 
   gitops = {
     repo_url = "https://github.com/ZanyHunter/homelab.git"
-    revision = "main" # would likely want a release branch instead, once real
+    # Prod stays on "main" — the promoted-to branch in the two-stage
+    # pipeline (#51). Dev tracks "development" instead (see dev's own
+    # env.hcl); a change only reaches prod once its development -> main
+    # promotion PR merges.
+    revision = "main"
   }
 
   # Same zone (thepugh.family) as dev's cloudflare_zone_id, since prod's

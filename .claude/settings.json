@@ -1,7 +1,10 @@
 {
   "permissions": {
     "deny": [
-      "Bash(*tofu/live/prod*)"
+      "Bash(*terragrunt*tofu/live/prod*)",
+      "Bash(*tofu/live/prod*terragrunt*)",
+      "Bash(*tofu *tofu/live/prod*)",
+      "Bash(*tofu/live/prod*tofu *)"
     ]
   }
 }

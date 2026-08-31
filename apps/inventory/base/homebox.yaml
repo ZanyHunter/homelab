@@ -25,6 +25,11 @@ spec:
     metadata:
       labels:
         app: homebox
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # actual SQLite contents, not just the Deployment's own object
+        # definition. See docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
     spec:
       # See apps/actual/actual.yaml's comment — defensive across every app
       # here, not just the one that actually collided (Actual's ACTUAL_PORT).

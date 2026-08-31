@@ -102,7 +102,13 @@ locals {
 
   gitops = {
     repo_url = "https://github.com/ZanyHunter/homelab.git"
-    revision = "main"
+    # Dev's ArgoCD tracks the persistent "development" branch, not "main" —
+    # the two-stage promotion pipeline (#51): feature branch -> PR ->
+    # development (dev picks this up) -> PR -> main (prod picks this up,
+    # see prod's own env.hcl). Applies to Tofu changes too, by convention
+    # (not mechanically enforced the way this is for ArgoCD-managed apps/ —
+    # see CLAUDE.md's Git workflow section).
+    revision = "development"
   }
 
   # Not secrets in Cloudflare's own model (identifiers, not credentials) —

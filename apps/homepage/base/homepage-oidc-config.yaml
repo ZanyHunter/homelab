@@ -1,0 +1,24 @@
+# Mirrors keycloak-realm's kubernetes_secret.homepage_oidc_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# (apps/cluster-addons/base/) — automatically stays current across a
+# keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
+# terragrunt output/hand-carry step (#42). homepage-secrets.enc.yaml stays
+# ksops-encrypted for the auth signing secret, which has no Tofu counterpart.
+# See docs/src/explanation/gitops-app-of-apps.md.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: homepage-oidc-config
+  namespace: homepage
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: homepage-oidc-config
+  data:
+    - secretKey: oidc-client-secret
+      remoteRef:
+        key: homepage-oidc-client-secret
+        property: client-secret

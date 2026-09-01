@@ -343,6 +343,31 @@ resource "keycloak_openid_client" "homebox" {
   web_origins         = ["+"]
 }
 
+resource "random_password" "homepage_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Homepage (#59) has native OIDC support (HOMEPAGE_OIDC_* env vars) but,
+# per its own docs, applies no claim-based authorization at all — it grants
+# access to any identity the IdP authorizes for this client. Same as every
+# other app here: a real Keycloak account is already this homelab's access
+# gate, so no group/role wiring is needed (nothing analogous to Immich's or
+# Paperless-ngx's platform-admins mapping).
+resource "keycloak_openid_client" "homepage" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "homepage"
+  name      = "Homepage"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.homepage_client_secret.result
+
+  valid_redirect_uris = ["https://homepage.${var.domain_name}/api/auth/callback/homepage-oidc"]
+  web_origins         = ["+"]
+}
+
 # changedetection.io has no native OIDC support (confirmed: only a single
 # shared password, no IdP integration) — this client is oauth2-proxy acting
 # as forward-auth in front of it, the same copy-paste shape as the sso-demo
@@ -447,6 +472,19 @@ resource "kubernetes_secret" "homebox_oidc_client_secret" {
 
   data = {
     client-secret = keycloak_openid_client.homebox.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "homepage_oidc_client_secret" {
+  metadata {
+    name      = "homepage-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.homepage.client_secret
   }
 
   type = "Opaque"

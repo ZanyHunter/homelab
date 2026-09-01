@@ -1,0 +1,18 @@
+# Mealie (SQLite by default) keeps its DB and recipe images under one
+# /app/data tree — no built-in option to split them, and the library is
+# unlikely to approach Immich/Paperless scale (#56), so this stays combined
+# rather than adding a second, NFS-backed PVC. Ceph-backed, not NFS, for the
+# same SQLite file-locking-correctness reason as every other SQLite-on-
+# Kubernetes app in this repo (see docs/src/explanation/ceph-backed-storage.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mealie-data
+  namespace: mealie
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi

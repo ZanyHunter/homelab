@@ -1,0 +1,67 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: mealie
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: mealie
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: mealie
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# Mealie's own server-side OIDC calls (discovery, token exchange, jwks) go to
+# Keycloak's *external* hostname, which resolves back through ingress-nginx's
+# LoadBalancer IP — same pattern as sso-demo/Immich/Homebox/Vikunja. This does
+# NOT cover Mealie's own recipe-import-by-URL feature, which needs real
+# internet egress to arbitrary hosts — out of scope for #56 (not in its
+# acceptance criteria) and left disabled here, same as changedetection.io's
+# pre-existing namespace despite that app's core purpose being fetching
+# arbitrary external pages. core-addons' allow-internet-egress (0.0.0.0/0)
+# pattern is currently scoped to 3 system namespaces only (cert-manager,
+# argocd, cloudflared) and isn't extended to any apps/ namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: mealie
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx

@@ -16,6 +16,35 @@ replacements:
         fieldPaths:
           - spec.rules.0.host
           - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.2
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Ingress
+          name: pinchflat
+        fieldPaths:
+          - metadata.annotations.[nginx.ingress.kubernetes.io/auth-signin]
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.keycloak-hostname
+    targets:
+      - select:
+          kind: Deployment
+          name: oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.1
+        options:
+          delimiter: "/"
+          index: 2
   - source:
       kind: ConfigMap
       name: env-values

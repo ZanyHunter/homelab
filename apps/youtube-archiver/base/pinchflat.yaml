@@ -4,20 +4,22 @@
 # internal SQLite DB — subscriptions, download history, real state) and
 # /downloads (the actual video files).
 #
-# No OIDC of its own — gated by Pinchflat's own BASIC_AUTH_USERNAME/PASSWORD
-# instead (credentials in pinchflat-basic-auth.enc.yaml, ksops-encrypted —
-# no Tofu counterpart to keep in sync, same as changedetection.io's
-# cookie-secret). Confirmed against Pinchflat's own router.ex/plugs.ex
-# source before deploying: its RSS/podcast-feed and media-stream routes run
-# through a `maybe_basic_auth` plug that's a no-op whenever the
-# EXPOSE_FEED_ENDPOINTS setting is true, trading basic-auth coverage on
-# those specific routes for reachability by podcast apps that can't send
-# basic-auth headers. EXPOSE_FEED_ENDPOINTS is deliberately left unset here
-# (upstream default: false) — this deployment is LAN/VPN-only with no
-# specific need for off-LAN podcast consumption (#54's own scope), so the
-# simplest, most-covered option is basic auth gating the whole app
-# uniformly, no oauth2-proxy/route-exception layer needed. Revisit by
-# flipping this one env var if off-LAN RSS consumption is ever wanted.
+# No OIDC of its own — gated by oauth2-proxy forward-auth instead
+# (oauth2-proxy.yaml), the same copy-paste template already proven by
+# changedetection.io. Originally deployed with Pinchflat's own static basic
+# auth (BASIC_AUTH_USERNAME/PASSWORD) instead: the RSS/podcast-feed and
+# media-stream routes run through a `maybe_basic_auth` plug (confirmed
+# against Pinchflat's own router.ex/plugs.ex) that's a no-op whenever the
+# EXPOSE_FEED_ENDPOINTS setting is true, so oauth2-proxy in front of the
+# whole app would have broken RSS consumption unless a path-based exception
+# was carved out — but since EXPOSE_FEED_ENDPOINTS was already left off
+# (no off-LAN podcast consumption need per #54's own scope), that concern
+# never actually applied. Moved to oauth2-proxy anyway for consistency with
+# every other app's Keycloak login here — a second, app-specific credential
+# set was worth avoiding even though it worked. EXPOSE_FEED_ENDPOINTS
+# staying unset is still what keeps oauth2-proxy's ingress-level auth
+# sufficient by itself, with no RSS-route exception layer needed; revisit
+# together if off-LAN RSS consumption is ever wanted.
 #
 # ghcr.io/kieraneglin/pinchflat has no built-in non-root user (confirmed
 # against its Dockerfile — no USER directive at all, unlike e.g. Mealie's
@@ -28,9 +30,10 @@
 # /config and /downloads are writable by whatever uid it's running as and
 # fails fast with a clear error if not, rather than misbehaving silently.
 #
-# Probes hit /healthcheck rather than /, since / sits behind basic auth
-# (kubelet doesn't send credentials) but /healthcheck is served through a
-# separate, deliberately unauthenticated route (router.ex's :api pipeline).
+# Probes hit /healthcheck rather than / — kubelet's probes go straight to
+# the pod IP, bypassing oauth2-proxy/Ingress entirely either way, but
+# /healthcheck is the lighter of the two (no DB queries) and was already
+# proven to work with no auth in the way.
 #
 # Image pinned to v2025.6.6 rather than the newer v2025.9.26 GitHub
 # release: found live that GHCR's own tag list stops at v2025.6.6 even
@@ -91,17 +94,6 @@ spec:
             runAsUser: 1000
             capabilities:
               drop: ["ALL"]
-          env:
-            - name: BASIC_AUTH_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: pinchflat-basic-auth
-                  key: username
-            - name: BASIC_AUTH_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: pinchflat-basic-auth
-                  key: password
           volumeMounts:
             - name: config
               mountPath: /config
@@ -152,8 +144,13 @@ metadata:
   name: pinchflat
   namespace: youtube-archiver
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # No ssl-redirect/cert-manager annotations here — oauth2-proxy's
+    # Ingress (same host, oauth2-proxy.yaml) owns the actual Certificate,
+    # avoiding two Certificates racing over one Secret, same as
+    # sso-demo/whoami and changedetection.io.
+    nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.youtube-archiver.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__APP_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
 spec:
   ingressClassName: nginx
   rules:

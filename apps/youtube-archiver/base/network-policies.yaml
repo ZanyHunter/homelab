@@ -1,8 +1,9 @@
 # Default-deny + only the traffic this namespace actually needs, same
-# pattern as every other namespace in this repo (#31). No SSO here (#54 --
-# Pinchflat has no OIDC support of its own, gated by its own basic auth
-# instead), so unlike most other apps there's no oauth2-proxy/Keycloak
-# egress rule needed.
+# pattern as every other namespace in this repo (#31). No native OIDC here
+# (#54 -- Pinchflat has no OIDC support of its own) -- gated by oauth2-proxy
+# forward-auth instead, same shape as changedetection.io, hence the
+# allow-same-namespace and allow-ingress-nginx-egress policies below that a
+# single-pod app here wouldn't need.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -34,6 +35,24 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: allow-same-namespace
+  namespace: youtube-archiver
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# ingress-nginx -> both oauth2-proxy (the /oauth2 path, and its own
+# auth-url subrequest for pinchflat's Ingress) and pinchflat itself (the
+# "/" path).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: allow-ingress-nginx-ingress
   namespace: youtube-archiver
 spec:
@@ -41,6 +60,23 @@ spec:
   policyTypes: ["Ingress"]
   ingress:
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the *external*
+# keycloak.<domain_name> hostname, which resolves back through
+# ingress-nginx's LoadBalancer IP — same pattern as sso-demo/changedetection.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: youtube-archiver
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx

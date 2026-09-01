@@ -26,5 +26,6 @@ All hostnames below use `dev`'s domain suffix (`dev.thepugh.family`) — see [DN
 | [Vikunja](../explanation/self-hosted-apps.md) | `projects.dev.thepugh.family` | Postgres, `ceph-rbd-dev` (5Gi) | Attachments: 2Gi, `ceph-rbd-dev` | Keycloak OIDC (native) |
 | [Mealie](../explanation/self-hosted-apps.md) | `recipes.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi, DB + images combined) | None — combined with DB above | Keycloak OIDC (native) |
 | [LubeLogger](../explanation/self-hosted-apps.md) | `lubelogger.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi, DB + documents combined) | None — combined with DB above | Keycloak OIDC (native) |
+| [Pinchflat](../explanation/self-hosted-apps.md) | `youtube.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi) | Videos: `nfs-dev` (20Gi, prod: 500Gi) | Static basic auth (no OIDC) |
 
 To add another app, see the [Onboard a New App](../guides/onboard-a-new-app.md) guide.

@@ -37,4 +37,5 @@
 - [Immich](./explanation/immich.md)
 - [Self-Hosted Apps](./explanation/self-hosted-apps.md)
 - [Wikipedia Mirror (Kiwix)](./explanation/wikipedia-mirror.md)
+- [Jellyfin](./explanation/jellyfin.md)
 - [Matrix (Synapse)](./explanation/matrix.md)

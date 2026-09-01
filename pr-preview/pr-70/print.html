@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-84df8929.js";
+            window.path_to_searchindex_js = "searchindex-efd84e40.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-475ab1fd.js"></script>
@@ -1309,7 +1309,7 @@ kubectl get pods -n actual -n paperless -n vaultwarden -n inventory -n changedet
 <ol>
 <li>Complete Jellyfin’s first-run setup wizard (create the initial local admin account, add the <code>/media</code> path as a library).</li>
 <li>In Dashboard → Plugins → Repositories, add <code>https://raw.githubusercontent.com/Buco7854/jellyfin-plugin-sso/manifest-release/manifest.json</code>, then install “SSO Auth” from the catalog and restart the server.</li>
-<li>In the plugin’s own config page, add a provider (<code>OidEndpoint: https://&lt;keycloak-hostname&gt;/realms/homelab</code>, <code>OidClientId: jellyfin</code>, <code>OidSecret:</code> the value from step above, <code>RoleClaim: groups</code>, <code>AdminRoles: ["platform-admins"]</code>).</li>
+<li>In the plugin’s own config page, add a provider (<code>OidEndpoint: https://&lt;keycloak-hostname&gt;/realms/homelab</code>, <code>OidClientId: jellyfin</code>, <code>OidSecret:</code> the value of <code>terragrunt output -raw jellyfin_oidc_client_secret</code> — run from <code>tofu/live/dev/keycloak-realm/</code> (or <code>tofu/live/prod/keycloak-realm/</code>, once deployed there) — <code>RoleClaim: groups</code>, <code>AdminRoles: ["platform-admins"]</code>).</li>
 <li>Confirm the redirect URI Keycloak has on file (<code>https://&lt;jellyfin-hostname&gt;/sso/OID/redirect/keycloak</code>) matches what the plugin’s provider name produces — the client was created with <code>keycloak</code> as the provider name specifically to match.</li>
 </ol>
 <h2 id="verification-8"><a class="header" href="#verification-8">Verification</a></h2>

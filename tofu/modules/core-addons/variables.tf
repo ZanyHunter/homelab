@@ -121,3 +121,9 @@ variable "public_keycloak_realm" {
   type        = bool
   default     = false
 }
+
+variable "public_matrix_wellknown" {
+  description = "Whether to add a tunnel route for the bare var.domain_name itself, path /.well-known/matrix/* only (#57) — Matrix's apex-based server_name identity requires serving /.well-known/matrix/client at exactly https://<domain_name>/, not any suffixed public_apps-style hostname, so this deliberately bypasses local.public_hostnames entirely. Only meaningful where var.domain_name IS the real public apex (Cloudflare's free Universal SSL requirement) — true for prod, structurally never satisfiable for dev's domain_name (a subdomain of the real apex), so this should only ever be true in prod's env.hcl."
+  type        = bool
+  default     = false
+}

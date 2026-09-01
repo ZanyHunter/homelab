@@ -31,3 +31,15 @@ resource "unifi_dns_record" "wildcard_ingress" {
   value       = var.ingress_ip
   port        = 0
 }
+
+# A wildcard never matches the zero-label case, so the bare domain_name
+# itself needs its own explicit record — first needed by Matrix's apex-based
+# server_name identity (#57), which requires serving
+# /.well-known/matrix/client at https://<domain_name>/ rather than any
+# subdomain. See docs/src/explanation/matrix.md.
+resource "unifi_dns_record" "apex_ingress" {
+  name        = var.domain_name
+  record_type = "A"
+  value       = var.ingress_ip
+  port        = 0
+}

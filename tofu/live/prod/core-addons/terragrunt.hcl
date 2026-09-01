@@ -87,12 +87,13 @@ inputs = {
   # Terraform provider's own authenticated session.
   kubernetes_client_configuration = dependency.talos_cluster.outputs.kubernetes_client_configuration
 
-  cloudflare_account_id  = include.env.locals.cloudflare_account_id
-  cloudflare_zone_id     = include.env.locals.cloudflare_zone_id
-  cloudflared_version    = include.env.locals.cloudflared_version
-  public_ingress_enabled = include.env.locals.public_ingress_enabled
-  public_apps            = include.env.locals.public_apps
-  public_keycloak_realm  = include.env.locals.public_keycloak_realm
-  public_apex_domain     = include.env.locals.public_apex_domain
-  public_hostname_suffix = include.env.locals.public_hostname_suffix
+  cloudflare_account_id   = include.env.locals.cloudflare_account_id
+  cloudflare_zone_id      = include.env.locals.cloudflare_zone_id
+  cloudflared_version     = include.env.locals.cloudflared_version
+  public_ingress_enabled  = include.env.locals.public_ingress_enabled
+  public_apps             = include.env.locals.public_apps
+  public_keycloak_realm   = include.env.locals.public_keycloak_realm
+  public_matrix_wellknown = include.env.locals.public_matrix_wellknown
+  public_apex_domain      = include.env.locals.public_apex_domain
+  public_hostname_suffix  = include.env.locals.public_hostname_suffix
 }

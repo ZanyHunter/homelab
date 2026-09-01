@@ -51,3 +51,13 @@ umount /mnt/test
 ```
 
 Testing this requires a pod with `securityContext.privileged: true` (the `mount` syscall needs `CAP_SYS_ADMIN`, which the cluster's baseline Pod Security level doesn't grant by default) — run it in a throwaway namespace labeled `pod-security.kubernetes.io/enforce: privileged`, and delete the namespace afterward rather than leaving a permanently-privileged namespace around.
+
+## The `jellyfin-media` export: shared, not per-environment
+
+Unlike `k8s-dev`/`k8s-prod` above, Jellyfin's media library (#52) is a third, dedicated export with genuinely different settings — see [Jellyfin](../explanation/jellyfin.md) for the full "why":
+
+* **Path**: `/mnt/Main/jellyfin-media`
+* **Authorized network**: both `192.168.160.0/27` (prod) and `192.168.160.32/27` (dev) — the one export in this repo intentionally reachable from both VLANs, since it backs one physical media library both environments' Jellyfin deployments read in place rather than each getting their own copy.
+* **Access pattern**: read-only from Kubernetes (`mountOptions: [ro]` on the static PV, `apps/jellyfin/base/media-pv.yaml`) — Jellyfin never writes to this export, so root-squash/write-access settings that matter for the dynamic-provisioning exports above aren't a consideration here the same way.
+* **Permissions**: files must be world-readable (or otherwise readable by whatever uid the Jellyfin pod runs as) for the non-root pod to read them — plain Unix permissions, unrelated to root-squash. See the Jellyfin page's gotchas section for a real permissions issue found live here.
+* Not used by `csi-driver-nfs`/any StorageClass at all — this is a static PV pointing directly at a pre-existing, already-populated export, not a dynamic-provisioning target.

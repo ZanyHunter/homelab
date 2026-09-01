@@ -417,6 +417,49 @@ resource "keycloak_openid_client" "vikunja" {
   web_origins         = ["+"]
 }
 
+resource "random_password" "mealie_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Mealie's redirect URIs per its v2 OIDC docs: /login (standard) and
+# /login?direct=1 (RP-Initiated Logout, which Keycloak supports) — a
+# wildcard on /login* covers both with one entry.
+#
+# platform-admins -> Mealie admin, via OIDC_ADMIN_GROUP
+# (apps/mealie/base/mealie.yaml) matching against the same reusable "groups"
+# claim already used for ArgoCD/Grafana/Paperless-ngx above — same
+# plain-group-name-matching pattern as Paperless, no client-role gymnastics.
+# OIDC_USER_GROUP is deliberately left unset: unlike OIDC_ADMIN_GROUP, it
+# actually *restricts* login to that group, which would break this repo's
+# established "any Keycloak-authorized identity gets in" access model.
+resource "keycloak_openid_client" "mealie" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "mealie"
+  name      = "Mealie"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.mealie_client_secret.result
+
+  valid_redirect_uris = ["https://recipes.${var.domain_name}/login*"]
+  web_origins         = ["+"]
+}
+
+resource "keycloak_openid_client_optional_scopes" "mealie" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.mealie.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
 # --- Canonical secrets for External Secrets Operator (#42) -------------------
 # Every client secret generated above for a real, GitOps-managed app used to
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
@@ -543,6 +586,19 @@ resource "kubernetes_secret" "vikunja_oidc_client_secret" {
 
   data = {
     client-secret = keycloak_openid_client.vikunja.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "mealie_oidc_client_secret" {
+  metadata {
+    name      = "mealie-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.mealie.client_secret
   }
 
   type = "Opaque"

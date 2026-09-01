@@ -1,10 +1,16 @@
 # Periodically checks download.kiwix.org for newer dated releases and
 # rebuilds library.xml when anything changes (#53's optional follow-up,
-# promoted to required for this app). Split across two containers sharing
-# the PVC so only the download step -- which needs real internet egress to
-# kiwix's mirror network -- carries that NetworkPolicy allowance; the
-# always-on kiwix-serve Deployment never gets outbound internet access at
-# all (see network-policies.yaml).
+# promoted to required for this app). Alternates a sync-one/reindex pair
+# per tracked series (rather than one big download pass followed by a
+# single reindex at the end) so each series becomes searchable as soon as
+# its own download finishes -- found live that a single reindex-at-the-end
+# design left two already-fully-downloaded series (Wikiquote, Wikivoyage)
+# unindexed and unsearchable for the entire multi-hour run while the
+# ~124GB Wikipedia Maxi file was still in flight.
+#
+# Only the sync-one steps (curlimages/curl) carry real internet egress to
+# kiwix's mirror network; the always-on kiwix-serve Deployment never gets
+# outbound internet access at all (see network-policies.yaml).
 #
 # Monthly: comfortably ahead of every tracked series' observed release
 # cadence (Wikipedia Maxi every ~6 months; Wiktionary/Wikibooks/Wikiquote/
@@ -33,18 +39,19 @@ spec:
           enableServiceLinks: false
           # /data is a setgid directory owned by group 1001 (drwxrwsr-x --
           # set by the Deployment's own fsGroup: 1001, the first pod to
-          # touch this PVC): the download container runs as curl_user
-          # (uid 100/gid 101, the curlimages/curl image's own non-root
-          # default), so without fsGroup here too it has no write access at
-          # all -- verified live as a real EACCES on every download.
+          # touch this PVC): sync-one runs as curl_user (uid 100/gid 101,
+          # the curlimages/curl image's own non-root default), so without
+          # fsGroup here too it has no write access at all -- verified live
+          # as a real EACCES on every download.
           securityContext:
             fsGroup: 1001
             seccompProfile:
               type: RuntimeDefault
           initContainers:
-            - name: download
+            - &sync
+              name: sync-wikiquote
               image: curlimages/curl:8.11.1
-              command: ["sh", "/scripts/download.sh"]
+              command: ["sh", "/scripts/sync-one.sh", "wikiquote", "wikiquote_en_all_maxi"]
               securityContext:
                 allowPrivilegeEscalation: false
                 runAsNonRoot: true
@@ -65,8 +72,8 @@ spec:
                 limits:
                   cpu: 500m
                   memory: 512Mi
-          containers:
-            - name: reindex
+            - &reindex
+              name: reindex-wikiquote
               image: ghcr.io/kiwix/kiwix-tools:3.8.2
               command: ["sh", "/scripts/reindex.sh"]
               securityContext:
@@ -88,6 +95,32 @@ spec:
                 limits:
                   cpu: 300m
                   memory: 256Mi
+            - <<: *sync
+              name: sync-wikivoyage
+              command: ["sh", "/scripts/sync-one.sh", "wikivoyage", "wikivoyage_en_all_maxi"]
+            - <<: *reindex
+              name: reindex-wikivoyage
+            - <<: *sync
+              name: sync-wikibooks
+              command: ["sh", "/scripts/sync-one.sh", "wikibooks", "wikibooks_en_all_maxi"]
+            - <<: *reindex
+              name: reindex-wikibooks
+            - <<: *sync
+              name: sync-wiktionary
+              command: ["sh", "/scripts/sync-one.sh", "wiktionary", "wiktionary_en_all_nopic"]
+            - <<: *reindex
+              name: reindex-wiktionary
+            - <<: *sync
+              name: sync-wikisource
+              command: ["sh", "/scripts/sync-one.sh", "wikisource", "wikisource_en_all_maxi"]
+            - <<: *reindex
+              name: reindex-wikisource
+            - <<: *sync
+              name: sync-wikipedia
+              command: ["sh", "/scripts/sync-one.sh", "wikipedia", "wikipedia_en_all_maxi"]
+          containers:
+            - <<: *reindex
+              name: reindex-wikipedia
           volumes:
             - name: data
               persistentVolumeClaim:

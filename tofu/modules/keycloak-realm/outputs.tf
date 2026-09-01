@@ -45,3 +45,9 @@ output "pinchflat_oauth2_proxy_client_secret" {
   value       = keycloak_openid_client.pinchflat_oauth2_proxy.client_secret
   sensitive   = true
 }
+
+output "jellyfin_oidc_client_secret" {
+  description = "Jellyfin's Keycloak client secret. Unlike every other app's output above, this one IS the real, primary distribution mechanism, not a break-glass fallback — the Buco7854/jellyfin-plugin-sso plugin has no env-var/ExternalSecret-based config at all, so this value must be fetched with `terragrunt output -raw jellyfin_oidc_client_secret` and pasted by hand into the plugin's admin UI (Client ID: jellyfin) after installing it. See docs/src/explanation/self-hosted-apps.md."
+  value       = keycloak_openid_client.jellyfin.client_secret
+  sensitive   = true
+}

@@ -607,6 +607,52 @@ resource "keycloak_openid_client_optional_scopes" "mas" {
   ]
 }
 
+# Jellyfin (#52) has no native OIDC — the community
+# Buco7854/jellyfin-plugin-sso plugin (an actively-maintained fork of the
+# archived 9p4/jellyfin-plugin-sso) is installed by hand through Jellyfin's
+# own admin UI after first boot, then pointed at this client. Unlike every
+# app above, there is no env var or ExternalSecret this client_secret can
+# flow through automatically — the plugin has no env-based config at all, so
+# the secret has to be copy-pasted into its admin UI form by hand (see
+# outputs.tf and docs/src/explanation/self-hosted-apps.md). "keycloak" is the
+# plugin's own free-form provider name, chosen to match the redirect URI
+# below (…/sso/OID/redirect/<provider name>). The groups optional scope is
+# attached the same way as Mealie/ArgoCD/Grafana above so the plugin's own
+# RoleClaim/AdminRoles config can gate Jellyfin admin on platform-admins
+# membership, same "any Keycloak-authorized identity gets in, group
+# membership only grants admin" model as everywhere else in this repo.
+resource "random_password" "jellyfin_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "jellyfin" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "jellyfin"
+  name      = "Jellyfin"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.jellyfin_client_secret.result
+
+  valid_redirect_uris = ["https://jellyfin.${var.domain_name}/sso/OID/redirect/keycloak"]
+  web_origins         = ["+"]
+}
+
+resource "keycloak_openid_client_optional_scopes" "jellyfin" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.jellyfin.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
 # --- Canonical secrets for External Secrets Operator (#42) -------------------
 # Every client secret generated above for a real, GitOps-managed app used to
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted

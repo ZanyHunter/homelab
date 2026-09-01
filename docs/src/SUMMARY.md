@@ -36,3 +36,4 @@
 - [Public Ingress via Cloudflare Tunnel](./explanation/public-ingress.md)
 - [Immich](./explanation/immich.md)
 - [Self-Hosted Apps](./explanation/self-hosted-apps.md)
+- [Wikipedia Mirror (Kiwix)](./explanation/wikipedia-mirror.md)

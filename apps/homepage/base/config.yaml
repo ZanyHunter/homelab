@@ -75,13 +75,18 @@ data:
   # Homepage's entrypoint auto-populates any *missing* skeleton config file
   # into /app/config from its own image at startup — and /app/config isn't
   # writable as the non-root uid this Deployment runs as, so a file it
-  # expects but doesn't find crashes the whole container with EACCES (found
-  # live: kubernetes.yaml specifically, since only the 4 files above were
-  # originally mounted). Providing all 8 empty/inert covers every skeleton
-  # file the image ships, matching gethomepage.dev's own Kubernetes example.
-  # kubernetes.yaml/docker.yaml stay empty on purpose — see this file's
-  # top comment on the static-config-over-auto-discovery decision.
+  # expects but doesn't find crashes the whole container with EACCES.
+  # Providing all of them empty/inert (verified against the live v2.1.2
+  # image's own /app/src/skeleton/ directory, not just gethomepage.dev's
+  # Kubernetes example doc — that doc is missing proxmox.yaml, a newer
+  # addition, and trusting it alone left the container crash-looping live
+  # under real use: fine at cold start, since nothing had lazily touched
+  # proxmox.yaml yet, then crashing on first request that did) covers every
+  # skeleton file the image ships. docker.yaml/kubernetes.yaml/proxmox.yaml
+  # stay empty on purpose — see this file's top comment on the
+  # static-config-over-auto-discovery decision.
   custom.css: ""
   custom.js: ""
   docker.yaml: ""
   kubernetes.yaml: ""
+  proxmox.yaml: ""

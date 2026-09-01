@@ -85,8 +85,8 @@ spec:
                 secretKeyRef:
                   name: homepage-oidc-config
                   key: oidc-client-secret
-          # All 8 files the image's skeleton config expects are mounted
-          # individually via subPath, even the 4 left empty — see
+          # All 9 files the image's skeleton config expects are mounted
+          # individually via subPath, even the 5 left empty — see
           # config.yaml's comment: Homepage's entrypoint auto-creates
           # whichever of these it doesn't find, and can't (EACCES, non-root
           # uid) since /app/config's directory itself isn't writable.
@@ -115,6 +115,9 @@ spec:
             - name: config
               mountPath: /app/config/kubernetes.yaml
               subPath: kubernetes.yaml
+            - name: config
+              mountPath: /app/config/proxmox.yaml
+              subPath: proxmox.yaml
             # Homepage also writes its own log file under /app/config/logs,
             # a directory rather than a single file — needs a separate
             # writable emptyDir (found live: without it, any internal error

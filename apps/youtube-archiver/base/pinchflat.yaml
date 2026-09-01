@@ -1,0 +1,173 @@
+# Pinchflat — https://github.com/kieraneglin/pinchflat. Subscription-based
+# YouTube archiver (tracks channels/playlists via yt-dlp, auto-downloads new
+# content as it appears) (#54). Single container, two volumes: /config (its
+# internal SQLite DB — subscriptions, download history, real state) and
+# /downloads (the actual video files).
+#
+# No OIDC of its own — gated by Pinchflat's own BASIC_AUTH_USERNAME/PASSWORD
+# instead (credentials in pinchflat-basic-auth.enc.yaml, ksops-encrypted —
+# no Tofu counterpart to keep in sync, same as changedetection.io's
+# cookie-secret). Confirmed against Pinchflat's own router.ex/plugs.ex
+# source before deploying: its RSS/podcast-feed and media-stream routes run
+# through a `maybe_basic_auth` plug that's a no-op whenever the
+# EXPOSE_FEED_ENDPOINTS setting is true, trading basic-auth coverage on
+# those specific routes for reachability by podcast apps that can't send
+# basic-auth headers. EXPOSE_FEED_ENDPOINTS is deliberately left unset here
+# (upstream default: false) — this deployment is LAN/VPN-only with no
+# specific need for off-LAN podcast consumption (#54's own scope), so the
+# simplest, most-covered option is basic auth gating the whole app
+# uniformly, no oauth2-proxy/route-exception layer needed. Revisit by
+# flipping this one env var if off-LAN RSS consumption is ever wanted.
+#
+# ghcr.io/kieraneglin/pinchflat has no built-in non-root user (confirmed
+# against its Dockerfile — no USER directive at all, unlike e.g. Mealie's
+# gosu/uid-911 entrypoint) — runAsUser/fsGroup: 1000 below is an arbitrary
+# uid, safe because Kubernetes chowns the Ceph-backed PVC to that uid via
+# fsGroup on mount (same reasoning as Immich/LubeLogger). Pinchflat's own
+# entrypoint (rel/overlays/bin/check_file_permissions) actively verifies
+# /config and /downloads are writable by whatever uid it's running as and
+# fails fast with a clear error if not, rather than misbehaving silently.
+#
+# Probes hit /healthcheck rather than /, since / sits behind basic auth
+# (kubelet doesn't send credentials) but /healthcheck is served through a
+# separate, deliberately unauthenticated route (router.ex's :api pipeline).
+#
+# Image pinned to v2025.6.6 rather than the newer v2025.9.26 GitHub
+# release: found live that GHCR's own tag list stops at v2025.6.6 even
+# though a newer GitHub Release exists and `latest`'s digest differs from
+# v2025.6.6's — the versioned-tag publish step appears to have lagged
+# behind `latest` upstream. Worth re-checking on a future bump, alongside
+# the general "yt-dlp breaks periodically, needs ongoing updates" note from
+# #54's own scope.
+#
+# backup.velero.io/backup-volumes covers only "config" (the SQLite DB), not
+# "downloads" — a deliberate, flagged decision, not an oversight (#54).
+# Archived videos are not reliably re-fetchable (source videos get deleted
+# or made private on YouTube over time), closer to Immich's media library
+# in "irreplaceable if lost" risk than Wikipedia's re-downloadable ZIM
+# cache — but this volume relies on the NAS's own offsite backup only, same
+# as Immich's media library, rather than Velero's File System Backup. Worth
+# revisiting against the external-Kopia-repo idea discussed separately if
+# this archive grows large enough that re-download-from-NAS-backup isn't a
+# fast enough recovery path.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pinchflat
+  namespace: youtube-archiver
+spec:
+  replicas: 1
+  # RWO config PVC: a rolling update would try to schedule the new pod
+  # before the old one releases the volume, deadlocking on a multi-attach
+  # error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pinchflat
+  template:
+    metadata:
+      labels:
+        app: pinchflat
+      annotations:
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pinchflat
+          image: ghcr.io/kieraneglin/pinchflat:v2025.6.6
+          ports:
+            - containerPort: 8945
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: pinchflat-basic-auth
+                  key: username
+            - name: BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pinchflat-basic-auth
+                  key: password
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8945
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8945
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: pinchflat-config
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: pinchflat-downloads
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pinchflat
+  namespace: youtube-archiver
+spec:
+  selector:
+    app: pinchflat
+  ports:
+    - port: 8945
+      targetPort: 8945
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pinchflat
+  namespace: youtube-archiver
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pinchflat
+                port:
+                  number: 8945
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: pinchflat-tls

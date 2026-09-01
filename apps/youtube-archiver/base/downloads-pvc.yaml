@@ -1,0 +1,27 @@
+# Downloaded video files under /downloads. Unlike the Wikipedia ZIM library,
+# archived videos are NOT reliably re-fetchable -- source videos get deleted
+# or made private on YouTube over time -- so this is closer to Immich's media
+# library in terms of "irreplaceable if lost" risk. It's still NFS-backed
+# (bulk file storage, not a database), but it deliberately does NOT get the
+# `backup.velero.io/backup-volumes` annotation -- see pinchflat.yaml's
+# top-of-file comment for why that's a flagged, not silently-assumed,
+# decision (#54).
+#
+# Sizing is per-environment (env-values.yaml's downloads-pvc-size), same
+# pattern as Wikipedia's pvc-size -- dev stays deliberately small (unlike
+# Wikipedia, there's no natural content subset to scope down to here, since
+# growth depends entirely on which channels get subscribed to), prod sized
+# generously per #54's own scope. PVCs can only grow, never shrink, so this
+# is a floor to raise later, not a ceiling.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pinchflat-downloads
+  namespace: youtube-archiver
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: __STORAGE_CLASS_NFS__
+  resources:
+    requests:
+      storage: __DOWNLOADS_PVC_SIZE__

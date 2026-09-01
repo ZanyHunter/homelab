@@ -391,6 +391,32 @@ resource "keycloak_openid_client" "changedetection_oauth2_proxy" {
   web_origins         = ["+"]
 }
 
+resource "random_password" "vikunja_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Vikunja's own frontend (the combined vikunja/vikunja image serves both)
+# redirects back to /auth/openid/<provider key> after authentication — the
+# provider key ("keycloak") is freely chosen in
+# apps/vikunja/base/vikunja.yaml's VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_*
+# env vars and must match here. No group/role wiring, same reasoning as
+# Homebox: Vikunja has no single app-wide admin concept to map
+# platform-admins onto.
+resource "keycloak_openid_client" "vikunja" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "vikunja"
+  name      = "Vikunja"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.vikunja_client_secret.result
+
+  valid_redirect_uris = ["https://vikunja.${var.domain_name}/auth/openid/keycloak"]
+  web_origins         = ["+"]
+}
+
 # --- Canonical secrets for External Secrets Operator (#42) -------------------
 # Every client secret generated above for a real, GitOps-managed app used to
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
@@ -504,6 +530,19 @@ resource "kubernetes_secret" "changedetection_oauth2_proxy_client_secret" {
   data = {
     client-id     = keycloak_openid_client.changedetection_oauth2_proxy.client_id
     client-secret = keycloak_openid_client.changedetection_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "vikunja_oidc_client_secret" {
+  metadata {
+    name      = "vikunja-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.vikunja.client_secret
   }
 
   type = "Opaque"

@@ -61,6 +61,10 @@ data:
             href: https://changedetection.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
             description: Webpage change monitoring
             siteMonitor: https://changedetection.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Vikunja:
+            href: https://projects.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Task manager
+            siteMonitor: https://projects.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
   widgets.yaml: |
     - resources:
         backend: resources

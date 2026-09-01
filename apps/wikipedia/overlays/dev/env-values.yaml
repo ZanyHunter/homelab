@@ -1,8 +1,14 @@
 # The per-environment values this app's base/ manifests reference as
-# __APP_HOSTNAME__/__STORAGE_CLASS_NFS__ tokens -- see
+# __APP_HOSTNAME__/__STORAGE_CLASS_NFS__/__DATA_PVC_SIZE__ tokens -- see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 # No keycloak-hostname/storage-class-ceph here: this app has no SSO and no
 # Ceph-backed component at all (#53).
+#
+# pvc-size is 5Gi, not prod's 320Gi: dev's kustomization.yaml also patches
+# updater-cronjob.yaml down to just the Wikiquote/Wikivoyage series
+# (~2GB) -- proven live already, kept small deliberately so a dev-only
+# testing cluster doesn't carry a ~150GB+ permanent footprint just to
+# exercise this app.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,3 +16,4 @@ metadata:
 data:
   app-hostname: wikipedia.dev.thepugh.family
   storage-class-nfs: nfs-dev
+  pvc-size: 5Gi

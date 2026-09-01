@@ -1,0 +1,12 @@
+# The per-environment values this app's base/ manifests reference as
+# __APP_HOSTNAME__/__STORAGE_CLASS_NFS__ tokens -- see
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+# No keycloak-hostname/storage-class-ceph here: this app has no SSO and no
+# Ceph-backed component at all (#53).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-values
+data:
+  app-hostname: wikipedia.thepugh.family
+  storage-class-nfs: nfs-prod

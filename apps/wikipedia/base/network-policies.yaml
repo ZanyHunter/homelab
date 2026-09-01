@@ -1,0 +1,88 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31). No SSO here (#53 --
+# kiwix-serve has no auth/OIDC of its own, deliberately left open on
+# LAN/VPN), so unlike every other app there's no oauth2-proxy/Keycloak
+# egress rule needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: wikipedia
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: wikipedia
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: wikipedia
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: wikipedia
+spec:
+  podSelector:
+    matchLabels:
+      app: kiwix-serve
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# Scoped to the updater CronJob's pods only (app: wikipedia-updater), not
+# the whole namespace -- the always-on kiwix-serve Deployment never gets
+# outbound internet access at all. download.kiwix.org's own downloads
+# redirect (mirrorbrain) to whichever geo-local partner mirror is closest,
+# so this can't be pinned to a fixed CIDR the way an internal dependency
+# could be; scoping by pod label instead of opening it namespace-wide is
+# the mitigation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-updater-internet-egress
+  namespace: wikipedia
+spec:
+  podSelector:
+    matchLabels:
+      app: wikipedia-updater
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+          protocol: TCP

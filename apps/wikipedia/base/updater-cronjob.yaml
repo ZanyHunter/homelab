@@ -1,0 +1,98 @@
+# Periodically checks download.kiwix.org for newer dated releases and
+# rebuilds library.xml when anything changes (#53's optional follow-up,
+# promoted to required for this app). Split across two containers sharing
+# the PVC so only the download step -- which needs real internet egress to
+# kiwix's mirror network -- carries that NetworkPolicy allowance; the
+# always-on kiwix-serve Deployment never gets outbound internet access at
+# all (see network-policies.yaml).
+#
+# Monthly: comfortably ahead of every tracked series' observed release
+# cadence (Wikipedia Maxi every ~6 months; Wiktionary/Wikibooks/Wikiquote/
+# Wikisource every ~1-3 months, per download.kiwix.org's own dated
+# filenames at onboarding time) without checking so often that most runs
+# do nothing.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wikipedia-updater
+  namespace: wikipedia
+spec:
+  schedule: "0 6 1 * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: wikipedia-updater
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          # /data is a setgid directory owned by group 1001 (drwxrwsr-x --
+          # set by the Deployment's own fsGroup: 1001, the first pod to
+          # touch this PVC): the download container runs as curl_user
+          # (uid 100/gid 101, the curlimages/curl image's own non-root
+          # default), so without fsGroup here too it has no write access at
+          # all -- verified live as a real EACCES on every download.
+          securityContext:
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: download
+              image: curlimages/curl:8.11.1
+              command: ["sh", "/scripts/download.sh"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 100
+                runAsGroup: 101
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          containers:
+            - name: reindex
+              image: ghcr.io/kiwix/kiwix-tools:3.8.2
+              command: ["sh", "/scripts/reindex.sh"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 1001
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 300m
+                  memory: 256Mi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: wikipedia-data
+            - name: scripts
+              configMap:
+                name: wikipedia-updater-scripts
+                defaultMode: 0555

@@ -1,0 +1,11 @@
+# The per-environment values this app's base/ manifests reference as
+# __APP_HOSTNAME__/__KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__ tokens — see
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-values
+data:
+  app-hostname: recipes.dev.thepugh.family
+  keycloak-hostname: keycloak.dev.thepugh.family
+  storage-class-ceph: ceph-rbd-dev

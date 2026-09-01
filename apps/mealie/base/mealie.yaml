@@ -1,0 +1,157 @@
+# Mealie (recipe manager) — https://mealie.io, image
+# ghcr.io/mealie-recipes/mealie. SQLite-based (DB_ENGINE default), no
+# separate database — its own /app/data tree holds both the DB and recipe
+# images (see data-pvc.yaml). Native OIDC support (OIDC_*, docs:
+# https://docs.mealie.io/documentation/getting-started/authentication/oidc-v2/),
+# fully declared via env vars below, no manual web-UI step.
+#
+# The image's entrypoint (docker/entry.sh upstream) only chowns /app and
+# gosu's down to PUID/PGID when the container actually starts as root —
+# skipped entirely here by starting directly as uid/gid 911 (PUID/PGID's own
+# documented default, the "abc" user baked into the image), which satisfies
+# restricted PSA's runAsNonRoot requirement without needing a rootless image
+# variant the way Homebox's original (non-fork) image did.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mealie
+  namespace: mealie
+spec:
+  replicas: 1
+  # RWO PVC: a rolling update would try to schedule the new pod before the
+  # old one releases the volume, deadlocking on a multi-attach error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mealie
+  template:
+    metadata:
+      labels:
+        app: mealie
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # actual SQLite + recipe-image contents, not just the Deployment's
+        # own object definition. See docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      # See apps/actual/actual.yaml's comment — defensive across every app
+      # here, not just the one that actually collided (Actual's ACTUAL_PORT).
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 911
+        runAsGroup: 911
+        fsGroup: 911
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mealie
+          image: ghcr.io/mealie-recipes/mealie:v3.24.0
+          ports:
+            - containerPort: 9000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 911
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: BASE_URL
+              value: https://__APP_HOSTNAME__
+            - name: DB_ENGINE
+              value: sqlite
+            - name: ALLOW_SIGNUP
+              value: "false"
+            # Keycloak account creation is already the real access gate for
+            # this homelab (same reasoning as Immich's autoRegister/Homebox's
+            # HBOX_OPTIONS_ALLOW_LOCAL_LOGIN) — no separate local-password
+            # account should exist alongside it.
+            - name: ALLOW_PASSWORD_LOGIN
+              value: "false"
+            - name: OIDC_AUTH_ENABLED
+              value: "true"
+            - name: OIDC_SIGNUP_ENABLED
+              value: "true"
+            - name: OIDC_PROVIDER_NAME
+              value: Keycloak
+            # Unlike Vikunja's issuer-URL-only AUTHURL, Mealie wants the full
+            # discovery document URL, not just the issuer base.
+            - name: OIDC_CONFIGURATION_URL
+              value: https://__KEYCLOAK_HOSTNAME__/realms/homelab/.well-known/openid-configuration
+            - name: OIDC_CLIENT_ID
+              value: mealie
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mealie-oidc-config
+                  key: oidc-client-secret
+            # No OIDC_USER_GROUP — see the Tofu client's own comment
+            # (tofu/modules/keycloak-realm/main.tf) for why: it restricts
+            # login to that group, unlike OIDC_ADMIN_GROUP.
+            - name: OIDC_ADMIN_GROUP
+              value: platform-admins
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /api/app/about
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/app/about
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mealie-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mealie
+  namespace: mealie
+spec:
+  selector:
+    app: mealie
+  ports:
+    - port: 9000
+      targetPort: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mealie
+  namespace: mealie
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mealie
+                port:
+                  number: 9000
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: mealie-tls

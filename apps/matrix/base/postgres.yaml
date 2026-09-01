@@ -1,0 +1,103 @@
+# Plain postgres:alpine, same hand-rolled pattern as Keycloak's/Paperless-ngx's/
+# Vikunja's Postgres — Synapse's own docs recommend Postgres over SQLite for
+# anything beyond the smallest personal deployment.
+#
+# Real gotcha, researched before deploying rather than assumed: Synapse
+# hard-requires the database to have 'C' collation/ctype and refuses to
+# start otherwise ("Database has incorrect collation/ctype"). Alpine's
+# postgres image (musl libc, no real locale data) does *not* reliably give
+# you 'C' collation just by using Alpine — real-world Synapse deployments
+# hit this even on Alpine and fix it the same explicit way used here:
+# POSTGRES_INITDB_ARGS forcing --locale=C/--lc-collate=C/--lc-ctype=C on
+# initdb, which works regardless of base image.
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-postgres
+  namespace: matrix
+spec:
+  selector:
+    app: matrix-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: matrix-postgres
+  namespace: matrix
+spec:
+  serviceName: matrix-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matrix-postgres
+  template:
+    metadata:
+      labels:
+        app: matrix-postgres
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # real messages/room state/device keys, not just the StatefulSet's
+        # own object definition. See docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 70
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: POSTGRES_DB
+              value: matrix
+            - name: POSTGRES_USER
+              value: matrix
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: matrix-db-credentials
+                  key: password
+            - name: POSTGRES_INITDB_ARGS
+              value: "--locale=C --lc-collate=C --lc-ctype=C --encoding=UTF-8"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "matrix"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "matrix"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: __STORAGE_CLASS_CEPH__
+        resources:
+          requests:
+            storage: 10Gi

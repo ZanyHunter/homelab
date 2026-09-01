@@ -1,0 +1,155 @@
+# Synapse — matrix-org/synapse's own reference Matrix homeserver
+# implementation. command/args deliberately bypass the image's own
+# SYNAPSE_SERVER_NAME-driven auto-generate wrapper entirely (that path only
+# fires when no config exists yet, and can't produce the multi-file split
+# this deployment relies on) — invoking python -m synapse.app.homeserver
+# directly with three -c paths is Synapse's own core config loader, well
+# documented and unrelated to the docker wrapper. See
+# synapse-config.yaml/synapse-secrets-externalsecret.yaml/matrix-secrets.enc.yaml
+# for why the config is split three ways and docs/src/explanation/matrix.md
+# for the full picture.
+#
+# No built-in non-root user confirmed for this image (unlike some official
+# images) — runAsUser/fsGroup below is an arbitrary uid, same reasoning as
+# LubeLogger/Pinchflat's images with no built-in non-root user elsewhere in
+# this repo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapse
+  namespace: matrix
+spec:
+  replicas: 1
+  # RWO PVCs (data, media): a rolling update would try to schedule the new
+  # pod before the old one releases the volumes, deadlocking on a
+  # multi-attach error — same reasoning as every other single-replica app
+  # with an RWO volume in this repo.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: synapse
+  template:
+    metadata:
+      labels:
+        app: synapse
+      annotations:
+        # Opts the Ceph-backed signing-key volume into Velero's File System
+        # Backup — see signing-key-pvc.yaml's comment for why this one, and
+        # not media, gets the standing annotation.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 991
+        runAsGroup: 991
+        fsGroup: 991
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: synapse
+          image: matrixdotorg/synapse:v1.159.0
+          command: ["python", "-m", "synapse.app.homeserver"]
+          args:
+            - "-c"
+            - "/config/homeserver.yaml"
+            - "-c"
+            - "/secrets/oidc/oidc.yaml"
+            - "-c"
+            - "/secrets/matrix/secrets.yaml"
+          ports:
+            - containerPort: 8008
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 991
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: oidc-secret
+              mountPath: /secrets/oidc
+              readOnly: true
+            - name: matrix-secrets
+              mountPath: /secrets/matrix
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: media
+              mountPath: /media_store
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8008
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8008
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: config
+          configMap:
+            name: synapse-config
+        - name: oidc-secret
+          secret:
+            secretName: synapse-oidc-secret
+        - name: matrix-secrets
+          secret:
+            secretName: matrix-secrets
+        - name: data
+          persistentVolumeClaim:
+            claimName: matrix-signing-key
+        - name: media
+          persistentVolumeClaim:
+            claimName: matrix-media
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synapse
+  namespace: matrix
+spec:
+  selector:
+    app: synapse
+  ports:
+    - port: 8008
+      targetPort: 8008
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: synapse
+  namespace: matrix
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: synapse
+                port:
+                  number: 8008
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: synapse-tls

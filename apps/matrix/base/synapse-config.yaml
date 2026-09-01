@@ -1,0 +1,86 @@
+# The static majority of homeserver.yaml — everything that isn't secret and
+# isn't merged from another file. Synapse's own database/oidc_providers keys
+# are deliberately absent here entirely (not even a placeholder) rather than
+# split field-by-field across files: Synapse's docs don't document whether
+# multiple `-c`/--config-path files deep-merge list/dict values or simply
+# let the last file's top-level key win, so every key that needs a secret
+# value lives as one complete, self-contained block in exactly one file (see
+# synapse-secrets-externalsecret.yaml's oidc_providers and
+# matrix-secrets.enc.yaml's database) — avoiding any dependency on merge
+# semantics that aren't actually verified. See docs/src/explanation/matrix.md.
+#
+# Two tokens get substituted into this same multi-line blob by
+# overlays/{dev,prod}/kustomization.yaml's replacements: — __DOMAIN_NAME__
+# (server_name, Matrix's apex-based identity — see matrix.md) and
+# __APP_HOSTNAME__ (public_baseurl, the actual subdomain Synapse runs on).
+# Both use Kustomize's delimiter/index trick (splitting the whole blob on a
+# character and touching one indexed segment) rather than a full-field
+# replacement, same mechanism Immich's/Vikunja's overlays already use to
+# reach a token nested inside a larger text value — chosen so each token is
+# provably isolated (server_name is the file's very first line, quote-
+# delimited; public_baseurl's hostname sits right after "https://", the
+# first two "/" characters in the whole document) regardless of what either
+# substitution's own value looks like or what order the two run in.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: synapse-config
+  namespace: matrix
+data:
+  homeserver.yaml: |
+    server_name: "__DOMAIN_NAME__"
+    public_baseurl: "https://__APP_HOSTNAME__/"
+    pid_file: /tmp/homeserver.pid
+    log_config: /config/log_config.yaml
+
+    listeners:
+      - port: 8008
+        tls: false
+        type: http
+        x_forwarded: true
+        resources:
+          - names: [client]
+            compress: false
+
+    media_store_path: /media_store
+    max_upload_size: 50M
+
+    signing_key_path: /data/signing.key
+    suppress_key_server_warning: true
+
+    # The actual, authoritative federation-off control (#57) — not just
+    # omitting the /.well-known/matrix/server file, which this repo
+    # deliberately doesn't serve at all while federation stays off (no
+    # functional purpose with an empty whitelist, and one fewer templated
+    # token to get wrong — see matrix.md).
+    federation_domain_whitelist: []
+
+    # OIDC auto-provisions new accounts on first successful Keycloak login
+    # regardless of this setting (confirmed via research, not assumed) —
+    # this only blocks Synapse's own native password/email signup flow,
+    # matching this repo's "any Keycloak-authorized identity gets in" model
+    # everywhere else. See matrix.md.
+    enable_registration: false
+
+    # Deliberately absent (#57): no retention: block means Synapse never
+    # purges messages/media — the user's explicit choice, matching how this
+    # repo treats Immich's photos/Paperless's documents as real, non-
+    # disposable personal data.
+
+    report_stats: false
+  log_config.yaml: |
+    version: 1
+    formatters:
+      precise:
+        format: '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: precise
+    loggers:
+      synapse.storage.SQL:
+        level: INFO
+    root:
+      level: INFO
+      handlers: [console]
+    disable_existing_loggers: false

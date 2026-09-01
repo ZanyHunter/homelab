@@ -1,7 +1,9 @@
 # The per-environment values this app's base/ manifests reference as
-# __APP_HOSTNAME__/__STORAGE_CLASS_CEPH__/__STORAGE_CLASS_NFS__/
-# __DOWNLOADS_PVC_SIZE__ tokens -- see
+# __APP_HOSTNAME__/__KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__/
+# __STORAGE_CLASS_NFS__/__DOWNLOADS_PVC_SIZE__ tokens -- see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+# keycloak-hostname is for oauth2-proxy.yaml's own OIDC discovery calls,
+# not Pinchflat itself (no native OIDC support).
 #
 # downloads-pvc-size is 500Gi per #54's own "size generously" guidance --
 # growth depends entirely on real subscription count/frequency, and PVCs
@@ -13,6 +15,7 @@ metadata:
   name: env-values
 data:
   app-hostname: youtube.thepugh.family
+  keycloak-hostname: keycloak.thepugh.family
   storage-class-ceph: ceph-rbd-prod
   storage-class-nfs: nfs-prod
   downloads-pvc-size: 500Gi

@@ -1,0 +1,152 @@
+# Serves /.well-known/matrix/client at the bare apex hostname (#57) — the
+# first thing this repo hosts at domain_name itself rather than a
+# subdomain, required by Matrix's apex-based server_name identity so any
+# client just given "thepugh.family"/"dev.thepugh.family" can discover the
+# real API endpoint (matrix.<domain_name>). Deliberately does NOT serve
+# /.well-known/matrix/server (the federation discovery file): federation
+# stays off (federation_domain_whitelist: [] in synapse-config.yaml), so it
+# has no functional purpose yet and is one fewer templated token to get
+# wrong. nginxinc/nginx-unprivileged rather than plain nginx:alpine
+# specifically so this runs non-root on 8080 with no arbitrary-uid
+# workaround needed — the image is purpose-built for exactly this.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: matrix-wellknown
+  namespace: matrix
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      server_name _;
+
+      location = /.well-known/matrix/client {
+        default_type application/json;
+        add_header Access-Control-Allow-Origin * always;
+        alias /www/matrix-client.json;
+      }
+
+      location / {
+        return 404;
+      }
+    }
+  # __APP_HOSTNAME__ is the only "/"-bearing text in this document (index 2,
+  # same delimiter/index mechanism as every other app's overlay here) — the
+  # actual Synapse subdomain clients get redirected to, not the bare apex
+  # this file itself is served from. The trailing "/" after the token is
+  # deliberate, not stylistic: Kustomize's replacement swaps the *whole*
+  # delimited segment, so without a third "/" terminating it, the token's
+  # replacement value would swallow the rest of the string ("}}) with it —
+  # found live via a real test build that truncated this exact file before
+  # the trailing slash was added.
+  matrix-client.json: |
+    {"m.homeserver": {"base_url": "https://__APP_HOSTNAME__/"}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matrix-wellknown
+  namespace: matrix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matrix-wellknown
+  template:
+    metadata:
+      labels:
+        app: matrix-wellknown
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
+            - name: config
+              mountPath: /www/matrix-client.json
+              subPath: matrix-client.json
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /.well-known/matrix/client
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: matrix-wellknown
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-wellknown
+  namespace: matrix
+spec:
+  selector:
+    app: matrix-wellknown
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# Bound to the bare domain_name itself, not a subdomain — see the comment
+# at the top of this file. Reachable on LAN/VPN in both environments;
+# publicly reachable only in prod, gated by core-addons'
+# public_matrix_wellknown (env.hcl) — structurally never satisfiable for
+# dev, whose domain_name isn't the real apex. See
+# docs/src/explanation/matrix.md.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: matrix-wellknown
+  namespace: matrix
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __DOMAIN_NAME__
+      http:
+        paths:
+          # ImplementationSpecific, not Prefix: ingress-nginx >=4.12's
+          # stricter path validation warns/rejects a literal "." in a
+          # Prefix-typed path (the "." in ".well-known") — found live via a
+          # real "path /.well-known/matrix cannot be used with pathType
+          # Prefix" warning on the first apply. ingress-nginx's own
+          # ImplementationSpecific behavior for a plain path with no regex
+          # metacharacters is a normal prefix match, so this changes no
+          # actual routing behavior.
+          - path: /.well-known/matrix
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: matrix-wellknown
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - __DOMAIN_NAME__
+      secretName: matrix-wellknown-tls

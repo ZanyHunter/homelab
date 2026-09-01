@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - media-pvc.yaml
+  - signing-key-pvc.yaml
+  - postgres.yaml
+  - synapse-config.yaml
+  - synapse-secrets-externalsecret.yaml
+  - synapse.yaml
+  - element-web-config.yaml
+  - element-web.yaml
+  - matrix-wellknown.yaml
+  - network-policies.yaml
+
+generators:
+  - ksops-generator.yaml

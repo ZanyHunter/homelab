@@ -1,0 +1,23 @@
+# Element Web's own config.json, mounted over the image's default. No
+# default_hs_url/default_is_url needed: default_server_name alone lets
+# Element Web discover the actual API endpoint via
+# /.well-known/matrix/client at the bare apex — the same discovery flow any
+# other Matrix client needs for this repo's apex-based identity (see
+# matrix-wellknown.yaml, docs/src/explanation/matrix.md). __DOMAIN_NAME__ is
+# the very first quoted value in this document (index 3 counting both the
+# key's and value's opening/closing quotes) so overlays/{dev,prod}/'s
+# delimiter/index replacement stays correct regardless of what's added
+# below it later.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: element-web-config
+  namespace: matrix
+data:
+  config.json: |
+    {
+      "default_server_name": "__DOMAIN_NAME__",
+      "brand": "Element",
+      "disable_guests": true,
+      "show_labs_settings": false
+    }

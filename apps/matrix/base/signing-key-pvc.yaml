@@ -1,0 +1,23 @@
+# Small Ceph-backed PVC holding just Synapse's signing key, which Synapse
+# auto-generates on first boot if the file at signing_key_path doesn't
+# exist yet. Ceph rather than NFS for the same locking-correctness
+# reasoning as every small-file, always-mounted PVC in this repo — and,
+# unlike media_store, this genuinely is non-reconstructable state (losing
+# it means a brand-new key, distinct from the account/message data in
+# Postgres), so it gets the same standing Velero annotation as the
+# database — the issue's own acceptance criteria only call out Postgres,
+# but this repo's standing rule is every Ceph-backed workload's data
+# volume gets the annotation, no exceptions. See
+# docs/src/explanation/matrix.md.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matrix-signing-key
+  namespace: matrix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 1Gi

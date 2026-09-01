@@ -1,0 +1,116 @@
+# Element Web — the official web client, entirely static (no PVC, no
+# database), delegating all authentication to Synapse's own OIDC/SSO login
+# flow (see synapse-secrets-externalsecret.yaml) rather than having any of
+# its own. ELEMENT_WEB_PORT=8080 runs the image's own built-in non-root
+# user on an unprivileged port (its default of 80 needs root) — confirmed
+# via the image's own docs before deploying, same "research before
+# deploying" precedent as Mealie's entrypoint.
+#
+# runAsUser/runAsGroup: 101 is the image's own built-in "nginx" user, not an
+# arbitrary uid — found live via a real "container has runAsNonRoot and
+# image has non-numeric user (nginx), cannot verify user is non-root"
+# CreateContainerConfigError: the image sets USER nginx (a name, not a raw
+# uid), which kubelet can't resolve to confirm non-root on its own, so
+# runAsNonRoot: true alone isn't enough here unlike some other images.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: element-web
+  namespace: matrix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: element-web
+  template:
+    metadata:
+      labels:
+        app: element-web
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: element-web
+          image: vectorim/element-web:v1.11.90
+          env:
+            - name: ELEMENT_WEB_PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 101
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.json
+              subPath: config.json
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: element-web-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: element-web
+  namespace: matrix
+spec:
+  selector:
+    app: element-web
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: element-web
+  namespace: matrix
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __ELEMENT_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: element-web
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - __ELEMENT_HOSTNAME__
+      secretName: element-web-tls

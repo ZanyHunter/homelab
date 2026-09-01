@@ -1,0 +1,19 @@
+# Synapse's media_store — uploaded images/videos/files. Unlike Jellyfin's
+# media library, this is fresh/empty and genuinely per-environment, so it's
+# a normal dynamically-provisioned PVC on the existing nfs-dev/nfs-prod
+# StorageClass, same shape as Paperless-ngx's document library — no static
+# PV, no shared export. No Velero annotation: same "NAS's own offsite
+# backup already covers it" reasoning as every other NFS-backed media PVC
+# in this repo (Immich, Paperless-ngx, Jellyfin).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matrix-media
+  namespace: matrix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_NFS__
+  resources:
+    requests:
+      storage: 30Gi

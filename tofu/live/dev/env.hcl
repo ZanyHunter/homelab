@@ -139,6 +139,11 @@ locals {
   public_ingress_enabled = false
   public_apps            = []
   public_keycloak_realm  = false
+  # Structurally can never be true here — dev's domain_name is a subdomain of
+  # the real apex, not the apex itself, so it could never get valid Universal
+  # SSL for a bare-domain_name route even if public_ingress_enabled were on.
+  # See core-addons' public_matrix_wellknown variable description.
+  public_matrix_wellknown = false
 
   ksops_version = "4.5.1"
 

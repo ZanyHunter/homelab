@@ -1148,6 +1148,22 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "this" {
           }
         }
       ] : [],
+      # Deliberately hostname = var.domain_name (the bare apex), not
+      # local.public_hostnames[...] — Matrix's server_name identity (#57)
+      # requires /.well-known/matrix/client to be reachable at exactly
+      # https://<domain_name>/, unlike every other app's suffixed public
+      # hostname. See var.public_matrix_wellknown's description.
+      var.public_matrix_wellknown ? [
+        {
+          hostname = var.domain_name
+          path     = "^/\\.well-known/matrix/.*"
+          service  = "https://ingress-nginx-controller.${kubernetes_namespace.ingress_nginx.metadata[0].name}.svc.cluster.local:443"
+          origin_request = {
+            http_host_header   = var.domain_name
+            origin_server_name = var.domain_name
+          }
+        }
+      ] : [],
       [{ service = "http_status:404" }]
     )
   }
@@ -1173,6 +1189,20 @@ resource "cloudflare_dns_record" "keycloak_public" {
 
   zone_id = var.cloudflare_zone_id
   name    = local.keycloak_public_hostname
+  type    = "CNAME"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.this[0].id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+}
+
+# Bare-apex CNAME for Matrix's /.well-known route — Cloudflare's CNAME
+# flattening natively resolves a proxied CNAME at the zone apex, same as any
+# subdomain record. See var.public_matrix_wellknown.
+resource "cloudflare_dns_record" "matrix_wellknown_public" {
+  count = var.public_ingress_enabled && var.public_matrix_wellknown ? 1 : 0
+
+  zone_id = var.cloudflare_zone_id
+  name    = var.domain_name
   type    = "CNAME"
   content = "${cloudflare_zero_trust_tunnel_cloudflared.this[0].id}.cfargotunnel.com"
   proxied = true

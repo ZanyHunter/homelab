@@ -460,6 +460,31 @@ resource "keycloak_openid_client_optional_scopes" "mealie" {
   ]
 }
 
+resource "random_password" "lubelogger_client_secret" {
+  length  = 32
+  special = false
+}
+
+# LubeLogger's OpenIDConfig__RedirectURL is a single fixed path
+# (Controllers/LoginController.cs's RemoteAuth action) — no wildcard needed,
+# unlike Mealie's. No group/role wiring: LubeLogger has no group-claim
+# support at all (confirmed against its source), so no client-scope mapper
+# and no optional_scopes resource here, unlike Mealie/Paperless-ngx above —
+# same "no single app-wide admin concept" reasoning as Homebox/Vikunja.
+resource "keycloak_openid_client" "lubelogger" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "lubelogger"
+  name      = "LubeLogger"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.lubelogger_client_secret.result
+
+  valid_redirect_uris = ["https://lubelogger.${var.domain_name}/Login/RemoteAuth"]
+  web_origins         = ["+"]
+}
+
 # --- Canonical secrets for External Secrets Operator (#42) -------------------
 # Every client secret generated above for a real, GitOps-managed app used to
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
@@ -599,6 +624,19 @@ resource "kubernetes_secret" "mealie_oidc_client_secret" {
 
   data = {
     client-secret = keycloak_openid_client.mealie.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "lubelogger_oidc_client_secret" {
+  metadata {
+    name      = "lubelogger-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.lubelogger.client_secret
   }
 
   type = "Opaque"

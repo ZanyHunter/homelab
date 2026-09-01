@@ -116,11 +116,24 @@ locals {
   # real showmount-style check before this went in. public_keycloak_realm
   # gates the one narrow ^/realms/homelab/.* tunnel route Immich's public
   # OIDC login needs; the admin console stays internal/VPN-only regardless.
+  #
+  # matrix/element (#57): the client-server API + Element Web, so off-LAN
+  # clients (a phone on cellular) can actually reach Matrix. Federation and
+  # TURN/voice-calls stay off regardless (var.public_matrix_wellknown below
+  # only ever opens the /.well-known/matrix/* discovery path, not federation
+  # itself — see docs/src/explanation/matrix.md).
   public_ingress_enabled = true
   public_apps = [
     { hostname = "photos" },
+    { hostname = "matrix" },
+    { hostname = "element" },
   ]
   public_keycloak_realm = true
+  # Matrix's apex-based server_name identity (#57) needs /.well-known/matrix/*
+  # reachable at exactly https://thepugh.family/ — only satisfiable here
+  # because prod's own domain_name already IS the real apex. See
+  # core-addons' public_matrix_wellknown variable description.
+  public_matrix_wellknown = true
 
 
   ksops_version = "4.5.1"

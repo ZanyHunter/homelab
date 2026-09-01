@@ -1,6 +1,6 @@
-# Self-Hosted Apps: Actual Budget, Paperless-ngx, Vaultwarden, Homebox, changedetection.io, Homepage
+# Self-Hosted Apps: Actual Budget, Paperless-ngx, Vaultwarden, Homebox, changedetection.io, Homepage, Vikunja
 
-Six more real workloads under `apps/`. The first five follow [Immich](./immich.md)'s pattern: one `apps/<app>/` directory each, storage split by locking-sensitivity (Ceph-backed for anything SQLite/Postgres, NFS-backed for bulk files), and Keycloak SSO wherever the app supports it. Homepage (#59, its own section near the end of this page) is the deliberate exception — a stateless dashboard with no PVC and no Velero coverage at all. See [Deployed Apps](../reference/deployed-apps.md) for the hostname table.
+Seven more real workloads under `apps/`. The first five, plus Vikunja (#58), follow [Immich](./immich.md)'s pattern: one `apps/<app>/` directory each, storage split by locking-sensitivity (Ceph-backed for anything SQLite/Postgres, NFS-backed for bulk files), and Keycloak SSO wherever the app supports it. Homepage (#59, its own section near the end of this page) is the deliberate exception — a stateless dashboard with no PVC and no Velero coverage at all. See [Deployed Apps](../reference/deployed-apps.md) for the hostname table.
 
 None of these are public — same LAN/VPN-only posture Immich started at, before public exposure was scoped to prod-only (see [Public Ingress](./public-ingress.md)). Homepage specifically should stay LAN/VPN-only permanently: a dashboard surfacing live status/links for every other internal app is exactly the kind of internal-topology information that shouldn't go to the public internet.
 
@@ -8,7 +8,7 @@ None of these are public — same LAN/VPN-only posture Immich started at, before
 
 ## Storage
 
-Every app here persists to either SQLite or Postgres except changedetection.io (JSON-based watch/history files) — all five land on the Ceph-backed `ceph-rbd-dev` StorageClass rather than NFS, for the same fsync/locking-correctness reasoning as Immich's and Keycloak's Postgres (see [Ceph-Backed Storage](./ceph-backed-storage.md)). Paperless-ngx is the one exception with a *second* PVC: its document library (originals, thumbnails, search index, consume-folder) is bulk file storage with no locking-sensitivity, so it's on `nfs-dev`, split the same way Immich splits database vs. media.
+Every app here persists to either SQLite or Postgres except changedetection.io (JSON-based watch/history files) — all six land on the Ceph-backed `ceph-rbd-dev` StorageClass rather than NFS, for the same fsync/locking-correctness reasoning as Immich's and Keycloak's Postgres (see [Ceph-Backed Storage](./ceph-backed-storage.md)). Paperless-ngx is the one exception with a *second* PVC: its document library (originals, thumbnails, search index, consume-folder) is bulk file storage with no locking-sensitivity, so it's on `nfs-dev`, split the same way Immich splits database vs. media.
 
 | App | Database | Storage |
 | --- | --- | --- |
@@ -17,10 +17,13 @@ Every app here persists to either SQLite or Postgres except changedetection.io (
 | Vaultwarden | SQLite (bundled) | 5Gi, `ceph-rbd-dev` |
 | Homebox | SQLite (bundled) | 2Gi, `ceph-rbd-dev` |
 | changedetection.io | None — flat JSON datastore | 5Gi, `ceph-rbd-dev` |
+| Vikunja | Postgres (hand-rolled `postgres:16-alpine`, uid 70 — same image/uid as Paperless-ngx's/Keycloak's Postgres) | DB: 5Gi `ceph-rbd-dev`. Attachments: 2Gi `ceph-rbd-dev` |
 
-Paperless-ngx also needs a Redis-compatible broker (task queue + websocket backend) regardless of DB choice — `paperless-redis` is the chart-free, hand-rolled Valkey image already used nowhere else in this repo, ephemeral (`emptyDir`, no PVC): losing the broker on a restart just means in-flight tasks re-run, no durable data lives there.
+Vikunja is the second app here to choose Postgres over its own bundled SQLite option (#58) — a deliberate call, not a default: SQLite would have matched Actual/Homebox's precedent and been fine at household scale, but Vikunja's own docs recommend Postgres for real concurrent multi-user access, and there's no meaningful extra operational cost to following that recommendation given the hand-rolled Postgres pattern Paperless-ngx already established. Attachments (likely modest, unlike Paperless's document library) live on their own small Ceph-backed PVC alongside the database, both mounted by separate resources (a `StatefulSet` for Postgres, a `Deployment` for Vikunja itself).
 
-All five Deployments/StatefulSets use an explicit `strategy: { type: Recreate }` (or, for Paperless's Postgres, the StatefulSet default) — every PVC here is `ReadWriteOnce`, so a default rolling update would try to schedule the replacement pod before the old one releases the volume and deadlock on a multi-attach error.
+Paperless-ngx also needs a Redis-compatible broker (task queue + websocket backend) regardless of DB choice — `paperless-redis` is the chart-free, hand-rolled Valkey image already used nowhere else in this repo, ephemeral (`emptyDir`, no PVC): losing the broker on a restart just means in-flight tasks re-run, no durable data lives there. Vikunja also supports an optional Redis-backed cache, but it's deliberately left disabled (#58) — unlike Paperless's Redis dependency above, Vikunja's is purely an optional performance optimization, unnecessary at household scale and not worth adding a new component for.
+
+All six Deployments/StatefulSets use an explicit `strategy: { type: Recreate }` (or, for Paperless's and Vikunja's Postgres, the StatefulSet default) — every PVC here is `ReadWriteOnce`, so a default rolling update would try to schedule the replacement pod before the old one releases the volume and deadlock on a multi-attach error.
 
 ## A real gotcha found live: Kubernetes' auto-injected service-links env vars
 
@@ -36,14 +39,15 @@ Paperless-ngx carries the same risk for the identical reason: its own internal l
 
 ## Authentication
 
-### Native OIDC: Actual Budget, Paperless-ngx, Vaultwarden, Homebox
+### Native OIDC: Actual Budget, Paperless-ngx, Vaultwarden, Homebox, Vikunja
 
-All four support Keycloak login directly — no oauth2-proxy needed, same pattern as Immich/ArgoCD/Grafana. Each has its own `keycloak_openid_client` in `tofu/modules/keycloak-realm/main.tf`, secret Tofu-generated and synced automatically into that app's namespace via ExternalSecrets Operator (#42), following the [Onboard a New App](../guides/onboard-a-new-app.md) guide's "apps with native OIDC support" path and [GitOps: App-of-Apps and Secrets](./gitops-app-of-apps.md)'s ExternalSecrets section.
+All five support Keycloak login directly — no oauth2-proxy needed, same pattern as Immich/ArgoCD/Grafana. Each has its own `keycloak_openid_client` in `tofu/modules/keycloak-realm/main.tf`, secret Tofu-generated and synced automatically into that app's namespace via ExternalSecrets Operator (#42), following the [Onboard a New App](../guides/onboard-a-new-app.md) guide's "apps with native OIDC support" path and [GitOps: App-of-Apps and Secrets](./gitops-app-of-apps.md)'s ExternalSecrets section.
 
 - **Actual Budget**: `ACTUAL_OPENID_*` env vars (`ACTUAL_LOGIN_METHOD=openid`, `ACTUAL_ALLOWED_LOGIN_METHODS=openid` — no password fallback). No per-user roles to wire; Actual's whole model is one shared server login, not per-user RBAC.
 - **Paperless-ngx**: native OIDC via django-allauth's `openid_connect` provider, configured through `PAPERLESS_SOCIALACCOUNT_PROVIDERS` (a JSON blob — see `apps/paperless/base/paperless-oidc-config.yaml`, an `ExternalSecret` templating the client secret into it) and `PAPERLESS_APPS=allauth.socialaccount.providers.openid_connect`. **platform-admins → Django superuser**: `PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS=true` + `PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP=platform-admins`, matched against the same reusable `groups` claim (plain group name, `full_path = false`) already used for ArgoCD/Grafana's RBAC — re-evaluated on *every* login, unlike Immich v3.0.0's account-creation-only behavior, so removing someone from `platform-admins` correctly demotes them here too. Getting the group claim into the token at all needs Paperless's Keycloak client to request the `groups` optional scope (`keycloak_openid_client_optional_scopes.paperless`) *and* the provider's own `SCOPE` array in `PAPERLESS_SOCIALACCOUNT_PROVIDERS` to include `"groups"` — both sides have to ask for it. `PAPERLESS_DISABLE_REGULAR_LOGIN=true` blocks the frontend password form and rejects any password-based login attempt server-side, regardless of whether a local account exists (see the gotcha below on why one now does).
 - **Vaultwarden**: `SSO_ENABLED=true`, `SSO_ONLY=true` (no local-password account creation — Keycloak is the only login path). SSO only gates *account* login: vault items are still encrypted client-side with a separate master password the IdP never sees, so this doesn't remove that step. `SIGNUPS_ALLOWED=true` is left on so a real Keycloak account's first SSO login can actually create a Vaultwarden account — worth tightening (e.g. an invite-only flow) once every real household account has logged in once; this was a judgment call, not something verified against a documented "correct" setting, so revisit it live. Vaultwarden's `/admin` panel is gated by a separate static `ADMIN_TOKEN`, unrelated to Keycloak.
 - **Homebox**: `HBOX_OIDC_ENABLED=true`, `HBOX_OPTIONS_ALLOW_LOCAL_LOGIN=false`. No app-wide admin role to wire — Homebox's ownership model is per-household (the first user of a household becomes its owner), not a single superuser concept like Paperless's.
+- **Vikunja**: `VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_*` env vars (a freely-chosen provider key, `keycloak`, that must match the `/auth/openid/<key>` redirect URI registered on its Keycloak client), plus `VIKUNJA_AUTH_LOCAL_ENABLED=false` and `VIKUNJA_SERVICE_ENABLEREGISTRATION=false` (no password fallback, no local self-registration). `AUTHURL` is Keycloak's realm base URL, not a literal authorization endpoint — Vikunja does its own OIDC discovery from that issuer, same pattern as Homebox's `HBOX_OIDC_ISSUER_URL`; confirmed live via Vikunja's own `/api/v1/info` endpoint reporting back a real, discovery-resolved `auth_url` (`.../protocol/openid-connect/auth`) rather than a static value. No per-user roles to wire — same reasoning as Homebox, no single app-wide admin concept.
 
 ### A real gotcha found live: Paperless-ngx's open signup window on a fresh install
 
@@ -80,8 +84,10 @@ Verified live after all three fixes: the pod stays healthy and its `resources` w
 ## Verification
 
 ```bash
-kubectl get pvc -n actual -n paperless -n vaultwarden -n inventory -n changedetection
-kubectl get pods -n actual -n paperless -n vaultwarden -n inventory -n changedetection
+kubectl get pvc -n actual -n paperless -n vaultwarden -n inventory -n changedetection -n vikunja
+kubectl get pods -n actual -n paperless -n vaultwarden -n inventory -n changedetection -n vikunja
 ```
 
 Confirms every PVC bound on its intended StorageClass and every pod healthy, not just that resources exist. Real logins (not just "the login button appears") are the actual bar for each: visiting each hostname in the [Deployed Apps](../reference/deployed-apps.md) table should redirect through Keycloak (or, for changedetection.io, oauth2-proxy's own login page) and land back in the app authenticated.
+
+Vikunja was verified live on dev at this final shape: `tofu apply` on `keycloak-realm` created its Keycloak client cleanly (plan showed exactly the 3 expected new resources, zero drift elsewhere), the Kustomize build for both `dev` and `prod` overlays was confirmed correct via the ArgoCD repo-server test-build pattern (hostnames, StorageClass names, and every secret reference resolved as expected in the rendered output), and applying the `dev` build directly showed both the `vikunja` and `vikunja-postgres` pods reach `Running`/`Ready` with migrations completing successfully in the logs. `vikunja-tls` issued a real Let's Encrypt certificate and `/api/v1/info` returned `200` over HTTPS. The OIDC wiring specifically was confirmed past "the client exists": that same `/api/v1/info` response reported Vikunja's own server-side discovery against Keycloak's realm resolving to a real `auth_url` with the correct `client_id` — strong evidence the discovery/redirect/client-id chain is correct end to end, though (as with every other app on this page) the full interactive browser login itself is outside what this environment can verify. Not yet synced via real GitOps — only via this direct `kubectl apply`, per this repo's pre-PR verification pattern — and prod has never had this app applied at all.

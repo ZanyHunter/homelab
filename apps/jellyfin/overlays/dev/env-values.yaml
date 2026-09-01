@@ -1,0 +1,14 @@
+# The per-environment values this app's base/ manifests reference as
+# __APP_HOSTNAME__/__STORAGE_CLASS_CEPH__ tokens — see
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+# No storage-class-nfs/keycloak-hostname here: the media library is a static
+# PV shared byte-for-byte with prod (media-pv.yaml, not templated per
+# environment), and the SSO plugin's Keycloak config is entered by hand
+# through Jellyfin's own admin UI rather than an env var.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-values
+data:
+  app-hostname: jellyfin.dev.thepugh.family
+  storage-class-ceph: ceph-rbd-dev

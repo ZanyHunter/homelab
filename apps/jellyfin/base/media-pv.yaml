@@ -1,0 +1,63 @@
+# Deliberate, explicit exception to this repo's "dev and prod share no
+# infrastructure" rule (see CLAUDE.md's opening section): the real media
+# library is one physical collection (~225GiB today) already NFS-exported
+# from the NAS to BOTH VLANs, and the user chose to have both dev's and
+# prod's Jellyfin read it in place rather than duplicate 225GiB+ across two
+# separate copies -- there's no per-environment "dev media" the way every
+# other app's NFS-backed data is scoped. This file is identical in both
+# overlays for exactly that reason: the NFS server/path aren't
+# environment-specific here, so they don't belong in env-values.yaml.
+#
+# First static (not dynamically-provisioned) PV/PVC pair in this repo. Every
+# other NFS-backed PVC elsewhere binds to a fresh, empty, dynamically
+# provisioned volume on that environment's own nfs_storage share via
+# csi-driver-nfs -- this one instead points directly at a pre-existing NFS
+# export the user already populated by hand outside Kubernetes entirely, so
+# it has to bypass the normal StorageClass mechanism:
+#   - storageClassName: "" on both objects, plus an explicit two-way bind
+#     (claimRef here, volumeName on the PVC) -- prevents any other PVC in
+#     the cluster from accidentally matching and claiming this volume.
+#   - persistentVolumeReclaimPolicy: Retain -- deleting the PVC/PV must
+#     never delete the underlying files; they're the user's real library,
+#     not disposable/re-provisionable data.
+#   - accessModes: ReadOnlyMany + mountOptions: ["ro"] -- Jellyfin only
+#     reads the library (metadata/watch state live in /config instead), so
+#     this is enforced read-only at the actual NFS mount level, not just by
+#     the pod's own volumeMount flag (jellyfin.yaml also sets readOnly: true
+#     as a second, independent layer).
+#   - No Velero annotation, same reasoning as Immich's/Pinchflat's large
+#     media libraries: this is flagged as relying on the NAS's own offsite
+#     backup only, not silently assumed covered.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jellyfin-media
+spec:
+  capacity:
+    storage: 250Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - ro
+  nfs:
+    server: truenas.thepugh.family
+    path: /mnt/Main/jellyfin-media
+  claimRef:
+    namespace: jellyfin
+    name: jellyfin-media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-media
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  volumeName: jellyfin-media
+  resources:
+    requests:
+      storage: 250Gi

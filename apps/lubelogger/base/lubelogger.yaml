@@ -1,0 +1,162 @@
+# LubeLogger — https://docs.lubelogger.com/. Vehicle maintenance/fuel-mileage
+# tracker, single-container, SQLite-based like Actual Budget. Native OIDC via
+# OpenIDConfig__* env vars (docs: https://docs.lubelogger.com/Advanced/OpenID/)
+# — LubeLogger supports only one configured OIDC provider at a time and
+# matches users by email address, which must already exist as a local
+# LubeLogger account (unlike every other app in this repo, LubeLogger does not
+# auto-provision an account on first OIDC login).
+#
+# mcr.microsoft.com/dotnet/aspnet:10.0 (LubeLogger's base image) has no
+# built-in non-root user or USER directive — runAsUser/fsGroup: 1000 below is
+# an arbitrary uid, safe because Kubernetes chowns the Ceph-backed PVC to that
+# uid via fsGroup on mount (same reasoning as Immich).
+#
+# HOME=/App/data redirects ASP.NET Core's Data Protection key ring off its
+# default $HOME/.aspnet/DataProtection-Keys (which resolves to /root when the
+# upstream image runs as root, per its own docker-compose.yml) onto the
+# persistent PVC instead — otherwise $HOME is unset for an arbitrary uid with
+# no /etc/passwd entry (same class of bug fixed for Velero's kopia repo path
+# via an explicit HOME env var), and login cookies would fail to decrypt
+# across every pod restart, forcing a fresh login every time.
+#
+# EnableAuth is deliberately left unset (upstream's own default, false):
+# LubeLogger ships with authentication OFF and a fake-admin bypass session
+# until an operator manually enables it via the in-app Settings page — setting
+# EnableAuth=true blind on a fresh deploy with no local root user and no
+# OIDC-matched account yet would lock everyone out with no way back in. See
+# docs/src/explanation/self-hosted-apps.md for the one-time manual step this
+# leaves the operator (turning authentication on) before this deployment is
+# actually access-controlled.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lubelogger
+  namespace: lubelogger
+spec:
+  replicas: 1
+  # RWO PVC: a rolling update would try to schedule the new pod before the
+  # old one releases the volume, deadlocking on a multi-attach error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lubelogger
+  template:
+    metadata:
+      labels:
+        app: lubelogger
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # real SQLite/document contents, not just the Deployment's own object
+        # definition. See docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      # Kubernetes auto-injects Docker-links-style <SVCNAME>_PORT env vars
+      # for every Service in the namespace unless this is false — collided
+      # live with Actual Budget's own config key, so it's standing policy
+      # across every app in this repo now.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: lubelogger
+          image: ghcr.io/hargata/lubelogger:v1.7.1
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: HOME
+              value: /App/data
+            - name: OpenIDConfig__Name
+              value: Keycloak
+            - name: OpenIDConfig__ClientId
+              value: lubelogger
+            - name: OpenIDConfig__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: lubelogger-oidc-config
+                  key: oidc-client-secret
+            - name: OpenIDConfig__AuthURL
+              value: https://__KEYCLOAK_HOSTNAME__/realms/homelab/protocol/openid-connect/auth
+            - name: OpenIDConfig__TokenURL
+              value: https://__KEYCLOAK_HOSTNAME__/realms/homelab/protocol/openid-connect/token
+            - name: OpenIDConfig__RedirectURL
+              value: https://__APP_HOSTNAME__/Login/RemoteAuth
+            - name: OpenIDConfig__Scope
+              value: openid email
+            - name: OpenIDConfig__UsePKCE
+              value: "true"
+          volumeMounts:
+            - name: data
+              mountPath: /App/data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: lubelogger-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lubelogger
+  namespace: lubelogger
+spec:
+  selector:
+    app: lubelogger
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lubelogger
+  namespace: lubelogger
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lubelogger
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: lubelogger-tls

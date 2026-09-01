@@ -1,0 +1,22 @@
+# Mirrors keycloak-realm's kubernetes_secret.lubelogger_oidc_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# (apps/cluster-addons/base/) — automatically stays current across a
+# keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
+# terragrunt output/hand-carry step (#42). See docs/src/explanation/gitops-app-of-apps.md.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: lubelogger-oidc-config
+  namespace: lubelogger
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: lubelogger-oidc-config
+  data:
+    - secretKey: oidc-client-secret
+      remoteRef:
+        key: lubelogger-oidc-client-secret
+        property: client-secret

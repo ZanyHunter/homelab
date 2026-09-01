@@ -1,0 +1,60 @@
+# Jellyfin
+
+[Jellyfin](https://jellyfin.org/) media server (#52), `apps/jellyfin/`. Unlike every other app under `apps/`, it deliberately breaks two of this repo's standing rules — its media library is a single static NFS mount shared byte-for-byte across both dev and prod (not per-environment data), and its Keycloak login is entirely admin-UI-configured rather than wired through an env var — both because of decisions specific to this app, confirmed directly with the user rather than assumed.
+
+---
+
+## Storage: three volumes, three different backends
+
+- **`/config`** (`jellyfin-config`, Ceph-backed, 10Gi): the SQLite library DB, watch history/favorites/accounts, and per-item metadata images (posters, backdrops, actor photos). Locking-sensitive, same reasoning as every other app's database in this repo (see [Ceph-Backed Storage](./ceph-backed-storage.md)). Sized larger than this repo's usual 5Gi SQLite-app default (Actual/Mealie/LubeLogger) since metadata images scale with library size, not video byte size.
+- **`/cache`** — `emptyDir`, node-local ephemeral disk, deliberately **not** a PVC. Jellyfin's own docs recommend fast local storage for transcoding rather than sharing I/O with the media library; `emptyDir` avoids both NFS round-trip latency and extra load on the shared Ceph pool for a workload (transcoding) with much heavier bytes/sec than a typical database. `sizeLimit: 4Gi` is deliberately modest — Talos worker VM root disks are only 20GB total (`tofu/modules/talos-cluster/main.tf`), shared with the OS, container images, and every other pod's own ephemeral storage on that node, so this is a real constraint, not an arbitrary choice. Worth revisiting if live multi-stream transcoding turns out to need more headroom.
+- **`/media`** (`jellyfin-media`, a static PV, read-only) — the real library. See below for why this one is genuinely different from every other NFS-backed PVC in this repo.
+
+## The media PV: a deliberate exception to "dev and prod share no infrastructure"
+
+CLAUDE.md states plainly that dev and prod share no infrastructure — each environment gets its own NFS backend, among other things. Jellyfin's media library is a deliberate, confirmed exception: the user's real ~225GiB library is one physical collection, already NFS-exported from the NAS to both VLANs, and duplicating 225GiB+ across two separate copies just to preserve environment purity had no real benefit — both dev's and prod's Jellyfin read the exact same files in place.
+
+Mechanically, this is this repo's **first static (not dynamically-provisioned) PersistentVolume**. Every other NFS-backed PVC elsewhere binds to a fresh, empty volume dynamically provisioned on that environment's own `nfs_storage` share via `csi-driver-nfs`; this one instead points directly at a pre-existing NFS export the user populated by hand outside Kubernetes entirely, so it bypasses the StorageClass mechanism on purpose:
+
+- `storageClassName: ""` on both the PV and PVC, plus an explicit two-way bind (`claimRef` on the PV, `volumeName` on the PVC) — guarantees this exact PVC binds to this exact PV, with no chance of an unrelated PVC in the cluster accidentally claiming it.
+- `persistentVolumeReclaimPolicy: Retain` — deleting the PVC/PV must never delete the underlying files. They're the user's real library, not disposable/re-provisionable data the way every other PVC's contents are.
+- `accessModes: [ReadOnlyMany]` plus `mountOptions: [ro]` — Jellyfin only ever reads the library (metadata and watch state both live in `/config` instead), enforced read-only at the actual NFS mount syscall level via `mountOptions`, not just by the pod's own `volumeMount.readOnly` flag (which is also set, as a second, independent layer).
+- No Velero annotation, same reasoning as Immich's and Pinchflat's own large media libraries: this is flagged as relying on the NAS's own offsite backup only, not silently assumed covered by Velero.
+- Since it's the same literal NFS server/path in both environments, this file lives in `apps/jellyfin/base/` untouched by either overlay — there's no per-environment value to template here, unlike every other app's storage.
+
+`nfs.server`/`nfs.path` point at `truenas.thepugh.family:/mnt/Main/jellyfin-media` — see [NFS Export Settings](../reference/nfs-export-settings.md) for how this export's settings differ from the dynamic-provisioning `k8s-dev`/`k8s-prod` exports.
+
+### A real gotcha found live: an NFS export not crossing a ZFS dataset boundary
+
+The path was originally going to be `/mnt/Main/jellyfin-media/content` (a subdirectory the user described as holding the actual library). Mounting it showed a clean, successfully-empty directory — no permission error, just zero entries. That absence of an error was the tell: a genuine permissions problem would have surfaced as `Permission denied`, not a quiet empty listing.
+
+Diagnosis, confirmed against a real TrueNAS root shell the user ran directly: `content` held real files (`Movies`, `TV Shows`, `Other`) when read locally on the NAS, but appeared empty over NFS. This is the signature of `content` being a **separate ZFS dataset** mounted at that path, whose own boundary the parent export doesn't cross (no `crossmnt`-equivalent) — NFS clients see the parent export's empty mountpoint stub rather than the child dataset's real contents, while root's local shell session bypasses NFS entirely and sees straight through to the mounted filesystem underneath.
+
+Resolved by the user moving the actual content up a level, directly into `/mnt/Main/jellyfin-media` itself (the export root) rather than fixing the dataset-crossing config — simpler than adding a second NFS share or hunting for a TrueNAS child-dataset-sharing toggle. `media-pv.yaml`'s path was updated to match.
+
+### A second real gotcha found live: NFS file permissions blocking the non-root pod
+
+With content at the export root, a second, independent problem surfaced immediately: `/mnt/Main/jellyfin-media` itself was owned uid 972/gid 1007 with mode `771` (no world-read), and the `Movies`/`TV Shows`/`Other` directories inside it were owned `root:root` with mode `700` (no world-access at all) — both confirmed live via a throwaway debug pod mounting the raw NFS path as uid 1000 (the same arbitrary non-root uid Jellyfin's own pod runs as) and getting `Permission denied` on every listing.
+
+This is a plain Unix permissions problem, unrelated to NFS root-squash (root-squash only remaps the *root* uid; a non-root client uid like 1000 is passed through as-is and subject to normal permission bits regardless of root-squash being on or off). The fix has to happen on the NAS itself — no Kubernetes-side setting can substitute for read permission missing on the underlying files. The user resolved it by making the library recursively world-readable on TrueNAS (`chmod -R o+rX`-equivalent, confirmed live via ACL entries — a trailing `+` — subsequently visible on every directory), rather than mapping every NFS request to a fixed user via the share's Mapall setting. Re-verified after the fix: `ls`, real subdirectory traversal, and individual video files all readable from inside the Jellyfin pod.
+
+## Authentication: a community-maintained plugin, not native OIDC
+
+Jellyfin has no OIDC support of its own. The two plugins named in issue #52 — `9p4/jellyfin-plugin-sso` and `eddymoulton/jellyfin-plugin-oidc` — are **both archived** by their original authors (confirmed via the GitHub API, not assumed from stale documentation). Research before deploying found `9p4`'s project has an actively-maintained community fork, [`Buco7854/jellyfin-plugin-sso`](https://github.com/Buco7854/jellyfin-plugin-sso) (37 stars, zero open issues, last pushed within the week of this deployment, explicitly describing itself as "a community fork... maintenance and new fixes will continue here") — `eddymoulton`'s fork has no equivalent successor. This was surfaced to the user as a real decision (running a third-party plugin binary that handles authentication) rather than picked unilaterally; the user chose the maintained fork.
+
+**No env var, no ExternalSecret — genuinely different from every other app on this page.** Every native-OIDC app elsewhere in this repo (Vikunja, Mealie, LubeLogger, etc.) gets its Keycloak client secret automatically via ExternalSecrets Operator into an env var. The SSO plugin has no env-based configuration at all — it's 100% admin-UI-driven, storing its own OIDC client ID/secret inside its plugin config on disk. `tofu/modules/keycloak-realm/outputs.tf`'s `jellyfin_oidc_client_secret` output is therefore not a break-glass fallback the way every other app's output is (see their descriptions) — it's the actual, sole distribution mechanism: fetch it with `terragrunt output -raw jellyfin_oidc_client_secret` and paste it by hand into the plugin's admin UI.
+
+The Keycloak client (`tofu/modules/keycloak-realm/main.tf`) is a normal `CONFIDENTIAL` client with `standard_flow_enabled = true` and the `groups` optional scope attached (same reusable client scope ArgoCD/Grafana/Mealie/Paperless-ngx already use), so the plugin's own RBAC config can gate Jellyfin admin on `platform-admins` membership — the same "any Keycloak-authorized identity gets in, group membership only grants admin" model as everywhere else in this repo.
+
+**One-time manual setup steps** (same category as LubeLogger's `EnableAuth` toggle — an admin-console action Tofu/Kustomize genuinely cannot automate):
+
+1. Complete Jellyfin's first-run setup wizard (create the initial local admin account, add the `/media` path as a library).
+2. In Dashboard → Plugins → Repositories, add `https://raw.githubusercontent.com/Buco7854/jellyfin-plugin-sso/manifest-release/manifest.json`, then install "SSO Auth" from the catalog and restart the server.
+3. In the plugin's own config page, add a provider (`OidEndpoint: https://<keycloak-hostname>/realms/homelab`, `OidClientId: jellyfin`, `OidSecret:` the value from step above, `RoleClaim: groups`, `AdminRoles: ["platform-admins"]`).
+4. Confirm the redirect URI Keycloak has on file (`https://<jellyfin-hostname>/sso/OID/redirect/keycloak`) matches what the plugin's provider name produces — the client was created with `keycloak` as the provider name specifically to match.
+
+## Verification
+
+Verified live on dev end to end for everything Kubernetes-side: `tofu apply` on `keycloak-realm` created the Jellyfin client cleanly via a `-target`ed apply (full apply was avoided since dev's live state still carried an unrelated, still-in-review app's Keycloak resources this branch's code didn't yet include — targeting kept that untouched). Both `dev`/`prod` Kustomize builds were confirmed identical apart from hostname/StorageClass. The pod reached `Running`/`Ready`, `jellyfin-tls` issued a real Let's Encrypt certificate, and `https://jellyfin.dev.thepugh.family/health` returned `200` over the real Ingress path. The `/config` PVC bound on `ceph-rbd-dev`; the static `/media` PV/PVC bound correctly after the two gotchas above were resolved, with real files (`Movies/A New Hope/A New Hope.mp4`, etc.) confirmed readable from inside the pod as its non-root uid. A live "in-memory Data Protection repository" warning on first boot (same class of bug as LubeLogger's cookie-decryption fix) was caught and fixed with `HOME=/config`, confirmed by the warning disappearing and `/config/.aspnet/DataProtection-Keys` appearing on the next boot.
+
+Not verified here, since they need an interactive browser session: the SSO plugin install and a real Keycloak login through it, and a real Jellyfin library scan populating the catalog from `/media`. Both are documented above as the remaining one-time manual steps. Public exposure and prod deployment were both explicitly deferred by the user, same as every other app in this repo's backlog; not yet synced via real GitOps, only this direct `kubectl apply`, per this repo's usual pre-PR verification pattern.

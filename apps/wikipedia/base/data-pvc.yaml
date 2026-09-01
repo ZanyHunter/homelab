@@ -1,0 +1,28 @@
+# Single NFS-backed PVC holding every ZIM file plus kiwix-serve's
+# library.xml -- no Ceph-backed component at all (#53), the first app in
+# this repo's apps/ tree with no database. Content is a re-fetchable cache
+# (trivially re-downloadable from download.kiwix.org), not source-of-truth
+# data, so unlike every other app here it gets no Velero File System Backup
+# annotation -- there's no Ceph-backed volume to annotate in the first
+# place, and re-downloading is strictly simpler than restoring from backup.
+#
+# Sizing: the chosen bundle (English Wikipedia Maxi, Wiktionary nopic,
+# Wikibooks/Wikiquote/Wikivoyage/Wikisource Maxi) is ~162GB at rest
+# (verified against download.kiwix.org's real metalink metadata, not a
+# guess). The updater CronJob (updater-cronjob.yaml) downloads each
+# series' new release fully before deleting the old one, so during a
+# Wikipedia Maxi update -- the largest series, ~124GB -- old and new
+# briefly coexist: peak usage is closer to ~286GB. 320Gi leaves headroom
+# above that peak for future release growth.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wikipedia-data
+  namespace: wikipedia
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: __STORAGE_CLASS_NFS__
+  resources:
+    requests:
+      storage: 320Gi

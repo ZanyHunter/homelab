@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - env-values.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.app-hostname
+    targets:
+      - select:
+          kind: Ingress
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: vikunja
+        fieldPaths:
+          - spec.template.spec.containers.0.env.[name=VIKUNJA_SERVICE_PUBLICURL].value
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.keycloak-hostname
+    targets:
+      - select:
+          kind: Deployment
+          name: vikunja
+        fieldPaths:
+          - spec.template.spec.containers.0.env.[name=VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_AUTHURL].value
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.storage-class-ceph
+    targets:
+      - select:
+          kind: PersistentVolumeClaim
+          name: vikunja-data
+        fieldPaths:
+          - spec.storageClassName
+      - select:
+          kind: StatefulSet
+        fieldPaths:
+          - spec.volumeClaimTemplates.0.spec.storageClassName

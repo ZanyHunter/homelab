@@ -1,0 +1,93 @@
+# Plain postgres:alpine — Vikunja needs no special extension, same
+# hand-rolled pattern as Paperless-ngx's and Keycloak's Postgres (same
+# image family, same confirmed-live uid 70 — see
+# tofu/modules/keycloak-infra/main.tf), not a chart.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vikunja-postgres
+  namespace: vikunja
+spec:
+  selector:
+    app: vikunja-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vikunja-postgres
+  namespace: vikunja
+spec:
+  serviceName: vikunja-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vikunja-postgres
+  template:
+    metadata:
+      labels:
+        app: vikunja-postgres
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # actual database contents, not just the StatefulSet's own object
+        # definition. See docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 70
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: POSTGRES_DB
+              value: vikunja
+            - name: POSTGRES_USER
+              value: vikunja
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-db-credentials
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "vikunja"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "vikunja"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: __STORAGE_CLASS_CEPH__
+        resources:
+          requests:
+            storage: 5Gi

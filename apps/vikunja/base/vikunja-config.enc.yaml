@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: vikunja-config
+    namespace: vikunja
+stringData:
+    service-secret: ENC[AES256_GCM,data:ekeoTN+OH1xq2wRpnxAtDEcdE6vP5dJxTIdG4IuzDSxDshV8VFPESXF7U/1T2L1F,iv:ZpnO7GRknTI+H96gh8c1XHbpA8FDWkNio8b+Q213IiY=,tag:Dl7h6At+xouIQQ33iPBTeg==,type:str]
+type: Opaque
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBUZGJvVytxU1dYS29MTGdH
+            TVhYV1FjSitnYXlFMTdSN1h3eitrU1BPcVZjClY0MmlNMUliQkM4RFB2clBDanFr
+            cDYxQUQ4QVc1UVFpYVI2WmMvM2hlUFkKLS0tIFlmMlliVVJHRWRmVDRyQkpkOUti
+            VHc5U2FTSlBCMGhZc1k4QlZXOWkraTAKwBe45kh3F6gAB9ERiv0wo2pDOT/0YYND
+            cSVGjYef8LVqUf2QFb0oEj20VHvBIT+lY9F+m1nSV7sQNFSXXGpfAw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1tygf3cppgemsa5h93gwyk2ucg55n48ernr8afvpul6uy7pek7sjscavun5
+    encrypted_regex: ^(data|stringData|email)$
+    lastmodified: "2026-09-01T03:17:58Z"
+    mac: ENC[AES256_GCM,data:reJqqVjlgUfXXN2gyBrobmukJeqv8laReVfdNQ7gmLqlr6QlYkl/+T4yhKW0bwYn6n1BSmwWt+kL9xGDptxnduilfki3W4TRVaaYXrPM97H6Vci/1D6y6BSezt07NsACeG9aWYCwIeOZayDcZXLxwL/yzDugBLvL4H0r+sd02sg=,iv:6qlo48APS+MWhkt7CLfxaYrKBgWA+pRk+Vh/SVNnsmI=,tag:hQyomScaWDPieUe9MmuPhQ==,type:str]
+    version: 3.13.3

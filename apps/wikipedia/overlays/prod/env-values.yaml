@@ -1,8 +1,12 @@
 # The per-environment values this app's base/ manifests reference as
-# __APP_HOSTNAME__/__STORAGE_CLASS_NFS__ tokens -- see
+# __APP_HOSTNAME__/__STORAGE_CLASS_NFS__/__DATA_PVC_SIZE__ tokens -- see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 # No keycloak-hostname/storage-class-ceph here: this app has no SSO and no
 # Ceph-backed component at all (#53).
+#
+# pvc-size is 320Gi: prod carries the full ZIM bundle
+# updater-cronjob.yaml downloads (unlike dev, which patches the CronJob
+# down to a much smaller series subset -- see dev's env-values.yaml).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,3 +14,4 @@ metadata:
 data:
   app-hostname: wikipedia.thepugh.family
   storage-class-nfs: nfs-prod
+  pvc-size: 320Gi

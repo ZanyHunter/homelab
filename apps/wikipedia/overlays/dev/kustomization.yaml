@@ -25,3 +25,52 @@ replacements:
           kind: PersistentVolumeClaim
         fieldPaths:
           - spec.storageClassName
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.pvc-size
+    targets:
+      - select:
+          kind: PersistentVolumeClaim
+        fieldPaths:
+          - spec.resources.requests.storage
+
+# Dev's permanent Kiwix footprint is just Wikiquote + Wikivoyage (~2GB,
+# already proven live) -- everything else the base CronJob tracks
+# (Wikibooks, Wiktionary, Wikisource, Wikipedia Maxi) would add well over
+# 150GB to a dev-only testing cluster for no ongoing benefit. Removing
+# each series' sync-*/reindex-* initContainer pair rather than trimming
+# the base's own series list keeps prod's overlay change-free (no patch
+# at all) and keeps the base a single, complete definition of every
+# series this app knows how to track.
+patches:
+  - target:
+      kind: CronJob
+      name: wikipedia-updater
+    patch: |-
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: wikipedia-updater
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                initContainers:
+                  - name: sync-wikibooks
+                    $patch: delete
+                  - name: reindex-wikibooks
+                    $patch: delete
+                  - name: sync-wiktionary
+                    $patch: delete
+                  - name: reindex-wiktionary
+                    $patch: delete
+                  - name: sync-wikisource
+                    $patch: delete
+                  - name: reindex-wikisource
+                    $patch: delete
+                  - name: sync-wikipedia
+                    $patch: delete
+                  - name: reindex-wikipedia
+                    $patch: delete

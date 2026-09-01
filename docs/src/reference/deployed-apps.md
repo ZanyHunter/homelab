@@ -27,5 +27,6 @@ All hostnames below use `dev`'s domain suffix (`dev.thepugh.family`) — see [DN
 | [Mealie](../explanation/self-hosted-apps.md) | `recipes.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi, DB + images combined) | None — combined with DB above | Keycloak OIDC (native) |
 | [LubeLogger](../explanation/self-hosted-apps.md) | `lubelogger.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi, DB + documents combined) | None — combined with DB above | Keycloak OIDC (native) |
 | [Pinchflat](../explanation/self-hosted-apps.md) | `youtube.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi) | Videos: `nfs-dev` (20Gi, prod: 500Gi) | Keycloak OIDC via oauth2-proxy (forward-auth) |
+| [Matrix (Synapse)](../explanation/matrix.md) | `matrix.dev.thepugh.family` + `element.dev.thepugh.family` + bare `dev.thepugh.family` (`/.well-known/matrix/client` only) | Postgres, `ceph-rbd-dev` (10Gi) | Media: `nfs-dev` (30Gi); signing key: 1Gi, `ceph-rbd-dev` | Keycloak OIDC (native); prod's `matrix`/`element` are public, federation off |
 
 To add another app, see the [Onboard a New App](../guides/onboard-a-new-app.md) guide.

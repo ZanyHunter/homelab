@@ -1,0 +1,25 @@
+# Mirrors keycloak-realm's kubernetes_secret.mealie_oidc_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# (apps/cluster-addons/base/) — automatically stays current across a
+# keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
+# terragrunt output/hand-carry step (#42). Mealie needs no ksops-encrypted
+# secret of its own: unlike Homebox/Vikunja, it has no local pepper/service-
+# secret env var with no Tofu counterpart. See
+# docs/src/explanation/gitops-app-of-apps.md.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: mealie-oidc-config
+  namespace: mealie
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: mealie-oidc-config
+  data:
+    - secretKey: oidc-client-secret
+      remoteRef:
+        key: mealie-oidc-client-secret
+        property: client-secret

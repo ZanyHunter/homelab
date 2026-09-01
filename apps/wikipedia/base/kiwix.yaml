@@ -1,0 +1,150 @@
+# kiwix-serve (#53) -- offline Wikipedia + reference-family mirror via the
+# ZIM file format. No auth of its own and no OIDC (unlike every other app
+# in this repo): deliberately left open on LAN/VPN per the issue's own
+# judgment-call framing -- the content is public-domain and low-sensitivity,
+# and adding oauth2-proxy forward-auth here would be gating access for its
+# own sake rather than for a real reason. Not in public_apps either (see
+# CLAUDE.md's Public ingress bullet) -- serving 100GB+ to the public
+# internet is a real bandwidth/cost concern distinct from every other app
+# here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kiwix-serve
+  namespace: wikipedia
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: kiwix-serve
+  template:
+    metadata:
+      labels:
+        app: kiwix-serve
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      # Runs the same reindex.sh the updater CronJob uses, so library.xml
+      # always exists by the time kiwix-serve starts -- verified live that
+      # kiwix-serve --monitorLibrary exits instead of waiting if the library
+      # file is simply missing (a real concern on first-ever deploy, before
+      # the CronJob has run even once).
+      initContainers:
+        - name: reindex
+          image: ghcr.io/kiwix/kiwix-tools:3.8.2
+          command: ["sh", "/scripts/reindex.sh"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+      containers:
+        - name: kiwix-serve
+          image: ghcr.io/kiwix/kiwix-serve:3.8.2
+          # No --port here: the image's own start.sh wrapper always
+          # prepends --port=$PORT (default 8080) itself -- passing it again
+          # here produced a literal duplicate --port=8080 --port=8080 CLI
+          # error (verified live).
+          args:
+            - --library
+            - --monitorLibrary
+            - /data/library.xml
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: wikipedia-data
+        - name: scripts
+          configMap:
+            name: wikipedia-updater-scripts
+            defaultMode: 0555
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiwix-serve
+  namespace: wikipedia
+spec:
+  selector:
+    app: kiwix-serve
+  ports:
+    - port: 8080
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kiwix-serve
+  namespace: wikipedia
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kiwix-serve
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: kiwix-serve-tls

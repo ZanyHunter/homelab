@@ -1,0 +1,87 @@
+# Homepage's own config — plain YAML mounted read-only, no PVC at all (#59).
+# Deliberately static config rather than the Kubernetes-auto-discovery mode
+# (gethomepage.dev/*  Ingress annotations + a cluster-reading ServiceAccount):
+# matches this repo's existing preference for explicit/reviewable config over
+# auto-discovery (the DNS wildcard-record-over-ExternalDNS decision), and
+# avoids granting the first read access to the Kubernetes API any app in this
+# repo would have. Hostnames use Homepage's own {{HOMEPAGE_VAR_*}} templating
+# (see gethomepage.dev/installation/#using-environment-secrets) rather than a
+# Kustomize replacements: target per link — one env var (HOMEPAGE_VAR_DOMAIN_SUFFIX,
+# wired from __DOMAIN_SUFFIX__ in homepage.yaml) covers every hostname in this
+# file, since every app in this repo shares one per-environment domain_name
+# suffix.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: homepage
+data:
+  settings.yaml: |
+    title: Homelab
+    target: _blank
+    quicklaunch:
+      searchDescriptions: true
+  services.yaml: |
+    - Cluster:
+        - ArgoCD:
+            href: https://argocd.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: GitOps app-of-apps
+            siteMonitor: https://argocd.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Grafana:
+            href: https://grafana.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Metrics, logs, alerting
+            siteMonitor: https://grafana.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Keycloak:
+            href: https://keycloak.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Single sign-on
+            siteMonitor: https://keycloak.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+
+    - Apps:
+        - Immich:
+            href: https://photos.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Photo library
+            siteMonitor: https://photos.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Actual Budget:
+            href: https://actual.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Budgeting
+            siteMonitor: https://actual.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Paperless-ngx:
+            href: https://paperless.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Document archive
+            siteMonitor: https://paperless.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Vaultwarden:
+            href: https://vaultwarden.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Password manager
+            siteMonitor: https://vaultwarden.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - Homebox:
+            href: https://inventory.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Home inventory
+            siteMonitor: https://inventory.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+        - changedetection.io:
+            href: https://changedetection.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+            description: Webpage change monitoring
+            siteMonitor: https://changedetection.{{HOMEPAGE_VAR_DOMAIN_SUFFIX}}/
+  widgets.yaml: |
+    - resources:
+        backend: resources
+        expanded: true
+        cpu: true
+        memory: true
+    - search:
+        provider: duckduckgo
+        target: _blank
+  bookmarks.yaml: |
+    []
+  # Homepage's entrypoint auto-populates any *missing* skeleton config file
+  # into /app/config from its own image at startup — and /app/config isn't
+  # writable as the non-root uid this Deployment runs as, so a file it
+  # expects but doesn't find crashes the whole container with EACCES (found
+  # live: kubernetes.yaml specifically, since only the 4 files above were
+  # originally mounted). Providing all 8 empty/inert covers every skeleton
+  # file the image ships, matching gethomepage.dev's own Kubernetes example.
+  # kubernetes.yaml/docker.yaml stay empty on purpose — see this file's
+  # top comment on the static-config-over-auto-discovery decision.
+  custom.css: ""
+  custom.js: ""
+  docker.yaml: ""
+  kubernetes.yaml: ""

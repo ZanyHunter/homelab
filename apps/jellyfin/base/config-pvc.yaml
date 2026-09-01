@@ -1,0 +1,20 @@
+# Jellyfin's internal SQLite library DB, watch history/favorites/accounts,
+# and per-item metadata images (posters/backdrops/actor photos) all live
+# under /config -- the DB is locking-sensitive, same reasoning as every
+# other app's database here (see docs/src/explanation/ceph-backed-storage.md).
+# Sized larger than this repo's usual 5Gi SQLite-app default since metadata
+# images scale with library size, not video byte size -- a real ~225GiB
+# library's worth of posters/backdrops adds up. Expandable-only-up if this
+# turns out to be too little.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 10Gi

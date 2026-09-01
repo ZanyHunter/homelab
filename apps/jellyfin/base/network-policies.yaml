@@ -1,0 +1,68 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31). No sidecar (unlike
+# changedetection.io/Pinchflat's oauth2-proxy): the SSO plugin's OIDC calls
+# originate from Jellyfin's own pod, same shape as LubeLogger/Mealie/Vikunja.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: jellyfin
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: jellyfin
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# ingress-nginx -> Jellyfin's web UI/API.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: jellyfin
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# The SSO plugin's own server-side OIDC calls (discovery/token exchange) go
+# to Keycloak's *external* hostname, which resolves back through
+# ingress-nginx's LoadBalancer IP -- same pattern as sso-demo/LubeLogger.
+# Note this only covers the plugin's traffic once installed/configured; it
+# has no bearing on the static NFS media mount, which happens at the node's
+# kernel/kubelet level outside the pod network namespace entirely and isn't
+# subject to NetworkPolicy either way (same reason no NFS-related egress
+# rule exists for Immich/Wikipedia/Pinchflat's NFS-backed PVCs).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: jellyfin
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx

@@ -1,0 +1,177 @@
+# Jellyfin — https://jellyfin.org/. Media server, single container,
+# official jellyfin/jellyfin image pinned to a specific stable release (not
+# :latest) per this repo's usual pinning philosophy.
+#
+# jellyfin/jellyfin's own Dockerfile (jellyfin/jellyfin-packaging) has no
+# USER directive and no PUID/PGID env vars — it runs as root by default, but
+# explicitly `chmod 777`s /config and /cache at build time specifically so
+# an arbitrary non-root uid also works. runAsUser/fsGroup: 1000 below is
+# therefore an arbitrary uid, same reasoning as LubeLogger/Pinchflat's own
+# images with no built-in non-root user.
+#
+# Three volumes, three different storage backends:
+#   - /config (jellyfin-config, Ceph-backed): the SQLite library DB, watch
+#     history/favorites/accounts, and per-item metadata images. Locking-
+#     sensitive, same reasoning as every other app's DB here.
+#   - /cache (emptyDir, node-local ephemeral disk — NOT a PVC): transcoding
+#     temp files and image cache. Jellyfin's own docs recommend fast local
+#     storage for transcoding rather than sharing I/O with the media
+#     library; emptyDir avoids both NFS latency and extra load on the
+#     shared Ceph pool. sizeLimit is deliberately modest (4Gi) — worker VM
+#     root disks are only 20GB total (tofu/modules/talos-cluster/main.tf),
+#     shared with the OS/container images/every other pod's own ephemeral
+#     storage on that node, so this is a real constraint, not an arbitrary
+#     choice. Bump it if live transcoding sessions turn out to need more.
+#   - /media (jellyfin-media, static NFS PV, media-pv.yaml): the real
+#     library, mounted read-only. See that file for why this is a static PV
+#     shared byte-for-byte across both dev and prod rather than a normal
+#     per-environment dynamically-provisioned PVC.
+#
+# No env-based OIDC config: Jellyfin has no native OIDC support, and the
+# Buco7854/jellyfin-plugin-sso plugin installed to add it is entirely
+# admin-UI-configured (no env vars, no config file Kustomize could template)
+# — see docs/src/explanation/self-hosted-apps.md for the one-time manual
+# setup steps and the exact values (issuer URL, client ID, RoleClaim) to
+# enter, and tofu/modules/keycloak-realm/outputs.tf for how to fetch the
+# client secret this plugin needs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: jellyfin
+spec:
+  replicas: 1
+  # RWO PVC (config): a rolling update would try to schedule the new pod
+  # before the old one releases the volume, deadlocking on a multi-attach
+  # error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+      annotations:
+        # Opts the Ceph-backed config volume into Velero's File System
+        # Backup — real library DB/watch history/metadata images, not just
+        # the Deployment's own object definition. The media volume
+        # deliberately gets no annotation, same as Immich/Pinchflat's media
+        # libraries: it's flagged as relying on the NAS's own offsite
+        # backup only, not silently assumed covered. See
+        # docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      # Kubernetes auto-injects Docker-links-style <SVCNAME>_PORT env vars
+      # for every Service in the namespace unless this is false — standing
+      # policy across every app in this repo since it collided with Actual
+      # Budget's own config key.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jellyfin
+          image: jellyfin/jellyfin:10.11.11
+          ports:
+            - containerPort: 8096
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            # ASP.NET Core's Data Protection key ring (used for the SSO
+            # plugin's own auth/session cookies) defaults to
+            # $HOME/.aspnet/DataProtection-Keys on Linux, but $HOME is unset
+            # for this arbitrary non-root uid (no matching /etc/passwd
+            # entry) — confirmed live via a real "Using an in-memory
+            # repository. Keys will not be persisted to storage." warning on
+            # first boot, same class of bug as LubeLogger's/Velero's kopia
+            # HOME fixes elsewhere in this repo. Redirects the key ring onto
+            # the persistent config PVC instead of losing it (and every
+            # active session) on every pod restart.
+            - name: HOME
+              value: /config
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: cache
+              mountPath: /cache
+            - name: media
+              mountPath: /media
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8096
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8096
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: jellyfin-config
+        - name: cache
+          emptyDir:
+            sizeLimit: 4Gi
+        - name: media
+          persistentVolumeClaim:
+            claimName: jellyfin-media
+            readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin
+  namespace: jellyfin
+spec:
+  selector:
+    app: jellyfin
+  ports:
+    - port: 8096
+      targetPort: 8096
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jellyfin
+  namespace: jellyfin
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jellyfin
+                port:
+                  number: 8096
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: jellyfin-tls

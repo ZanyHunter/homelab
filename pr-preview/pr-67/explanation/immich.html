@@ -1,0 +1,288 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Immich - ZanyHunter&#x27;s Homelab</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Infrastructure-as-Code documentation for ZanyHunter&#x27;s homelab">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/tabs-52f01167.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-70bca357.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-dd658a12.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">ZanyHunter&#x27;s Homelab</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab/edit/main/docs/src/explanation/immich.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="immich"><a class="header" href="#immich">Immich</a></h1>
+<p><a href="https://immich.app/">Immich</a> is the first real workload deployed under <code>apps/</code> — proving out the app-of-apps GitOps pattern (<a href="./gitops-app-of-apps.html">GitOps: App-of-Apps and Secrets</a>) for something beyond cluster add-ons. Reachable on the LAN/VPN at:</p>
+<pre><code>https://photos.dev.thepugh.family
+</code></pre>
+<p>It was also the first app to actually prove the Cloudflare Tunnel design in <a href="./public-ingress.html">Public Ingress</a> publicly — briefly reachable at <code>photos-dev.thepugh.family</code>, which surfaced two real gotchas (a Universal SSL coverage gap and a Keycloak <code>redirect_uri</code> mismatch, both documented there) before that exposure was deliberately torn back down. Only prod is meant to be publicly exposed long-term; see “Public access” below.</p>
+<hr>
+<h2 id="storage-split"><a class="header" href="#storage-split">Storage split</a></h2>
+<ul>
+<li><strong>Database</strong> (<code>immich-postgres</code>, a hand-rolled <code>StatefulSet</code>): the Ceph-backed <code>ceph-rbd-dev</code> StorageClass — real block storage, since Postgres’s fsync/locking needs are exactly what that StorageClass exists for (see <a href="./ceph-backed-storage.html">Ceph-Backed Storage</a>).</li>
+<li><strong>Media library</strong> (<code>immich-media</code>, a <code>ReadWriteMany</code> PVC): the NFS-backed <code>nfs-dev</code> StorageClass — bulk files, sequential reads, no locking-sensitivity, and it’s what the NAS’s disks are for.</li>
+</ul>
+<h2 id="the-database-vectorchord-not-vanilla-postgres"><a class="header" href="#the-database-vectorchord-not-vanilla-postgres">The database: VectorChord, not vanilla Postgres</a></h2>
+<p>Immich needs the <a href="https://github.com/tensorchord/VectorChord">VectorChord</a> extension (the successor to pgvecto.rs) for its ML/search features — Immich checks the extension’s version on startup and refuses to start without a compatible one. Rather than hand-rolling vanilla <code>postgres:alpine</code> (Keycloak’s pattern) and DIY-installing the extension — a path Immich’s own docs describe as fragile and “not officially recommended without advanced Postgres knowledge” — this uses <a href="https://github.com/tensorchord/VectorChord-images"><code>tensorchord/vchord-postgres</code></a>, a purpose-built image with the extension pre-installed and correctly configured.</p>
+<p>This is deliberately <strong>not</strong> <a href="https://cloudnative-pg.io/">CloudNativePG</a>, which is what the immich-charts project’s own README recommends. CNPG would be a whole new operator + CRDs in this cluster to run one single-instance database — a real new component this repo’s minimal-new-components philosophy pushes against, and <code>tensorchord/vchord-postgres</code> gives the same purpose-built-image guarantee without it.</p>
+<p>The image is Debian-based (<code>postgres:18-bookworm</code>), so it runs as <strong>uid 999</strong> — not Keycloak’s Alpine-based uid 70. The <code>vchord</code>/<code>earthdistance</code> extensions are installed automatically on first boot via a ConfigMap mounted at <code>/docker-entrypoint-initdb.d/</code> (<code>apps/immich/base/postgres.yaml</code>) — fully declarative, no manual <code>psql</code> step. <code>POSTGRES_USER</code> is the database’s own superuser, same as Keycloak’s Postgres, so no <code>ALTER DATABASE ... OWNER TO</code> workaround is needed either.</p>
+<h2 id="the-chart-rendered-once-committed-as-static-yaml"><a class="header" href="#the-chart-rendered-once-committed-as-static-yaml">The chart: rendered once, committed as static YAML</a></h2>
+<p><code>apps/immich/base/immich.yaml</code> is a <strong>pinned <code>helm template</code> render</strong> of <code>oci://ghcr.io/immich-app/immich-charts/immich</code>, not something rendered live at ArgoCD sync time. Two reasons:</p>
+<ol>
+<li>Kustomize’s <code>helmCharts:</code> inflator has a real, currently-unresolved bug pulling OCI charts (<a href="https://github.com/kubernetes-sigs/kustomize/issues/4381">kubernetes-sigs/kustomize#4381</a>, <a href="https://github.com/argoproj/argo-cd/issues/21257">argoproj/argo-cd#21257</a>) — the underlying <code>helm pull --repo oci://...</code> invocation it generates is invalid. Not worth building on a currently-broken combination.</li>
+<li>It’s the same “avoid third-party chart pinning risk” reasoning already used for Postgres and MinIO elsewhere in this repo (see <code>tofu/modules/backup/main.tf</code>’s MinIO note) — just applied to a whole chart instead of a single container.</li>
+</ol>
+<p>The file’s header comment has the exact values used and the upgrade procedure. Redis is the chart’s own bundled Valkey (<code>valkey.enabled: true</code>) — trivial/ephemeral, not worth hand-rolling separately, unlike Postgres.</p>
+<p><strong>A real gotcha found live</strong>: neither the <code>immich-server</code> nor <code>immich-machine-learning</code> images ship a built-in non-root user, and <code>restricted</code> Pod Security Admission requires an explicit non-root declaration regardless — the first deploy attempt failed with a real <code>container has runAsNonRoot and image will run as root</code> on both. Fixed with an arbitrary <code>runAsUser: 1000</code>/<code>fsGroup: 1000</code> (not any specific image UID — there isn’t one to match) applied globally via <code>defaultPodOptions</code>. Root-squash is disabled on the NFS export (same as elsewhere in this repo), so the exact UID writing to the media PVC doesn’t matter.</p>
+<h2 id="machine-learning"><a class="header" href="#machine-learning">Machine learning</a></h2>
+<p><code>machine-learning.enabled: true</code> from the start, with explicit resource requests/limits (<code>500m</code>/<code>512Mi</code> requests, <code>2</code>/<code>3Gi</code> limits) rather than the chart’s unset default — deliberately conservative given this cluster’s per-node RAM, sized alongside the worker node resize (see <code>CLAUDE.md</code>’s Kubernetes cluster section) that made room for it in the first place.</p>
+<h2 id="authentication-keycloak-native-oidc"><a class="header" href="#authentication-keycloak-native-oidc">Authentication: Keycloak, native OIDC</a></h2>
+<p>Immich has native OIDC support (see the <a href="../guides/onboard-a-new-app.html">Onboard a New App</a> guide’s “apps with native OIDC support” path) — no oauth2-proxy needed. <code>keycloak_openid_client.immich</code> (<code>tofu/modules/keycloak-realm/main.tf</code>) is Tofu-managed like ArgoCD/Grafana’s clients, but its secret is generated <em>here</em> directly (<code>random_password.immich_client_secret</code>) rather than passed in from another unit — Immich’s own config lives in <code>apps/immich/</code> under GitOps, not in any Terragrunt unit’s Helm values, so there’s no cross-unit dependency to wire.</p>
+<p>The secret reaches the running Immich automatically (#42, no manual <code>terragrunt output</code>/hand-carry step): <code>keycloak-realm</code> also writes it into a plain <code>kubernetes_secret.immich_oidc_client_secret</code> in the <code>keycloak-secrets</code> namespace (owned by <code>core-addons</code>, populated by <code>keycloak-realm</code>), and <code>apps/immich/base/immich-config-externalsecret.yaml</code> — an <code>ExternalSecret</code> reading from that namespace via ESO’s <code>ClusterSecretStore</code> (<code>apps/cluster-addons/base/</code>) — renders the full <code>immich-config.yaml</code> (note: <strong>YAML</strong>, not JSON — the chart mounts it at <code>IMMICH_CONFIG_FILE=/config/immich-config.yaml</code>) with the <code>oauth</code> block, interpolating just <code>clientSecret</code> from the live value. Referenced via <code>immich.existingConfiguration: immich-config</code> / <code>immich.configurationKind: Secret</code> in the chart values, rather than threading the secret through the Kustomize helm-chart values pipeline directly. See <a href="./gitops-app-of-apps.html">GitOps: App-of-Apps and Secrets</a>’s ExternalSecrets section for the general mechanism.</p>
+<p><code>autoRegister: true</code> — any homelab Keycloak account can log into Immich on first OIDC login, matching how this is a personal/family photo app where Keycloak account creation itself is already the real gate (managed by hand in Keycloak’s admin console, same as every other real account in this repo).</p>
+<h3 id="local-login-is-disabled--platform-admins-gets-immichs-own-admin-role"><a class="header" href="#local-login-is-disabled--platform-admins-gets-immichs-own-admin-role">Local login is disabled — platform-admins gets Immich’s own admin role</a></h3>
+<p><code>passwordLogin.enabled: false</code> in <code>immich-config-externalsecret.yaml</code>’s template, plus <code>IMMICH_ALLOW_SETUP=false</code> on the server container (a separate env-var-level gate on the local admin-setup wizard, independent of <code>passwordLogin</code>) — the only way into Immich is Keycloak, and the only way to bootstrap the very first admin is a <code>platform-admins</code> member’s first OIDC login.</p>
+<p>Getting the Keycloak side of this right took real iteration, and both gotchas are worth knowing before touching this again:</p>
+<ol>
+<li><strong>The claim had to be a bare string, not an array — because of the specific Immich version deployed at the time (<code>v3.0.0</code>).</strong> <code>oauth.roleClaim</code> (<code>tofu/modules/keycloak-realm/main.tf</code>’s <code>keycloak_openid_user_client_role_protocol_mapper.immich_role</code>) had to resolve to the literal string <code>"admin"</code>, not an array containing it: <code>v3.0.0</code>’s <code>getClaim</code> (<code>auth.service.ts</code>) checked <code>typeof value === 'string'</code>, so an array value silently failed that check and fell back to the <code>"user"</code> default — no error, no log. Found live as a real “logged in via Keycloak but landed as a normal user” bug. This is why the mapper is a <strong>client role</strong> scoped to Immich’s own client (<code>client_id_for_role_mappings</code>) with <code>multivalued = false</code>, rather than the more obvious realm-role approach: a realm-role mapper’s claim is unavoidably an array, since every user also carries Keycloak’s own <code>default-roles-homelab</code>/<code>offline_access</code>/<code>uma_authorization</code> realm roles alongside “admin” — there’s no way to filter a realm-role mapper down to just one role. A client-role mapper scoped to one client sidesteps this entirely, since Immich’s client has no other client roles to compete with. <strong>This constraint is gone as of <code>v3.1.0</code></strong> (see “Kept up to date” below — that release explicitly added array-value support), but the client-role mapper is left as-is rather than simplified back to a realm role: no reason to reintroduce noisy default realm roles into the claim just because a newer server version happens to tolerate them.</li>
+<li><strong><code>client_id_for_role_mappings</code> wants the client’s <code>client_id</code> string, not its Keycloak-internal UUID</strong> — despite the field name suggesting otherwise, and independent of the <code>v3.1.0</code> upgrade above. Passing <code>keycloak_openid_client.immich.id</code> (the UUID) produces a mapper that matches nothing, silently omitting the claim from the token entirely (verified via Keycloak’s own <code>evaluate-scopes/generate-example-id-token</code> admin API, which is a much faster way to check what a mapper actually produces than a real login round-trip). The correct value is <code>keycloak_openid_client.immich.client_id</code> (the string <code>"immich"</code>).</li>
+</ol>
+<p><code>v3.0.0</code> also only evaluated <code>roleClaim</code> <strong>at account creation</strong>, not on every login — a role change didn’t retroactively fix an already-created Immich user; the fix each time this session was to delete the user (<code>DELETE FROM "user" WHERE email = ...</code> — Immich’s own foreign keys all cascade, confirmed via <code>pg_constraint</code> before doing this live) and let their next login recreate it, or use <code>immich-admin grant-admin</code>/<code>revoke-admin</code> (a CLI available via <code>kubectl exec</code> into the server pod) to patch an existing account directly instead. <strong>Also fixed by the <code>v3.1.0</code> upgrade</strong> — the role now re-syncs on every login, so removing someone from <code>platform-admins</code> correctly demotes them in Immich on their next login too, matching the behavior this repo already relies on for ArgoCD/Grafana’s <code>platform-admins</code> gating.</p>
+<h2 id="kept-up-to-date"><a class="header" href="#kept-up-to-date">Kept up to date</a></h2>
+<p>Bumped <code>v3.0.0</code> → <code>v3.1.0</code> shortly after the initial deploy, specifically because that release ships “re-evaluate OIDC role claim on every login and support array values” — the exact two <code>v3.0.0</code> gaps documented above. Chart version stayed at <code>0.13.1</code> (immich-charts doesn’t track every Immich release — see the <code>immich.yaml</code> header comment for the exact upgrade procedure); only the <code>image.tag</code> override changed, applied to both <code>immich-server</code> and <code>immich-machine-learning</code> since the chart drives both from one shared top-level value. No config/template changes were needed — verified via the release notes’ own breaking-changes list (mobile-only) before upgrading, not after.</p>
+<h2 id="public-access"><a class="header" href="#public-access">Public access</a></h2>
+<p>Not enabled today — <code>dev</code>’s <code>env.hcl</code> has <code>public_ingress_enabled = false</code>, <code>public_apps = []</code>. It briefly was (<code>{ hostname = "photos" }</code>, <code>public_keycloak_realm = true</code>), which is exactly what proved the Cloudflare Tunnel mechanism end-to-end and surfaced both gotchas documented in <a href="./public-ingress.html">Public Ingress via Cloudflare Tunnel</a> — that exposure was always meant to be temporary, since only prod is meant to be publicly exposed long-term and prod’s own <code>domain_name</code> (the bare apex) avoids the hostname-split complexity dev hit entirely. Immich’s own internal Ingress/hostname (<code>photos.dev.thepugh.family</code>) is completely unaffected either way — only the Cloudflare Tunnel’s routing to it was ever added or removed.</p>
+<h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
+<pre><code class="language-bash">kubectl get pvc -n immich
+kubectl get pods -n immich
+</code></pre>
+<p>Confirms the DB PVC bound on <code>ceph-rbd-dev</code> and the media PVC bound on <code>nfs-dev</code>, not just that pods exist. A real login (not just “the OAuth button appears”) is the actual bar: visiting <code>https://photos.dev.thepugh.family</code> should redirect through Keycloak and land back in Immich authenticated.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../explanation/public-ingress.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../explanation/self-hosted-apps.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../explanation/public-ingress.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../explanation/self-hosted-apps.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../theme/tabs-0c8cb93b.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

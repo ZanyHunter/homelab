@@ -1,0 +1,19 @@
+# Vikunja (task manager) — uploaded task attachments only. The database
+# lives in Postgres (postgres.yaml's own PVC), not here — see #58: Postgres
+# over SQLite specifically for real concurrent multi-user access, Vikunja's
+# own recommendation past household scale. Ceph-backed, not NFS, for the
+# same file-locking-correctness reasoning as every other small app PVC in
+# this repo (see docs/src/explanation/ceph-backed-storage.md) — attachments
+# are likely modest in size, unlike Paperless's document library.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vikunja-data
+  namespace: vikunja
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 2Gi

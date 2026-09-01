@@ -1,0 +1,24 @@
+# Mirrors keycloak-realm's kubernetes_secret.vikunja_oidc_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# (apps/cluster-addons/base/) — automatically stays current across a
+# keycloak-realm destroy/recreate or a deliberate secret rotation, no manual
+# terragrunt output/hand-carry step (#42). vikunja-config.enc.yaml and
+# vikunja-db-credentials.enc.yaml stay ksops-encrypted for values with no
+# Tofu counterpart. See docs/src/explanation/gitops-app-of-apps.md.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: vikunja-oidc-config
+  namespace: vikunja
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: vikunja-oidc-config
+  data:
+    - secretKey: oidc-client-secret
+      remoteRef:
+        key: vikunja-oidc-client-secret
+        property: client-secret

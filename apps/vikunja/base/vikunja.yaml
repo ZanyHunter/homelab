@@ -1,0 +1,175 @@
+# Vikunja (task manager, https://vikunja.io) — the combined frontend+API
+# image (vikunja/vikunja), not the split frontend/api images: simpler,
+# matching this repo's preference for single-container apps where
+# available (#58). Postgres over the bundled SQLite option, per Vikunja's
+# own recommendation for real concurrent multi-user access (postgres.yaml).
+#
+# Native OIDC support via VIKUNJA_AUTH_OPENID_PROVIDERS_<key>_* — AUTHURL
+# points at Keycloak's realm base URL, not a literal authorization_endpoint
+# or a /.well-known/openid-configuration URL: Vikunja does OIDC discovery
+# from that issuer itself, same pattern as Homebox's HBOX_OIDC_ISSUER_URL.
+# The provider key here ("keycloak") is freely chosen and must match the
+# redirect URI registered on the Keycloak client
+# (tofu/modules/keycloak-realm/main.tf's keycloak_openid_client.vikunja) —
+# Vikunja's frontend redirects back to <publicurl>/auth/openid/<key>.
+#
+# The image runs as uid 1000 with no group by default; runAsGroup/fsGroup
+# are set explicitly here for restricted PSA and predictable file
+# ownership on the attachments PVC, same as every other app in this repo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vikunja
+  namespace: vikunja
+spec:
+  replicas: 1
+  # RWO PVC: a rolling update would try to schedule the new pod before the
+  # old one releases the volume, deadlocking on a multi-attach error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vikunja
+  template:
+    metadata:
+      labels:
+        app: vikunja
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # actual attachment contents, not just the Deployment's own object
+        # definition. See docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      # See apps/actual/actual.yaml's comment — defensive across every app
+      # here, not just the one that actually collided (Actual's ACTUAL_PORT).
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: vikunja
+          image: vikunja/vikunja:2.6.0
+          ports:
+            - containerPort: 3456
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: VIKUNJA_SERVICE_PUBLICURL
+              value: https://__APP_HOSTNAME__
+            - name: VIKUNJA_SERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-config
+                  key: service-secret
+            # Keycloak account creation is already the real access gate for
+            # this homelab (same reasoning as Homebox's
+            # HBOX_OPTIONS_ALLOW_LOCAL_LOGIN) — no separate local-password
+            # account should exist alongside it.
+            - name: VIKUNJA_SERVICE_ENABLEREGISTRATION
+              value: "false"
+            - name: VIKUNJA_AUTH_LOCAL_ENABLED
+              value: "false"
+            - name: VIKUNJA_AUTH_OPENID_ENABLED
+              value: "true"
+            - name: VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_NAME
+              value: Keycloak
+            - name: VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_AUTHURL
+              value: https://__KEYCLOAK_HOSTNAME__/realms/homelab
+            - name: VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTID
+              value: vikunja
+            - name: VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-oidc-config
+                  key: oidc-client-secret
+            - name: VIKUNJA_DATABASE_TYPE
+              value: postgres
+            - name: VIKUNJA_DATABASE_HOST
+              value: vikunja-postgres
+            - name: VIKUNJA_DATABASE_USER
+              value: vikunja
+            - name: VIKUNJA_DATABASE_DATABASE
+              value: vikunja
+            - name: VIKUNJA_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-db-credentials
+                  key: password
+            - name: VIKUNJA_FILES_BASEPATH
+              value: /app/vikunja/files
+            # Redis-backed caching (#58) deliberately skipped — unnecessary
+            # at this scale, avoids adding a new component for no real
+            # benefit. Vikunja's Redis support is off by default; no
+            # VIKUNJA_REDIS_* vars are set here.
+          volumeMounts:
+            - name: data
+              mountPath: /app/vikunja/files
+          readinessProbe:
+            httpGet:
+              path: /api/v1/info
+              port: 3456
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/info
+              port: 3456
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vikunja-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vikunja
+  namespace: vikunja
+spec:
+  selector:
+    app: vikunja
+  ports:
+    - port: 3456
+      targetPort: 3456
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vikunja
+  namespace: vikunja
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vikunja
+                port:
+                  number: 3456
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: vikunja-tls

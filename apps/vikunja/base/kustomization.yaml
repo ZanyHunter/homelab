@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - data-pvc.yaml
+  - postgres.yaml
+  - network-policies.yaml
+  - vikunja.yaml
+  - vikunja-oidc-config.yaml
+
+generators:
+  - ksops-generator.yaml

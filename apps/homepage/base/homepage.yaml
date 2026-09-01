@@ -1,0 +1,188 @@
+# Homepage (gethomepage.dev) — service dashboard, #59. v2.0+'s built-in auth
+# gate has direct OIDC support (HOMEPAGE_OIDC_*, docs:
+# https://gethomepage.dev/installation/#security-authentication), so unlike
+# changedetection.io this needs no oauth2-proxy forward-auth template. Per
+# those same docs, Homepage applies no claim-based authorization of its own —
+# it grants access to any identity Keycloak authorizes for this client, same
+# as this repo's other native-OIDC apps (a real Keycloak account is already
+# the access gate).
+#
+# securityContext matches gethomepage.dev's own Kubernetes example
+# (runAsUser/runAsGroup 1000) — the image ships no arbitrary-uid support the
+# way Immich/Homebox needed to work around.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: homepage
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+    spec:
+      # See apps/actual/actual.yaml's comment — defensive across every app
+      # here, not just the one that actually collided (Actual's ACTUAL_PORT).
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: homepage
+          image: ghcr.io/gethomepage/homepage:v2.1.2
+          ports:
+            - name: http
+              containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # kubelet's readiness/liveness probes hit the pod IP directly,
+            # not the Ingress hostname — Homepage's host-validation check
+            # (Next.js) 400s anything not in this list, so the pod's own
+            # IP:port has to be included alongside the real hostname (found
+            # live: probes failing with "Host validation failed for
+            # <pod-ip>:3000" until this was added). Matches gethomepage.dev's
+            # own Kubernetes install example.
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: $(MY_POD_IP):3000,__APP_HOSTNAME__
+            - name: HOMEPAGE_EXTERNAL_URL
+              value: https://__APP_HOSTNAME__
+            - name: HOMEPAGE_VAR_DOMAIN_SUFFIX
+              value: __DOMAIN_SUFFIX__
+            - name: HOMEPAGE_AUTH_ENABLED
+              value: "true"
+            - name: HOMEPAGE_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: homepage-secrets
+                  key: auth-secret
+            - name: HOMEPAGE_OIDC_ISSUER
+              value: https://__KEYCLOAK_HOSTNAME__/realms/homelab
+            - name: HOMEPAGE_OIDC_NAME
+              value: Keycloak
+            - name: HOMEPAGE_OIDC_CLIENT_ID
+              value: homepage
+            - name: HOMEPAGE_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: homepage-oidc-config
+                  key: oidc-client-secret
+          # All 8 files the image's skeleton config expects are mounted
+          # individually via subPath, even the 4 left empty — see
+          # config.yaml's comment: Homepage's entrypoint auto-creates
+          # whichever of these it doesn't find, and can't (EACCES, non-root
+          # uid) since /app/config's directory itself isn't writable.
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/settings.yaml
+              subPath: settings.yaml
+            - name: config
+              mountPath: /app/config/services.yaml
+              subPath: services.yaml
+            - name: config
+              mountPath: /app/config/widgets.yaml
+              subPath: widgets.yaml
+            - name: config
+              mountPath: /app/config/bookmarks.yaml
+              subPath: bookmarks.yaml
+            - name: config
+              mountPath: /app/config/custom.css
+              subPath: custom.css
+            - name: config
+              mountPath: /app/config/custom.js
+              subPath: custom.js
+            - name: config
+              mountPath: /app/config/docker.yaml
+              subPath: docker.yaml
+            - name: config
+              mountPath: /app/config/kubernetes.yaml
+              subPath: kubernetes.yaml
+            # Homepage also writes its own log file under /app/config/logs,
+            # a directory rather than a single file — needs a separate
+            # writable emptyDir (found live: without it, any internal error
+            # Homepage tries to log crashes the whole request with EACCES
+            # instead, turning a real OIDC auth error into an opaque 500).
+            # Matches gethomepage.dev's own Kubernetes install example.
+            - name: logs
+              mountPath: /app/config/logs
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: homepage-config
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: homepage
+spec:
+  selector:
+    app: homepage
+  ports:
+    - port: 3000
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homepage
+  namespace: homepage
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homepage
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: homepage-tls

@@ -33,3 +33,9 @@ output "changedetection_oauth2_proxy_client_secret" {
   value       = keycloak_openid_client.changedetection_oauth2_proxy.client_secret
   sensitive   = true
 }
+
+output "homepage_oidc_client_secret" {
+  description = "Homepage's Keycloak client secret. No longer needs manual action (#42) — automatically synced via ExternalSecrets Operator, same mechanism as immich_oidc_client_secret above. This output exists for break-glass/debugging only."
+  value       = keycloak_openid_client.homepage.client_secret
+  sensitive   = true
+}

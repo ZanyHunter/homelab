@@ -1,0 +1,17 @@
+# Pinchflat's SQLite DB and settings under /config -- real state (channel/
+# playlist subscriptions, download history), not re-derivable, unlike the
+# downloaded videos themselves. Ceph-backed, not NFS, for the same SQLite
+# file-locking-correctness reason as every other SQLite-on-Kubernetes app in
+# this repo (see docs/src/explanation/ceph-backed-storage.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pinchflat-config
+  namespace: youtube-archiver
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi

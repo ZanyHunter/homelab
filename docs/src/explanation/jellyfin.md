@@ -50,7 +50,7 @@ The Keycloak client (`tofu/modules/keycloak-realm/main.tf`) is a normal `CONFIDE
 
 1. Complete Jellyfin's first-run setup wizard (create the initial local admin account, add the `/media` path as a library).
 2. In Dashboard → Plugins → Repositories, add `https://raw.githubusercontent.com/Buco7854/jellyfin-plugin-sso/manifest-release/manifest.json`, then install "SSO Auth" from the catalog and restart the server.
-3. In the plugin's own config page, add a provider (`OidEndpoint: https://<keycloak-hostname>/realms/homelab`, `OidClientId: jellyfin`, `OidSecret:` the value from step above, `RoleClaim: groups`, `AdminRoles: ["platform-admins"]`).
+3. In the plugin's own config page, add a provider (`OidEndpoint: https://<keycloak-hostname>/realms/homelab`, `OidClientId: jellyfin`, `OidSecret:` the value of `terragrunt output -raw jellyfin_oidc_client_secret` — run from `tofu/live/dev/keycloak-realm/` (or `tofu/live/prod/keycloak-realm/`, once deployed there) — `RoleClaim: groups`, `AdminRoles: ["platform-admins"]`).
 4. Confirm the redirect URI Keycloak has on file (`https://<jellyfin-hostname>/sso/OID/redirect/keycloak`) matches what the plugin's provider name produces — the client was created with `keycloak` as the provider name specifically to match.
 
 ## Verification

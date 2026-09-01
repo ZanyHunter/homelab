@@ -7,6 +7,8 @@ resources:
   - downloads-pvc.yaml
   - network-policies.yaml
   - pinchflat.yaml
+  - oauth2-proxy.yaml
+  - pinchflat-oauth2-proxy-credentials.yaml
 
 generators:
   - ksops-generator.yaml

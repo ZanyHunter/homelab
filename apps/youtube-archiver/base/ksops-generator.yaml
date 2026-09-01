@@ -7,4 +7,4 @@ metadata:
       exec:
         path: ksops
 files:
-  - ./pinchflat-basic-auth.enc.yaml
+  - ./pinchflat-oauth2-proxy-cookie-secret.enc.yaml

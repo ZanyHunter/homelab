@@ -512,6 +512,54 @@ resource "keycloak_openid_client" "lubelogger" {
   web_origins         = ["+"]
 }
 
+resource "random_password" "matrix_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Synapse's OIDC callback is a single fixed path (Synapse's own
+# /_synapse/client/oidc/callback, registered per-provider) — no wildcard
+# needed, same reasoning as LubeLogger's single-path client above. Note this
+# client's redirect_uri is the *subdomain* Synapse itself actually runs on
+# (apps/matrix/), which is deliberately different from this realm's
+# server_name identity Matrix presents to the outside world
+# (apex-based — see docs/src/explanation/matrix.md) — the two are unrelated:
+# server_name is Matrix's own user-ID namespace, valid_redirect_uris is
+# purely "where does Keycloak send the browser back to."
+#
+# groups optional scope attached for consistency with every other app's
+# client here, though Synapse itself has no built-in way to map a "groups"
+# claim onto its own server-admin flag the way Jellyfin's plugin/Mealie's
+# OIDC_ADMIN_GROUP do — granting Matrix server-admin, if ever needed, is a
+# manual step via Synapse's own Admin API, same "managed by hand" category as
+# Keycloak group membership itself. See docs/src/explanation/matrix.md.
+resource "keycloak_openid_client" "matrix" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "matrix"
+  name      = "Matrix (Synapse)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.matrix_client_secret.result
+
+  valid_redirect_uris = ["https://matrix.${var.domain_name}/_synapse/client/oidc/callback"]
+  web_origins         = ["+"]
+}
+
+resource "keycloak_openid_client_optional_scopes" "matrix" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.matrix.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
 # --- Canonical secrets for External Secrets Operator (#42) -------------------
 # Every client secret generated above for a real, GitOps-managed app used to
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
@@ -681,6 +729,19 @@ resource "kubernetes_secret" "pinchflat_oauth2_proxy_client_secret" {
   data = {
     client-id     = keycloak_openid_client.pinchflat_oauth2_proxy.client_id
     client-secret = keycloak_openid_client.pinchflat_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "matrix_oidc_client_secret" {
+  metadata {
+    name      = "matrix-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.matrix.client_secret
   }
 
   type = "Opaque"

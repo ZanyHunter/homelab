@@ -391,6 +391,33 @@ resource "keycloak_openid_client" "changedetection_oauth2_proxy" {
   web_origins         = ["+"]
 }
 
+# Pinchflat (#54) has no OIDC support of its own — originally deployed
+# gated by its own static basic auth instead (the RSS-feed-needs-to-stay-
+# unauthenticated concern that usually rules out oauth2-proxy didn't
+# actually apply, since EXPOSE_FEED_ENDPOINTS was left off and RSS wasn't
+# needed) — moved to this repo's standard oauth2-proxy forward-auth
+# pattern instead, for the same reason changedetection.io above uses it:
+# consistency with every other app's Keycloak login, avoiding a second
+# credential set to remember.
+resource "random_password" "pinchflat_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "pinchflat_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "pinchflat-oauth2-proxy"
+  name      = "oauth2-proxy (Pinchflat forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.pinchflat_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://youtube.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
 resource "random_password" "vikunja_client_secret" {
   length  = 32
   special = false
@@ -637,6 +664,23 @@ resource "kubernetes_secret" "lubelogger_oidc_client_secret" {
 
   data = {
     client-secret = keycloak_openid_client.lubelogger.client_secret
+  }
+
+  type = "Opaque"
+}
+
+# Includes client-id alongside client-secret, same as changedetection's above
+# — oauth2-proxy needs both, and ksops/ExternalSecrets both operate
+# per-Secret rather than per-key.
+resource "kubernetes_secret" "pinchflat_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "pinchflat-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.pinchflat_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.pinchflat_oauth2_proxy.client_secret
   }
 
   type = "Opaque"

@@ -1,0 +1,17 @@
+# LubeLogger's SQLite DB and uploaded receipts/documents both live under
+# /App/data with no documented way to split them, same combined-storage
+# pattern as Actual Budget's account.sqlite + budget files. Ceph-backed for
+# the same file-locking-correctness reason as every other SQLite-on-Kubernetes
+# app in this repo (see docs/src/explanation/ceph-backed-storage.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lubelogger-data
+  namespace: lubelogger
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi

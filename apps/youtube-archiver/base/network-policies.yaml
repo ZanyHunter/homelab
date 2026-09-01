@@ -1,0 +1,74 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31). No SSO here (#54 --
+# Pinchflat has no OIDC support of its own, gated by its own basic auth
+# instead), so unlike most other apps there's no oauth2-proxy/Keycloak
+# egress rule needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: youtube-archiver
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: youtube-archiver
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: youtube-archiver
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# Unlike every other app in this repo, Pinchflat's whole reason for existing
+# is fetching arbitrary content from the real internet (YouTube, via
+# yt-dlp) -- not a one-off recipe-import feature left disabled like
+# Mealie's or changedetection.io's core "fetch external pages" job, which
+# stays scoped to that one namespace's pre-existing egress posture. Same
+# precedent as Wikipedia's updater CronJob: scoped to this one pod label
+# (not namespace-wide) and to 443 only, rather than extending core-addons'
+# allow-internet-egress (0.0.0.0/0) pattern -- currently reserved for 3
+# system namespaces (cert-manager, argocd, cloudflared) -- to an apps/
+# namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internet-egress
+  namespace: youtube-archiver
+spec:
+  podSelector:
+    matchLabels:
+      app: pinchflat
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+          protocol: TCP

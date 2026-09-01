@@ -8,6 +8,16 @@
 # unindexed and unsearchable for the entire multi-hour run while the
 # ~124GB Wikipedia Maxi file was still in flight.
 #
+# All twelve sync/reindex steps are initContainers, plus one trivial
+# no-op main container (Kubernetes Jobs require at least one) -- this
+# base lists every tracked series; overlays/<env>/kustomization.yaml
+# removes the pairs an environment doesn't want to carry (dev, e.g.,
+# tracks only Wikiquote/Wikivoyage long-term -- prod carries the full
+# bundle). Keeping the "real" work entirely in initContainers, with a
+# fixed, always-present main container, means every environment can
+# subtract series via a plain Kustomize patch without also having to
+# pick a different "last" series to promote into containers: each time.
+#
 # Only the sync-one steps (curlimages/curl) carry real internet egress to
 # kiwix's mirror network; the always-on kiwix-serve Deployment never gets
 # outbound internet access at all (see network-policies.yaml).
@@ -118,9 +128,26 @@ spec:
             - <<: *sync
               name: sync-wikipedia
               command: ["sh", "/scripts/sync-one.sh", "wikipedia", "wikipedia_en_all_maxi"]
-          containers:
             - <<: *reindex
               name: reindex-wikipedia
+          containers:
+            - name: done
+              image: curlimages/curl:8.11.1
+              command: ["true"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 100
+                runAsGroup: 101
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
           volumes:
             - name: data
               persistentVolumeClaim:

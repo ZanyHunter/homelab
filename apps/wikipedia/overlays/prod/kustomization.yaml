@@ -25,3 +25,12 @@ replacements:
           kind: PersistentVolumeClaim
         fieldPaths:
           - spec.storageClassName
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.pvc-size
+    targets:
+      - select:
+          kind: PersistentVolumeClaim
+        fieldPaths:
+          - spec.resources.requests.storage

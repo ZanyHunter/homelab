@@ -6,14 +6,16 @@
 # annotation -- there's no Ceph-backed volume to annotate in the first
 # place, and re-downloading is strictly simpler than restoring from backup.
 #
-# Sizing: the chosen bundle (English Wikipedia Maxi, Wiktionary nopic,
-# Wikibooks/Wikiquote/Wikivoyage/Wikisource Maxi) is ~162GB at rest
-# (verified against download.kiwix.org's real metalink metadata, not a
-# guess). The updater CronJob (updater-cronjob.yaml) downloads each
-# series' new release fully before deleting the old one, so during a
-# Wikipedia Maxi update -- the largest series, ~124GB -- old and new
-# briefly coexist: peak usage is closer to ~286GB. 320Gi leaves headroom
-# above that peak for future release growth.
+# Sizing varies per environment (env-values.yaml's pvc-size), same as the
+# series each environment's updater-cronjob.yaml patch keeps -- prod
+# carries the full ~162GB bundle (Wikipedia Maxi, Wiktionary nopic,
+# Wikibooks/Wikiquote/Wikivoyage/Wikisource Maxi, sizes verified against
+# download.kiwix.org's real metalink metadata) at 320Gi (the updater
+# downloads each series' new release fully before deleting the old one,
+# so during a Wikipedia Maxi update specifically -- the largest series,
+# ~124GB -- old and new briefly coexist, pushing peak usage to ~286GB;
+# 320Gi leaves headroom above that for future release growth too). Dev
+# carries only Wikiquote + Wikivoyage (~2GB) long-term, at 5Gi.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -25,4 +27,4 @@ spec:
   storageClassName: __STORAGE_CLASS_NFS__
   resources:
     requests:
-      storage: 320Gi
+      storage: __DATA_PVC_SIZE__

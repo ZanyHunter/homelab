@@ -22,6 +22,7 @@ All hostnames below use `dev`'s domain suffix (`dev.thepugh.family`) — see [DN
 | [Homebox](../explanation/self-hosted-apps.md) | `inventory.dev.thepugh.family` | SQLite (bundled) | 2Gi, `ceph-rbd-dev` | Keycloak OIDC (native) |
 | [changedetection.io](../explanation/self-hosted-apps.md) | `changedetection.dev.thepugh.family` | None (flat JSON) | 5Gi, `ceph-rbd-dev` | oauth2-proxy forward-auth |
 | [Homepage](../explanation/self-hosted-apps.md) | `homepage.dev.thepugh.family` | None | None — config is a `ConfigMap` | Keycloak OIDC (native) |
-| [Wikipedia Mirror (Kiwix)](../explanation/wikipedia-mirror.md) | `wikipedia.dev.thepugh.family` | None | 320Gi, `nfs-dev` | None — open on LAN/VPN |
+| [Wikipedia Mirror (Kiwix)](../explanation/wikipedia-mirror.md) | `wikipedia.dev.thepugh.family` | None | 5Gi, `nfs-dev` (prod: 320Gi) | None — open on LAN/VPN |
+| [Vikunja](../explanation/self-hosted-apps.md) | `vikunja.dev.thepugh.family` | Postgres, `ceph-rbd-dev` (5Gi) | Attachments: 2Gi, `ceph-rbd-dev` | Keycloak OIDC (native) |
 
 To add another app, see the [Onboard a New App](../guides/onboard-a-new-app.md) guide.

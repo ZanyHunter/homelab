@@ -413,7 +413,7 @@ resource "keycloak_openid_client" "vikunja" {
   standard_flow_enabled = true
   client_secret         = random_password.vikunja_client_secret.result
 
-  valid_redirect_uris = ["https://vikunja.${var.domain_name}/auth/openid/keycloak"]
+  valid_redirect_uris = ["https://projects.${var.domain_name}/auth/openid/keycloak"]
   web_origins         = ["+"]
 }
 

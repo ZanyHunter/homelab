@@ -6,6 +6,6 @@ kind: ConfigMap
 metadata:
   name: env-values
 data:
-  app-hostname: vikunja.thepugh.family
+  app-hostname: projects.thepugh.family
   keycloak-hostname: keycloak.thepugh.family
   storage-class-ceph: ceph-rbd-prod

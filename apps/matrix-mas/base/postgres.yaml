@@ -1,0 +1,96 @@
+# Plain postgres:16-alpine, same hand-rolled pattern as Synapse's/Vikunja's/
+# Keycloak's own Postgres — MAS requires Postgres specifically (no SQLite
+# support at all, unlike Mealie/LubeLogger's own bundled-SQLite choice).
+# Unlike Synapse's own Postgres, MAS's docs document no C-collation
+# requirement, so this omits the POSTGRES_INITDB_ARGS locale workaround
+# apps/matrix/base/postgres.yaml needs — same plain-Alpine-default shape as
+# Vikunja's Postgres.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mas-postgres
+  namespace: matrix-mas
+spec:
+  selector:
+    app: mas-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mas-postgres
+  namespace: matrix-mas
+spec:
+  serviceName: mas-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mas-postgres
+  template:
+    metadata:
+      labels:
+        app: mas-postgres
+      annotations:
+        # Opts this pod's "data" volume into Velero's File System Backup —
+        # standing rule for every Ceph-backed workload in this repo. See
+        # docs/src/explanation/backup-and-restore.md.
+        backup.velero.io/backup-volumes: "data"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 70
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: POSTGRES_DB
+              value: mas
+            - name: POSTGRES_USER
+              value: mas
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mas-db-credentials
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "mas"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "mas"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: __STORAGE_CLASS_CEPH__
+        resources:
+          requests:
+            storage: 5Gi

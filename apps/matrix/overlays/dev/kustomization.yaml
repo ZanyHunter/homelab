@@ -74,6 +74,19 @@ replacements:
   - source:
       kind: ConfigMap
       name: env-values
+      fieldPath: data.matrix-calls-hostname
+    targets:
+      - select:
+          kind: ConfigMap
+          name: synapse-config
+        fieldPaths:
+          - data.homeserver\.yaml
+        options:
+          delimiter: "/"
+          index: 5
+  - source:
+      kind: ConfigMap
+      name: env-values
       fieldPath: data.keycloak-hostname
     targets:
       - select:

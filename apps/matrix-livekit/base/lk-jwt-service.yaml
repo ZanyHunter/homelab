@@ -1,0 +1,81 @@
+# lk-jwt-service — the MatrixRTC Authorization Service (#72): issues
+# LiveKit JWTs to clients on Synapse's behalf. Small, stateless, no PVC/DB
+# (its optional Redis-backed session persistence isn't needed at this
+# scale). LIVEKIT_URL is deliberately the *public* wss:// signaling
+# endpoint (what clients connect to), not an internal cluster address —
+# this value is handed to clients in the JWT response, not just used
+# server-side.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lk-jwt-service
+  namespace: matrix-livekit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lk-jwt-service
+  template:
+    metadata:
+      labels:
+        app: lk-jwt-service
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: lk-jwt-service
+          image: ghcr.io/element-hq/lk-jwt-service:0.6.0
+          env:
+            - name: LIVEKIT_URL
+              value: "wss://__APP_HOSTNAME__"
+            - name: LIVEKIT_FULL_ACCESS_HOMESERVERS
+              value: "__DOMAIN_NAME__"
+            - name: LIVEKIT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lk-jwt-credentials
+                  key: livekit-key
+            - name: LIVEKIT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lk-jwt-credentials
+                  key: livekit-secret
+            - name: LIVEKIT_JWT_BIND
+              value: ":8080"
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lk-jwt-service
+  namespace: matrix-livekit
+spec:
+  selector:
+    app: lk-jwt-service
+  ports:
+    - port: 8080
+      targetPort: 8080

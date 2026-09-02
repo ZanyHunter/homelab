@@ -9,18 +9,22 @@
 # matrix-secrets.enc.yaml's database) — avoiding any dependency on merge
 # semantics that aren't actually verified. See docs/src/explanation/matrix.md.
 #
-# Two tokens get substituted into this same multi-line blob by
+# Three tokens get substituted into this same multi-line blob by
 # overlays/{dev,prod}/kustomization.yaml's replacements: — __DOMAIN_NAME__
-# (server_name, Matrix's apex-based identity — see matrix.md) and
-# __APP_HOSTNAME__ (public_baseurl, the actual subdomain Synapse runs on).
-# Both use Kustomize's delimiter/index trick (splitting the whole blob on a
-# character and touching one indexed segment) rather than a full-field
-# replacement, same mechanism Immich's/Vikunja's overlays already use to
-# reach a token nested inside a larger text value — chosen so each token is
-# provably isolated (server_name is the file's very first line, quote-
-# delimited; public_baseurl's hostname sits right after "https://", the
-# first two "/" characters in the whole document) regardless of what either
-# substitution's own value looks like or what order the two run in.
+# (server_name, Matrix's apex-based identity — see matrix.md),
+# __APP_HOSTNAME__ (public_baseurl, the actual subdomain Synapse runs on),
+# and __MATRIX_CALLS_HOSTNAME__ (matrix_rtc's livekit_service_url, #72 —
+# apps/matrix-livekit/'s own public hostname). All three use Kustomize's
+# delimiter/index trick (splitting the whole blob on a character and
+# touching one indexed segment) rather than a full-field replacement, same
+# mechanism Immich's/Vikunja's overlays already use to reach a token nested
+# inside a larger text value — chosen so each token is provably isolated
+# (server_name is the file's very first line, quote-delimited;
+# public_baseurl's and livekit_service_url's hostnames each sit right after
+# their own "https://", with livekit_service_url placed immediately after
+# public_baseurl specifically so its own "/" count is easy to verify by
+# hand) regardless of what any substitution's own value looks like or what
+# order they run in.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -30,6 +34,28 @@ data:
   homeserver.yaml: |
     server_name: "__DOMAIN_NAME__"
     public_baseurl: "https://__APP_HOSTNAME__/"
+
+    # Real-time calling (#72) — msc3266 (room summary API, needed for
+    # Element Call to join over federation via knocking), msc4143
+    # (MatrixRTC transports), msc4222 (syncv2 state_after, so clients track
+    # room state correctly). livekit_service_url points at the
+    # matrix-livekit app's own lk-jwt-service, path-matched to that app's
+    # own Ingress (see docs explanation matrix.md, real-time calling
+    # section). Deliberately zero forward-slash characters in this comment
+    # block, unlike most others in this file: every such character in this
+    # whole ConfigMap value counts toward the delimiter-index replacements
+    # below, comments included, found live as a real substitution landing
+    # inside this very comment instead of the intended token.
+    experimental_features:
+      msc3266_enabled: true
+      msc4143_enabled: true
+      msc4222_enabled: true
+
+    matrix_rtc:
+      transports:
+        - type: livekit
+          livekit_service_url: "https://__MATRIX_CALLS_HOSTNAME__/livekit/jwt"
+
     pid_file: /tmp/homeserver.pid
     log_config: /config/log_config.yaml
 

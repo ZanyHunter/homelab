@@ -1,0 +1,112 @@
+# Default-deny + only the traffic this namespace actually needs (#31), same
+# pattern as every other namespace in this repo — plus two genuinely new
+# shapes of rule LiveKit's own networking model requires, called out below.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: matrix-livekit
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: matrix-livekit
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: matrix-livekit
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# Signaling + JWT issuance are both ordinary HTTPS through ingress-nginx,
+# same as every other app here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: matrix-livekit
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# The one genuinely new ingress shape in this repo: LiveKit's media port is
+# reached directly from outside the cluster (via the Unifi port-forward,
+# once applied) rather than proxied through ingress-nginx like everything
+# else — so its allow-rule is a plain CIDR, not a namespaceSelector. Scoped
+# to LiveKit's own pod and exactly the one UDP port, nothing else, so this
+# is a tightly-scoped explicit allow within the same default-deny posture,
+# not an exception to it. Meaningful even during LAN-only testing (same-LAN
+# peers reach this port too, just not through the port-forward).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-livekit-media-ingress
+  namespace: matrix-livekit
+spec:
+  podSelector:
+    matchLabels:
+      app: livekit
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 7882
+          protocol: UDP
+---
+# The second new shape: LiveKit's own external-IP/STUN detection
+# (rtc.use_external_ip) needs real internet egress, unlike every other
+# app's egress here, which only ever reaches this cluster's own
+# ingress-nginx namespace. Scoped to LiveKit's pod and the two protocols
+# that detection actually uses.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-livekit-external-ip-detection-egress
+  namespace: matrix-livekit
+spec:
+  podSelector:
+    matchLabels:
+      app: livekit
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 3478
+          protocol: UDP

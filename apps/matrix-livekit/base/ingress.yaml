@@ -1,0 +1,45 @@
+# One shared hostname, path-split between the two HTTP-facing components —
+# avoids sprawling into two new public hostnames for what's really one
+# feature. /livekit/jwt matches the path lk-jwt-service's own
+# LIVEKIT_FULL_ACCESS_HOMESERVERS/livekit_service_url convention expects
+# (Synapse's matrix_rtc.transports config in apps/matrix/base/synapse-config.yaml
+# points here); everything else goes to LiveKit's own WebSocket signaling.
+# Only the UDP media port (livekit.yaml's livekit-media Service) bypasses
+# ingress-nginx entirely — signaling and JWT issuance are both ordinary
+# HTTPS/WSS through it, same as every other app here. Generous proxy
+# timeouts: signaling is a long-lived WebSocket connection for the
+# duration of a call, not a normal short-lived HTTP request.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: matrix-livekit
+  namespace: matrix-livekit
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /livekit/jwt
+            pathType: Prefix
+            backend:
+              service:
+                name: lk-jwt-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: livekit-signaling
+                port:
+                  number: 7880
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: matrix-livekit-tls

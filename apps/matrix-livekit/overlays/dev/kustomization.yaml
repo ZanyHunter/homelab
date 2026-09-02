@@ -44,3 +44,11 @@ replacements:
           name: livekit-media
         fieldPaths:
           - metadata.annotations.metallb\.universe\.tf/loadBalancerIPs
+      - select:
+          kind: Secret
+          name: livekit-config
+        fieldPaths:
+          - stringData.livekit\.yaml
+        options:
+          delimiter: '"'
+          index: 1

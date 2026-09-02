@@ -14,6 +14,24 @@
 # and never exercise TURN at all. Worth revisiting once real off-LAN usage
 # surfaces actual restrictive-NAT connection failures, not before.
 #
+# rtc.node_ip/rtc.use_external_ip (real-time calling debugging follow-up,
+# livekit-secrets.enc.yaml): originally use_external_ip: true only, which
+# made LiveKit advertise its STUN-discovered public WAN IP as the sole ICE
+# candidate for the UDP media path -- correct once this is ever actually
+# public, but real calls from this LAN/VPN-only deployment always failed a
+# few seconds into connecting (matrix_calls_public_udp_forward stays false
+# everywhere, so nothing forwards that public IP's UDP traffic back in).
+# #72's own live verification only confirmed STUN detection itself
+# succeeded (real internet egress through the NetworkPolicy egress rule),
+# never that a full call actually connected end to end. Pinned explicitly
+# to the same livekit-udp-ip this app's own LoadBalancer Service already
+# uses (env-values.yaml, __LIVEKIT_UDP_IP__) -- the one address LAN/VPN
+# clients can actually reach today. Revisit alongside enabling public
+# exposure: LiveKit also supports advertise_internal_ip to add a second
+# candidate alongside an external one, but that advertises the pod's own
+# interface address, not this MetalLB VIP, so it would not by itself
+# restore LAN reachability once use_external_ip flips back on.
+#
 # No built-in non-root user confirmed for this image — runAsUser/fsGroup
 # below is an arbitrary uid, same reasoning as LubeLogger/Pinchflat/Matrix's
 # own Synapse image elsewhere in this repo.

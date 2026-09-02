@@ -74,6 +74,19 @@ replacements:
   - source:
       kind: ConfigMap
       name: env-values
+      fieldPath: data.app-hostname-with-port
+    targets:
+      - select:
+          kind: ConfigMap
+          name: matrix-wellknown
+        fieldPaths:
+          - data.matrix-server\.json
+        options:
+          delimiter: '"'
+          index: 3
+  - source:
+      kind: ConfigMap
+      name: env-values
       fieldPath: data.matrix-calls-hostname
     targets:
       - select:
@@ -81,6 +94,14 @@ replacements:
           name: synapse-config
         fieldPaths:
           - data.homeserver\.yaml
+        options:
+          delimiter: "/"
+          index: 5
+      - select:
+          kind: ConfigMap
+          name: matrix-wellknown
+        fieldPaths:
+          - data.matrix-client\.json
         options:
           delimiter: "/"
           index: 5

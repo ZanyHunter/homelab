@@ -36,7 +36,17 @@ spec:
           type: RuntimeDefault
       containers:
         - name: element-web
-          image: vectorim/element-web:v1.11.90
+          # Bumped from v1.11.90 to v1.12.27 (#72) after a real live gotcha:
+          # v1.11.90's DM room-header call buttons (both phone and video)
+          # went straight into Element Web's own legacy call.ts module
+          # regardless of element_call.use_exclusively, confirmed via real
+          # browser console logs (placeCallWithCallFeeds/placeVideoCall, not
+          # any Element Call/MatrixRTC code path) — upstream had ongoing
+          # work specifically on DM-call routing after this version (e.g. a
+          # "Set Element Call intents when starting and answering DM calls"
+          # PR), so the fix here is the version bump itself, not another
+          # config workaround. See docs/src/explanation/matrix.md.
+          image: vectorim/element-web:v1.12.27
           env:
             - name: ELEMENT_WEB_PORT
               value: "8080"

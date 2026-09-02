@@ -1,0 +1,292 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Public Ingress via Cloudflare Tunnel - ZanyHunter&#x27;s Homelab</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Infrastructure-as-Code documentation for ZanyHunter&#x27;s homelab">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/tabs-52f01167.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-155e11ba.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-d1c1a3e9.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">ZanyHunter&#x27;s Homelab</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/ZanyHunter/homelab/edit/main/docs/src/explanation/public-ingress.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="public-ingress-via-cloudflare-tunnel"><a class="header" href="#public-ingress-via-cloudflare-tunnel">Public Ingress via Cloudflare Tunnel</a></h1>
+<p><strong>Only prod is meant to be publicly exposed, long-term.</strong> <a href="./immich.html">Immich</a> proved this whole mechanism live in dev — a real Cloudflare Tunnel, <code>cloudflared</code> registering healthy connections, real end-to-end OAuth logins — but that exposure was always temporary, gated by <code>public_ingress_enabled</code> in <code>env.hcl</code> and now switched back off (<code>false</code> for dev, <code>true</code> for prod). Two real gotchas were found live before it came back down (see below), both fixed and both worth knowing before prod ever repeats this. The module code (<code>tofu/modules/core-addons/main.tf</code>) is unchanged either way, only <code>env.hcl</code> values differ per environment — see the <a href="../guides/expose-an-app-publicly.html">Expose an App Publicly</a> guide for the ready-to-execute runbook.</p>
+<p>Why dev’s exposure was temporary rather than kept: the user has an existing Immich instance running elsewhere at <code>photos.thepugh.family</code> today, which needs migrating to a legacy domain before prod can claim that hostname — and prod’s own <code>domain_name</code> is already the bare apex (<code>thepugh.family</code>), so it doesn’t hit the hostname-split complexity dev’s <code>dev.thepugh.family</code> did (see below). Standing up dev’s own permanent, separately-addressed public presence alongside that migration plan wasn’t worth the complexity it would have added for a proof that had already served its purpose.</p>
+<hr>
+<h2 id="why-cloudflare-tunnel"><a class="header" href="#why-cloudflare-tunnel">Why Cloudflare Tunnel</a></h2>
+<p>The alternative is port-forwarding: opening an inbound port on the home router and pointing it at ingress-nginx’s LoadBalancer IP. That works, but it means the router has an open inbound port at all, and WAF/rate-limiting has to be built or bolted on separately.</p>
+<p>A <a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/">Cloudflare Tunnel</a> (<code>cloudflared</code>) is <strong>outbound-only</strong> — a pod in-cluster opens a connection <em>to</em> Cloudflare’s edge, and Cloudflare routes public hostnames back through that connection. The router’s inbound side never opens at all, and Cloudflare’s edge gives WAF and rate-limiting for free, before traffic ever reaches the tunnel — closing #33’s first checklist bullet with no new component to run or secure.</p>
+<p>The tradeoff: Cloudflare sees the traffic (TLS terminates at their edge, or passes through to origin in Full-strict mode — see below), and their uptime becomes a dependency for anything public. Accepted as the right tradeoff for a single-operator homelab with no dedicated edge hardware.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>Internet → Cloudflare edge → cloudflared (pod, outbound-only) → ingress-nginx's
+existing ClusterIP Service → the app's existing Ingress → the app's Service/Pods
+</code></pre>
+<p>The tunnel is a second <em>path</em> into the same front door, not a parallel ingress stack. Once traffic reaches <code>cloudflared</code>, it hits ingress-nginx’s ClusterIP Service exactly the way LAN traffic hits its LoadBalancer Service today — same Ingress objects, same cert-manager certs, same per-namespace NetworkPolicies. Nothing about how an app is exposed internally changes when it also becomes reachable publicly.</p>
+<h2 id="gotcha-1-dev-only-public-hostnames-needed-to-live-one-level-under-the-real-apex"><a class="header" href="#gotcha-1-dev-only-public-hostnames-needed-to-live-one-level-under-the-real-apex">Gotcha #1 (dev-only): public hostnames needed to live one level under the real apex</a></h2>
+<p><strong>Found live</strong> the first time Immich’s public hostname was actually tested: Cloudflare’s free Universal SSL certificate only covers one subdomain level (<code>*.thepugh.family</code>) — it does <em>not</em> cover a two-levels-deep hostname like <code>photos.dev.thepugh.family</code> (which is <code>*.dev.thepugh.family</code> from the wildcard’s point of view). A hostname built from <code>domain_name</code> gets no valid edge certificate at all: the browser sees a raw TLS handshake failure (<code>ERR_SSL_VERSION_OR_CYPHER_MISMATCH</code> in Chrome) before any request reaches the tunnel — plain HTTP still “works” in the sense of reaching Cloudflare’s edge, just with nothing to negotiate TLS with. This is a Cloudflare edge-certificate limitation, unrelated to Full (strict)’s origin-cert validation below — see “Authentication” below for why those are two genuinely separate TLS legs.</p>
+<p><strong>This is specific to environments whose <code>domain_name</code> is itself a subdomain — i.e. dev only.</strong> The fix, rather than paying for <a href="https://developers.cloudflare.com/ssl/edge-certificates/advanced-certificate-manager/">Advanced Certificate Manager</a> (~$10/month/zone) to cover deeper subdomains: public hostnames live one level under the real apex (<code>public_apex_domain</code>, <code>thepugh.family</code> for every environment) instead of under <code>domain_name</code>, with a <code>public_hostname_suffix</code> (<code>-dev</code> for dev, empty for prod). <code>photos</code> became <code>photos-dev.thepugh.family</code> publicly in dev, while <code>photos.dev.thepugh.family</code> kept working exactly as before for LAN/VPN access. <strong>Prod never hits this at all</strong>: its own <code>domain_name</code> is already the bare apex (<code>thepugh.family</code>), so its public and internal hostnames for the same app are identical — no split, no suffix needed (<code>public_hostname_suffix = ""</code> in <code>tofu/live/prod/env.hcl</code>), and <code>local.public_hostnames</code> in <code>tofu/modules/core-addons/main.tf</code> collapses to a no-op for prod as a result.</p>
+<h2 id="gotcha-2-why-devs-split-made-this-worse-keycloak-rejected-the-public-redirect_uri"><a class="header" href="#gotcha-2-why-devs-split-made-this-worse-keycloak-rejected-the-public-redirect_uri">Gotcha #2 (why dev’s split made this worse): Keycloak rejected the public redirect_uri</a></h2>
+<p><strong>Also found live</strong>, once Immich’s public login was actually attempted end-to-end: Keycloak returned <code>Invalid parameter: redirect_uri</code>. Immich’s OAuth flow computes its <code>redirect_uri</code> from whichever hostname the browser is actually using — <code>https://photos-dev.thepugh.family/auth/login</code> when reached publicly — but <code>keycloak_openid_client.immich</code>’s <code>valid_redirect_uris</code> only listed the <em>internal</em> hostname’s URIs (<code>photos.dev.thepugh.family</code>), since that’s what existed when the client was created. Keycloak correctly rejected a redirect URI it didn’t recognize.</p>
+<p>This is a direct consequence of gotcha #1’s hostname split, not an independent bug: any app split across two different public/internal hostnames needs <em>every</em> hostname it might be reached on registered as a valid redirect URI. <strong>Prod avoids this the same way it avoids gotcha #1</strong> — with no hostname split, there’s only ever one redirect URI to register per app, exactly the shape the <a href="../guides/onboard-a-new-app.html">Onboard a New App</a> guide’s OIDC client instructions already assume. If a future environment’s <code>domain_name</code> is ever a subdomain again and needs this same split, the Keycloak client’s <code>valid_redirect_uris</code> must include <em>both</em> hostnames’ callback URLs, not just the internal one — worth remembering rather than rediscovering live a second time.</p>
+<h2 id="tls-full-strict"><a class="header" href="#tls-full-strict">TLS: Full (strict)</a></h2>
+<p>Cloudflare’s strictest mode validates that the origin (ingress-nginx) presents a certificate that’s both trusted and hostname-matching — no self-signed or expired certs accepted. This is effectively free here: cert-manager already issues real Let’s Encrypt certs via DNS-01 for every hostname, so the “you need a publicly-trusted origin cert” requirement Full (strict) usually forces on people is already satisfied.</p>
+<p><strong>This is not the same thing as “serving cert-manager’s cert to the browser.”</strong> A Tunnel means TLS terminates twice, not once: browser ↔ Cloudflare’s edge (Cloudflare’s own certificate — see the Universal SSL section above for why that leg has its own coverage rules) and, separately, <code>cloudflared</code> ↔ origin (cert-manager’s certificate, which is what Full (strict) actually validates). The browser never talks to <code>cloudflared</code> or ingress-nginx directly, so there’s no way to make cert-manager’s certificate the one the browser itself sees — that’s inherent to proxying through Cloudflare at all, not a gap in this setup specifically.</p>
+<p>The real tradeoff is operational, not security: Full (strict) <strong>fails closed</strong>. If a cert-manager renewal ever hiccups (an ACME rate limit, a transient DNS-01 failure), public traffic gets a hard <code>526</code> error until it’s fixed, rather than silently falling back to an unverified connection. That’s the right trade — a loud outage beats a silent security gap — but it does mean a cert problem becomes public-facing-visible immediately, worth knowing going in rather than discovering live.</p>
+<h2 id="authentication-cloudflare-is-transport-keycloak-is-the-authority"><a class="header" href="#authentication-cloudflare-is-transport-keycloak-is-the-authority">Authentication: Cloudflare is transport, Keycloak is the authority</a></h2>
+<p>A bare Cloudflare Tunnel does not participate in authentication at all — it’s a pipe. A public app using Keycloak OIDC still redirects the browser straight to <code>keycloak.&lt;domain&gt;/realms/homelab/...</code> exactly like it does on the LAN today; Cloudflare never inspects or gates that flow.</p>
+<p><strong>Cloudflare Access (Zero Trust) is explicitly not used.</strong> It’s a separate product that <em>could</em> insert a Cloudflare-hosted login page in front of a hostname before forwarding through the tunnel — useful as a second gate in front of something sensitive. It’s deliberately skipped here: the user has VPN on every device, so there’s no real remote-access need it would solve, and it would just be an extra moving part with its own login flow to maintain. This mirrors the “Upstream identity federation (deferred)” call-out in <a href="./sso-and-keycloak.html">SSO</a> — a considered rejection, not an oversight, so a future session doesn’t “helpfully” add it back without re-litigating why.</p>
+<h2 id="keycloak-admin-internalvpn-only-permanently"><a class="header" href="#keycloak-admin-internalvpn-only-permanently">Keycloak admin: internal/VPN-only, permanently</a></h2>
+<p>This is a hard design constraint, not a default that happens to be true today: <strong><code>keycloak.&lt;domain&gt;</code> never gets a wildcard route through the tunnel.</strong> The admin console (<code>/admin/*</code>) must never become reachable from the public internet — internal LAN and VPN access, which already reaches it today, is sufficient and is the only access path that should ever exist for it.</p>
+<p>The <em>first</em> time a real public app needs Keycloak login, the only thing that changes is one narrowly-scoped tunnel route added for exactly <code>/realms/homelab/*</code> on that hostname — nothing else. This is an <strong>allowlist, not a denylist</strong>: rather than trying to enumerate every sensitive path to block (<code>/admin</code>, and whatever else might exist or get added later), only the one path public OIDC flows actually need is ever forwarded, and everything else on that hostname is unreachable through the tunnel by construction. See the <a href="../guides/expose-an-app-publicly.html">Expose an App Publicly</a> guide for the exact <code>cloudflare_zero_trust_tunnel_cloudflared_config</code> shape.</p>
+<h2 id="manual-step-already-done-cloudflare-token-scope"><a class="header" href="#manual-step-already-done-cloudflare-token-scope">Manual step already done: Cloudflare token scope</a></h2>
+<p>The existing Cloudflare API token (<code>tofu/secrets.enc.yaml</code>’s <code>cloudflare_api_token</code>, also used by cert-manager for DNS-01) needed <strong>Account: Cloudflare Tunnel Edit</strong> added to its permissions (on top of its existing Zone DNS Edit scope) before the Tunnel object could be Tofu-managed — a real permission increase on the one credential in this repo with blast radius outside the homelab, done with the user’s explicit sign-off per <code>CLAUDE.md</code>’s standing Cloudflare guardrail. The token’s value itself never changed, only its scope — no <code>secrets.enc.yaml</code> update was needed for this step.</p>
+<p>This scope widening is account-level, not tied to dev’s now-torn-down Tunnel specifically — <strong>prod does not need to redo this step</strong>, the same token already has what it needs whenever <code>public_ingress_enabled = true</code> is actually applied there.</p>
+<p>If this is ever redone from scratch (a new Cloudflare account, a lost token), the same manual step applies: widen an API token’s permissions to include Account: Cloudflare Tunnel Edit before <code>core-addons</code> can apply.</p>
+<h2 id="where-things-live"><a class="header" href="#where-things-live">Where things live</a></h2>
+<p>All in the <strong><code>core-addons</code></strong> unit, alongside ingress-nginx/cert-manager — the existing home for ingress-adjacent add-ons:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Concern</th><th>Resource</th></tr>
+</thead>
+<tbody>
+<tr><td>The Tunnel object <code>cloudflared</code> authenticates as</td><td><code>cloudflare_zero_trust_tunnel_cloudflared</code></td></tr>
+<tr><td>Public hostname → internal Service routing rules</td><td><code>cloudflare_zero_trust_tunnel_cloudflared_config</code> (remote-managed mode — <code>cloudflared</code> runs with just <code>--token</code>, no mounted config file to keep in sync)</td></tr>
+<tr><td>Public DNS record per app (<code>&lt;hostname&gt; → &lt;tunnel-id&gt;.cfargotunnel.com</code>)</td><td><code>cloudflare_dns_record</code> (provider v5 name — v4’s <code>cloudflare_record</code> is deprecated). Uses the <em>existing</em> DNS-Zone-Edit token scope, no new permission needed for this piece specifically.</td></tr>
+<tr><td>The <code>cloudflared</code> pod itself</td><td>Hand-rolled <code>kubernetes_deployment</code>, not a chart — Cloudflare doesn’t publish an official one, and this repo already avoids third-party charts for pinned-version risk (see Postgres in <code>keycloak-infra</code>, MinIO in <code>backup</code>)</td></tr>
+<tr><td>NetworkPolicy</td><td>Reuse the existing <code>allow_internet_egress</code> pattern (port 443 to <code>0.0.0.0/0</code>, already used by cert-manager/ArgoCD in <code>core-addons/main.tf</code>) plus DNS egress. No <code>hostNetwork</code>/<code>hostPID</code>/<code>hostPath</code> need, so <code>restricted</code> PSA should be achievable — unlike the <code>privileged</code> node-level DaemonSets elsewhere in this cluster.</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Whether the Tunnel exists at all is <code>public_ingress_enabled</code></strong> (<code>env.hcl</code>, <code>false</code> for dev, <code>true</code> for prod) — disabling it removes every Cloudflare Tunnel resource entirely (Tunnel object, <code>cloudflared</code> Deployment, DNS records), not just the routes, via <code>count = var.public_ingress_enabled ? 1 : 0</code> on each one in <code>tofu/modules/core-addons/main.tf</code>. <strong>The app list within that is a separate <code>env.hcl</code> object-typed variable</strong> (<code>public_apps</code>), mirroring the existing <code>chart_versions</code>/<code>nfs_storage</code> pattern this repo already uses for environment-specific config. Onboarding a public app means adding one entry and running <code>terragrunt apply</code> — not a Cloudflare dashboard click, and not a GitOps manifest edit. GitOps was considered (matching the precedent set by the MetalLB <code>IPAddressPool</code>/cert-manager <code>ClusterIssuer</code>s, which moved off Tofu) and rejected: those moved to GitOps specifically to dodge a CRD-creation-ordering problem between Tofu/Helm and the Kubernetes API — Cloudflare-side resources aren’t Kubernetes CRs at all, so that problem doesn’t exist here, and a plain Tofu variable keeps everything in one auditable <code>apply</code> instead of splitting the concern across two systems for no benefit.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../explanation/backup-and-restore.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../explanation/immich.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../explanation/backup-and-restore.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../explanation/immich.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../theme/tabs-0c8cb93b.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,9 +1,13 @@
 # The per-environment values this app's base/ manifests reference as
 # __APP_HOSTNAME__/__ELEMENT_HOSTNAME__/__DOMAIN_NAME__/__KEYCLOAK_HOSTNAME__/
-# __STORAGE_CLASS_CEPH__/__STORAGE_CLASS_NFS__ tokens — see
-# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
-# domain-name is the bare apex (Matrix's server_name identity, #57) — never
-# the same value as app-hostname, unlike every other app here.
+# __MATRIX_CALLS_HOSTNAME__/__STORAGE_CLASS_CEPH__/__STORAGE_CLASS_NFS__
+# tokens — see docs/src/explanation/gitops-app-of-apps.md for the
+# base/overlays pattern. domain-name is the bare apex (Matrix's server_name
+# identity, #57) — never the same value as app-hostname, unlike every other
+# app here. matrix-calls-hostname must match
+# apps/matrix-livekit/overlays/<env>/env-values.yaml's own app-hostname
+# exactly (#72) — two independently-set values kept in sync by hand, same
+# as every other cross-app hostname reference in this repo.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,5 +17,6 @@ data:
   element-hostname: element.dev.thepugh.family
   domain-name: dev.thepugh.family
   keycloak-hostname: keycloak.dev.thepugh.family
+  matrix-calls-hostname: matrix-calls.dev.thepugh.family
   storage-class-ceph: ceph-rbd-dev
   storage-class-nfs: nfs-dev

@@ -1,0 +1,120 @@
+# LiveKit SFU — the actual media server behind Element Call/MatrixRTC (#72).
+# Deliberately configured with a single-port UDP mux (rtc.udp_port, not
+# rtc.port_range_start/end) specifically so this can run as an ordinary
+# restricted-PSA pod behind a normal LoadBalancer Service — LiveKit's own
+# "typical" self-hosting guidance uses a wide ephemeral port range needing
+# hostNetwork: true, which would have made this a fourth privileged-PSA
+# namespace in a repo that otherwise holds that to exactly 3
+# (metallb-system, csi-driver-nfs, monitoring). See
+# docs/src/explanation/matrix.md's real-time calling section.
+#
+# No built-in TURN listener enabled for this first rollout — deliberately
+# deferred, not forgotten: this deployment is LAN/VPN-only for now (see
+# ingress.yaml/env-values.yaml), where same-network peers connect directly
+# and never exercise TURN at all. Worth revisiting once real off-LAN usage
+# surfaces actual restrictive-NAT connection failures, not before.
+#
+# No built-in non-root user confirmed for this image — runAsUser/fsGroup
+# below is an arbitrary uid, same reasoning as LubeLogger/Pinchflat/Matrix's
+# own Synapse image elsewhere in this repo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livekit
+  namespace: matrix-livekit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: livekit
+  template:
+    metadata:
+      labels:
+        app: livekit
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: livekit
+          image: livekit/livekit-server:v1.10.0
+          args: ["--config", "/etc/livekit/livekit.yaml"]
+          ports:
+            - name: signaling
+              containerPort: 7880
+            - name: rtc-udp
+              containerPort: 7882
+              protocol: UDP
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/livekit
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: 7880
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7880
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: config
+          secret:
+            secretName: livekit-config
+---
+# Signaling — plain ClusterIP, reached only via ingress-nginx over HTTPS/WSS
+# like every other app here (see ingress.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: livekit-signaling
+  namespace: matrix-livekit
+spec:
+  selector:
+    app: livekit
+  ports:
+    - port: 7880
+      targetPort: 7880
+---
+# The one genuinely new kind of Service in this repo: a LoadBalancer
+# announced by the same MetalLB instance already fronting ingress-nginx,
+# pinned to a static IP (env-values.yaml's udp-lb-ip) the same way
+# core-addons pins ingress-nginx's own — MetalLB is protocol-agnostic, so a
+# single UDP port needs nothing beyond what any other LoadBalancer Service
+# already gets. tofu/modules/network's new unifi_port_forward resource
+# forwards WAN UDP 7882 to this exact IP (not applied yet — see
+# docs/src/explanation/matrix.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: livekit-media
+  namespace: matrix-livekit
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: __LIVEKIT_UDP_IP__
+spec:
+  type: LoadBalancer
+  selector:
+    app: livekit
+  ports:
+    - port: 7882
+      targetPort: 7882
+      protocol: UDP

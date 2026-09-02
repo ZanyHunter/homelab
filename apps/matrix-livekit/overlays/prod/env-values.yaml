@@ -1,0 +1,14 @@
+# The per-environment values this app's base/ manifests reference as
+# __APP_HOSTNAME__/__DOMAIN_NAME__/__LIVEKIT_UDP_IP__ tokens — see
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+# livekit-udp-ip must match tofu/live/prod/env.hcl's matrix_calls_udp_ip
+# exactly — the same value drives both the Kubernetes LoadBalancer Service's
+# pin and (once applied) the Unifi port-forward's destination.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-values
+data:
+  app-hostname: matrix-calls.thepugh.family
+  domain-name: thepugh.family
+  livekit-udp-ip: 192.168.160.10

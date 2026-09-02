@@ -7,7 +7,19 @@
 # the very first quoted value in this document (index 3 counting both the
 # key's and value's opening/closing quotes) so overlays/{dev,prod}/'s
 # delimiter/index replacement stays correct regardless of what's added
-# below it later.
+# below it later — new keys go after it for exactly that reason (#72).
+#
+# element_call.use_exclusively (#72), added after a real live gotcha: without
+# it, Element Web's plain call/video button still defaults to legacy 1:1
+# call signaling for simple calls (only explicitly-started "Element Call"
+# sessions used the MatrixRTC/LiveKit path this repo actually built) —
+# Element X has no legacy call support at all and surfaces "Unsupported
+# call. Ask if the caller can use the new Element X app." when it receives
+# one. This forces Element Web to use MatrixRTC/Element Call for every call,
+# matching the only calling stack this repo actually has. Needs no
+# element_call.url — that field is only for linking to a separate, external
+# Element Call web app; this repo's embedded/native MatrixRTC calling
+# (Synapse's own matrix_rtc.transports) doesn't use it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,5 +31,8 @@ data:
       "default_server_name": "__DOMAIN_NAME__",
       "brand": "Element",
       "disable_guests": true,
-      "show_labs_settings": false
+      "show_labs_settings": false,
+      "element_call": {
+        "use_exclusively": true
+      }
     }

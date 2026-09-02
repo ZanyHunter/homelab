@@ -12,12 +12,19 @@
 # Keycloak directly at all, only apps/matrix-mas/ does now (mas-compat-service.yaml's
 # ExternalName routes the three MAS compat-proxy paths there by cluster-DNS
 # name, needing no hostname token at all).
+# app-hostname-with-port (real-time calling debugging follow-up) must be
+# app-hostname with ":443" appended — kept in sync by hand, same as
+# matrix-calls-hostname already is against apps/matrix-livekit's own
+# app-hostname. Feeds matrix-wellknown.yaml's /.well-known/matrix/server
+# file, whose m.server value needs an explicit port (see that file's own
+# comment for why).
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: env-values
 data:
   app-hostname: matrix.dev.thepugh.family
+  app-hostname-with-port: matrix.dev.thepugh.family:443
   element-hostname: element.dev.thepugh.family
   domain-name: dev.thepugh.family
   matrix-calls-hostname: matrix-calls.dev.thepugh.family

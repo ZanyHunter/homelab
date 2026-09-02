@@ -72,8 +72,20 @@ data:
         tls: false
         type: http
         x_forwarded: true
+        # openid (real-time calling follow-up debugging) registers only the
+        # openid userinfo servlet at the federation-prefixed route, not the
+        # broader federation resource -- Synapse's own homeserver.py
+        # explicitly skips loading it when federation is already present,
+        # confirming the two are deliberately separable. lk-jwt-service
+        # validates a caller by presenting a Matrix native OpenID token back
+        # to this exact endpoint; with only client registered it returned a
+        # genuine M_UNRECOGNIZED 404 (not a permissions rejection), which
+        # lk-jwt-service surfaced to the client as a 401. Adding just this
+        # resource, deliberately not federation, leaves every other real
+        # federation surface -- and federation_domain_whitelist, the actual
+        # authoritative off switch -- completely untouched.
         resources:
-          - names: [client]
+          - names: [client, openid]
             compress: false
 
     media_store_path: /media_store

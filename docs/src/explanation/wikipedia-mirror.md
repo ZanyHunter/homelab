@@ -55,6 +55,18 @@ Splitting the download step into its own container also scopes the NetworkPolicy
 
 The Deployment runs the same `reindex` logic as its own init container (a single call, since there's no download involved there), so `library.xml` always exists by the time `kiwix-serve` starts — including on the very first deploy, before the CronJob has ever run.
 
+### Manually triggering a run
+
+Kubernetes CronJobs don't run a missed trigger retroactively — only the next matching schedule fires. Since this one runs once a month (`0 6 1 * *`, 6:00 UTC on the 1st), a first deploy landing any time after that window that month leaves `kiwix-serve` serving an empty library for up to a month, not just until the next convenient moment — confirmed live on prod's own first deploy (#53's app applied a day after that month's trigger time had already passed). Trigger a run immediately rather than waiting:
+
+```bash
+kubectl create job wikipedia-updater-manual-$(date +%Y%m%d%H%M%S) \
+  --from=cronjob/wikipedia-updater \
+  -n wikipedia
+```
+
+Watch it with `kubectl get pods -n wikipedia -l job-name=<the job name above> -w`; each `sync-*`/`reindex-*` init container's own logs are available via `kubectl logs -n wikipedia <pod> -c <container-name>` while it runs. Same command works on dev, just against dev's kubeconfig context — the Job name only needs to be unique within the namespace, so any timestamp suffix avoiding a collision with a prior manual run is fine.
+
 ## Per-environment scope: prod gets everything, dev doesn't
 
 Testing this app is genuinely useful on dev, but permanently carrying prod's full ~162GB bundle there just to do so isn't — a dev-only cluster shouldn't need 150GB+ of storage for one app it's not the source of truth for. `apps/wikipedia/base/updater-cronjob.yaml` lists all twelve `sync-*`/`reindex-*` steps (one pair per series) as `initContainers`, plus a single trivial always-present main container (`done`, just `curl` running `true` — Kubernetes Jobs require at least one non-init container) rather than promoting the last series' own `reindex` step into that role. That structural choice is what makes per-environment subsetting clean: **prod's overlay makes no changes at all** (all twelve steps run), while **dev's overlay (`overlays/dev/kustomization.yaml`) adds a `patches:` block** that strategic-merge-deletes eight of the twelve init containers by name (`$patch: delete`), leaving only `sync-wikiquote`/`reindex-wikiquote`/`sync-wikivoyage`/`reindex-wikivoyage` — the two smallest series, ~2GB total, already proven live end-to-end. `reindex.sh`'s own prune loop iterates over all six series' prefixes regardless of environment; for a series that was never downloaded on a given environment, the glob simply matches nothing and the loop no-ops, so it needed no environment-specific change at all.

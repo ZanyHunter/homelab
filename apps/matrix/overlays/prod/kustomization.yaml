@@ -87,19 +87,6 @@ replacements:
   - source:
       kind: ConfigMap
       name: env-values
-      fieldPath: data.keycloak-hostname
-    targets:
-      - select:
-          kind: ExternalSecret
-          name: synapse-oidc-secret
-        fieldPaths:
-          - spec.target.template.data.oidc\.yaml
-        options:
-          delimiter: "/"
-          index: 2
-  - source:
-      kind: ConfigMap
-      name: env-values
       fieldPath: data.storage-class-ceph
     targets:
       - select:

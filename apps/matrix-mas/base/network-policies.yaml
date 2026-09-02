@@ -1,0 +1,121 @@
+# Default-deny + only the traffic this namespace actually needs (#31), same
+# pattern as every other namespace in this repo — plus one genuinely new
+# shape of rule this app's coupling to Synapse requires, called out below.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# mas <-> mas-postgres.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# MAS's own public hostname (matrix-auth.<domain>) — its login UI and
+# OAuth2/OIDC endpoints.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# MAS's own server-side OIDC calls (discovery, token exchange, jwks) go to
+# Keycloak's *external* hostname, which resolves back through ingress-nginx's
+# LoadBalancer IP — same pattern as every other app's OIDC egress here,
+# including Synapse's own pre-#74 version of this exact rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# The genuinely new shape of rule this app needs: Synapse and MAS call each
+# other directly, pod-to-pod, cross-namespace — not proxied through
+# ingress-nginx like every other cross-app dependency in this repo (the
+# compat-proxy paths on Synapse's own Ingress are the one exception, and
+# those already reach MAS via ingress-nginx, covered by the
+# allow-ingress-nginx-ingress rule above). This is the first NetworkPolicy in
+# this repo naming another app's namespace by its own
+# kubernetes.io/metadata.name label rather than kube-system/ingress-nginx,
+# mirrored by the equivalent rules added to
+# apps/matrix/base/network-policies.yaml. Both directions of the
+# matrix_authentication_service relationship need their own rule: Synapse
+# calling MAS's token introspection endpoint (ingress here), and MAS calling
+# Synapse's admin API to provision users (egress here).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-matrix-namespace-ingress
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: matrix
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-matrix-namespace-egress
+  namespace: matrix-mas
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: matrix

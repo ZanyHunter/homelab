@@ -1,0 +1,17 @@
+# A Kubernetes Ingress backend must live in the same namespace as the
+# Ingress object itself — MAS's real Service lives in the matrix-mas
+# namespace (#74), so this ExternalName Service is a same-namespace
+# indirection letting synapse.yaml's own Ingress route the three MAS
+# compat-proxy paths to it without needing a second Ingress object (and a
+# second, redundant cert-manager Certificate for the same hostname) in
+# matrix-mas. ingress-nginx supports ExternalName-type backends natively.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mas-compat
+  namespace: matrix
+spec:
+  type: ExternalName
+  externalName: mas.matrix-mas.svc.cluster.local
+  ports:
+    - port: 8080

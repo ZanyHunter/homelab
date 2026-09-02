@@ -560,6 +560,53 @@ resource "keycloak_openid_client_optional_scopes" "matrix" {
   ]
 }
 
+resource "random_password" "mas_client_secret" {
+  length  = 32
+  special = false
+}
+
+# Matrix Authentication Service (MAS, #74) — replaces the matrix client
+# above as the thing that actually talks to Keycloak. Synapse now delegates
+# all auth to MAS (matrix_authentication_service in
+# apps/matrix/base/synapse-config.yaml) rather than holding its own OIDC
+# client credentials, so this client's redirect_uri is MAS's own upstream
+# callback path (its documented shape, confirmed against MAS's own docs —
+# https://<auth-service-domain>/upstream/callback/<provider-id>), not
+# Synapse's. <provider-id> is a fixed ULID chosen once and mirrored exactly
+# in apps/matrix-mas/base/mas-secrets-externalsecret.yaml's
+# upstream_oauth2.providers[].id — the two must match or Keycloak will
+# reject the callback as an unregistered redirect URI.
+#
+# The matrix client above is deliberately left in place, unused, rather
+# than deleted in this same change — a cheap rollback path while MAS is
+# being proven out. See docs/src/explanation/matrix.md's MAS section.
+resource "keycloak_openid_client" "mas" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "mas"
+  name      = "Matrix Authentication Service (MAS)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.mas_client_secret.result
+
+  valid_redirect_uris = ["https://matrix-auth.${var.domain_name}/upstream/callback/01M1G9KN6N45DQKTCZ059X2VXS"]
+  web_origins         = ["+"]
+}
+
+resource "keycloak_openid_client_optional_scopes" "mas" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = keycloak_openid_client.mas.id
+
+  optional_scopes = [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
+
 # --- Canonical secrets for External Secrets Operator (#42) -------------------
 # Every client secret generated above for a real, GitOps-managed app used to
 # need a manual `terragrunt output -raw` + hand-carry into a ksops-encrypted
@@ -742,6 +789,19 @@ resource "kubernetes_secret" "matrix_oidc_client_secret" {
 
   data = {
     client-secret = keycloak_openid_client.matrix.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "mas_oidc_client_secret" {
+  metadata {
+    name      = "mas-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-secret = keycloak_openid_client.mas.client_secret
   }
 
   type = "Opaque"

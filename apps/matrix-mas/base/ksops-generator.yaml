@@ -1,12 +1,11 @@
 apiVersion: viaduct.ai/v1
 kind: ksops
 metadata:
-  name: matrix-secrets
+  name: matrix-mas-secrets
   annotations:
     config.kubernetes.io/function: |
       exec:
         path: ksops
 files:
-  - ./matrix-db-credentials.enc.yaml
-  - ./matrix-secrets.enc.yaml
-  - ./mas-shared-secret.enc.yaml
+  - ./mas-db-credentials.enc.yaml
+  - ./mas-secrets.enc.yaml

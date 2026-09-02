@@ -9,6 +9,15 @@
 # delimiter/index replacement stays correct regardless of what's added
 # below it later — new keys go after it for exactly that reason (#72).
 #
+# disable_custom_urls (public-exposure prep): removes the login screen's
+# "Edit" server-picker link entirely, so this client can only ever log into
+# default_server_name above -- no way to point it at a different
+# homeserver. Not a security boundary on its own (Synapse's auth is already
+# fully delegated to MAS/Keycloak, so nobody can authenticate here without
+# valid Keycloak credentials regardless) -- this closes the separate
+# concern of a future public Element Web being usable as a generic client
+# against other people's servers.
+#
 # element_call.use_exclusively (#72), added after a real live gotcha: without
 # it, Element Web's plain call/video button still defaults to legacy 1:1
 # call signaling for simple calls (only explicitly-started "Element Call"
@@ -31,6 +40,7 @@ data:
       "default_server_name": "__DOMAIN_NAME__",
       "brand": "Element",
       "disable_guests": true,
+      "disable_custom_urls": true,
       "show_labs_settings": false,
       "element_call": {
         "use_exclusively": true

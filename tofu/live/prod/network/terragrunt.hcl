@@ -31,9 +31,11 @@ generate "provider" {
 }
 
 inputs = {
-  network_cidr = include.env.locals.network_cidr
-  vlan_id      = include.env.locals.vlan_id
-  domain_name  = include.env.locals.domain_name
-  network_name = include.env.locals.network_name
-  ingress_ip   = include.env.locals.ingress_ip
+  network_cidr                    = include.env.locals.network_cidr
+  vlan_id                         = include.env.locals.vlan_id
+  domain_name                     = include.env.locals.domain_name
+  network_name                    = include.env.locals.network_name
+  ingress_ip                      = include.env.locals.ingress_ip
+  matrix_calls_udp_ip             = include.env.locals.matrix_calls_udp_ip
+  matrix_calls_public_udp_forward = include.env.locals.matrix_calls_public_udp_forward
 }

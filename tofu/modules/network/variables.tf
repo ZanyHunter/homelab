@@ -32,3 +32,14 @@ variable "network_name" {
   type        = string
   description = "Display name of the Unifi network/VLAN (e.g. \"K8s-Cluster-Dev\"). Environment-specific so dev and a future prod are distinguishable in the Unifi controller UI."
 }
+
+variable "matrix_calls_udp_ip" {
+  type        = string
+  description = "Static MetalLB IP (from this environment's own lb-pool-range, apps/cluster-addons/overlays/<env>/env-values.yaml) that LiveKit's UDP mux Service pins itself to (#72) — kept static and passed in directly, same reasoning as var.ingress_ip, so this unit's port-forward resource doesn't need a Tofu dependency on core-addons/the app itself, which apply after it in the DAG."
+}
+
+variable "matrix_calls_public_udp_forward" {
+  description = "Whether to create the unifi_port_forward routing WAN UDP 7882 to var.matrix_calls_udp_ip (#72) — false everywhere until real-time calling is actually ready to go beyond LAN/VPN testing, and even then only ever meaningful for prod (the one environment meant to be publicly exposed long-term), same as public_matrix_wellknown in core-addons."
+  type        = bool
+  default     = false
+}

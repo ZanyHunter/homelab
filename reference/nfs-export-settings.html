@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-6a7a7c88.js";
+            window.path_to_searchindex_js = "../searchindex-9c20764e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-ab7ce4c0.js"></script>
+        <script src="../toc-57119c9c.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -214,6 +214,15 @@ cat /mnt/test/test.txt
 umount /mnt/test
 </code></pre>
 <p>Testing this requires a pod with <code>securityContext.privileged: true</code> (the <code>mount</code> syscall needs <code>CAP_SYS_ADMIN</code>, which the cluster’s baseline Pod Security level doesn’t grant by default) — run it in a throwaway namespace labeled <code>pod-security.kubernetes.io/enforce: privileged</code>, and delete the namespace afterward rather than leaving a permanently-privileged namespace around.</p>
+<h2 id="the-jellyfin-media-export-shared-not-per-environment"><a class="header" href="#the-jellyfin-media-export-shared-not-per-environment">The <code>jellyfin-media</code> export: shared, not per-environment</a></h2>
+<p>Unlike <code>k8s-dev</code>/<code>k8s-prod</code> above, Jellyfin’s media library (#52) is a third, dedicated export with genuinely different settings — see <a href="../explanation/jellyfin.html">Jellyfin</a> for the full “why”:</p>
+<ul>
+<li><strong>Path</strong>: <code>/mnt/Main/jellyfin-media</code></li>
+<li><strong>Authorized network</strong>: both <code>192.168.160.0/27</code> (prod) and <code>192.168.160.32/27</code> (dev) — the one export in this repo intentionally reachable from both VLANs, since it backs one physical media library both environments’ Jellyfin deployments read in place rather than each getting their own copy.</li>
+<li><strong>Access pattern</strong>: read-only from Kubernetes (<code>mountOptions: [ro]</code> on the static PV, <code>apps/jellyfin/base/media-pv.yaml</code>) — Jellyfin never writes to this export, so root-squash/write-access settings that matter for the dynamic-provisioning exports above aren’t a consideration here the same way.</li>
+<li><strong>Permissions</strong>: files must be world-readable (or otherwise readable by whatever uid the Jellyfin pod runs as) for the non-root pod to read them — plain Unix permissions, unrelated to root-squash. See the Jellyfin page’s gotchas section for a real permissions issue found live here.</li>
+<li>Not used by <code>csi-driver-nfs</code>/any StorageClass at all — this is a static PV pointing directly at a pre-existing, already-populated export, not a dynamic-provisioning target.</li>
+</ul>
 
                     </main>
 

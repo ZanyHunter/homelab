@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-6a7a7c88.js";
+            window.path_to_searchindex_js = "../searchindex-9c20764e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-ab7ce4c0.js"></script>
+        <script src="../toc-57119c9c.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -185,7 +185,7 @@
 <p>ArgoCD is bootstrapped by Tofu (part of the <code>core-addons</code> unit, <code>tofu/modules/core-addons/main.tf</code> — see <a href="./terragrunt-units.html">Terragrunt Units</a>), but the applications it manages live in git, under this repo’s <code>apps/</code> directory, not in Tofu. This page documents how that wiring works. For the actual step-by-step procedures (adding a new app, a new environment, a new encrypted secret), see the <a href="../guides/onboard-a-new-app.html">Onboard a New App</a> and <a href="../guides/stand-up-a-new-environment.html">Stand Up a New Environment</a> guides.</p>
 <hr>
 <h2 id="app-of-apps"><a class="header" href="#app-of-apps">App-of-apps</a></h2>
-<p>An ArgoCD <code>ApplicationSet</code> (<code>helm_release.argocd_apps</code> in <code>tofu/modules/core-addons/main.tf</code>, installed via argo-helm’s <code>argocd-apps</code> chart) watches <code>apps/*/overlays/&lt;cluster_name&gt;</code> in this repo at the revision pinned by <code>var.gitops.revision</code> (<code>main</code> for both clusters today) — <code>&lt;cluster_name&gt;</code> is <code>var.cluster_name</code> (<code>"dev"</code>/<code>"prod"</code>), so each environment’s own ArgoCD only ever discovers its own overlay, never the other’s, even though both read from the same git path. Its git directory generator turns each matching directory into its own ArgoCD <code>Application</code>. The generated name/namespace use <code>{{path[1]}}</code> (the app-name path segment, e.g. <code>actual</code> out of <code>apps/actual/overlays/dev</code>) rather than <code>{{path.basename}}</code> (which would resolve to <code>dev</code>/<code>prod</code> here), synced automatically (<code>prune</code> + <code>selfHeal</code>).</p>
+<p>An ArgoCD <code>ApplicationSet</code> (<code>helm_release.argocd_apps</code> in <code>tofu/modules/core-addons/main.tf</code>, installed via argo-helm’s <code>argocd-apps</code> chart) watches <code>apps/*/overlays/&lt;cluster_name&gt;</code> in this repo at the revision pinned by <code>var.gitops.revision</code> — <code>&lt;cluster_name&gt;</code> is <code>var.cluster_name</code> (<code>"dev"</code>/<code>"prod"</code>), so each environment’s own ArgoCD only ever discovers its own overlay, never the other’s, even though both read from the same git path. Since the two-stage promotion pipeline (#51, see <code>CLAUDE.md</code>’s Git workflow section), dev and prod deliberately pin <em>different</em> revisions: dev tracks the persistent <code>development</code> branch, prod tracks <code>main</code> — a change only reaches prod’s ArgoCD once its <code>development → main</code> promotion PR merges, giving every change a real window validated live on dev before it can touch prod. Its git directory generator turns each matching directory into its own ArgoCD <code>Application</code>. The generated name/namespace use <code>{{path[1]}}</code> (the app-name path segment, e.g. <code>actual</code> out of <code>apps/actual/overlays/dev</code>) rather than <code>{{path.basename}}</code> (which would resolve to <code>dev</code>/<code>prod</code> here), synced automatically (<code>prune</code> + <code>selfHeal</code>).</p>
 <h3 id="the-base--overlaysenv-structure"><a class="header" href="#the-base--overlaysenv-structure">The <code>base/</code> + <code>overlays/&lt;env&gt;/</code> structure</a></h3>
 <p>Every directory under <code>apps/</code> (including <code>apps/cluster-addons/</code>) is split into:</p>
 <ul>

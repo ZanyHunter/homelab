@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-155e11ba.js";
+            window.path_to_searchindex_js = "../searchindex-b43ffd5a.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d1c1a3e9.js"></script>
@@ -257,6 +257,8 @@
 </ul>
 <h3 id="a-real-gotcha-found-in-a-test-build-comments-count-toward-token-replacement-math-too"><a class="header" href="#a-real-gotcha-found-in-a-test-build-comments-count-toward-token-replacement-math-too">A real gotcha found in a test build: comments count toward token-replacement math too</a></h3>
 <p>The Kustomize delimiter/index trick this repo uses to reach a token nested inside a larger text value (splitting the whole field on a character, replacing one indexed segment — see #57’s own gotcha with the same mechanism) treats the <em>entire</em> field value as one opaque string, YAML comments included. Adding the <code>matrix_rtc</code> block’s own explanatory comment — which happened to describe file paths using literal <code>/</code> characters — silently shifted the delimiter count and made the replacement land inside that comment instead of the intended <code>livekit_service_url</code> token, caught in a repo-server test build before it reached a live cluster. Fixed by rewriting the comment to use zero <code>/</code> characters at all, and confirmed this is now a standing rule for any comment placed before a delimiter/index-targeted token in this file.</p>
+<h3 id="a-real-gotcha-found-live-element-web-defaults-to-legacy-calls-element-x-doesnt-understand-them"><a class="header" href="#a-real-gotcha-found-live-element-web-defaults-to-legacy-calls-element-x-doesnt-understand-them">A real gotcha found live: Element Web defaults to legacy calls, Element X doesn’t understand them</a></h3>
+<p>A real call from Element Web to a mobile Element X client failed with Element X showing “Unsupported call. Ask if the caller can use the new Element X app” — even though calls between two Element Web browser instances, on the same network, over the same LiveKit backend, worked fine. Root cause: Element Web still has <em>two</em> calling stacks — the plain call/video button in a room defaults to legacy 1:1 call signaling (the old <code>m.call.*</code> events) unless told otherwise, while only an explicitly-started “Element Call” session used the MatrixRTC/LiveKit path this repo actually built. Element X has no legacy call support at all — it only understands MatrixRTC — so it can’t do anything with a legacy call invite except reject it with that exact message. Fixed with one new key in <code>element-web-config.yaml</code>: <code>element_call.use_exclusively: true</code>, which removes Element Web’s legacy-call fallback entirely, forcing every call onto the MatrixRTC/Element Call path (the only one this deployment’s backend actually supports). No <code>element_call.url</code> needed — that field is for linking to a separate, externally-hosted Element Call web app, not relevant to this repo’s embedded/native MatrixRTC calling.</p>
 <h3 id="deferred--not-built"><a class="header" href="#deferred--not-built">Deferred / not built</a></h3>
 <ul>
 <li>Anonymous/guest-link joining (see above).</li>

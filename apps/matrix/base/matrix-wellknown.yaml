@@ -2,13 +2,28 @@
 # first thing this repo hosts at domain_name itself rather than a
 # subdomain, required by Matrix's apex-based server_name identity so any
 # client just given "thepugh.family"/"dev.thepugh.family" can discover the
-# real API endpoint (matrix.<domain_name>). Deliberately does NOT serve
-# /.well-known/matrix/server (the federation discovery file): federation
-# stays off (federation_domain_whitelist: [] in synapse-config.yaml), so it
-# has no functional purpose yet and is one fewer templated token to get
-# wrong. nginxinc/nginx-unprivileged rather than plain nginx:alpine
-# specifically so this runs non-root on 8080 with no arbitrary-uid
-# workaround needed — the image is purpose-built for exactly this.
+# real API endpoint (matrix.<domain_name>). nginxinc/nginx-unprivileged
+# rather than plain nginx:alpine specifically so this runs non-root on 8080
+# with no arbitrary-uid workaround needed — the image is purpose-built for
+# exactly this.
+#
+# Also serves /.well-known/matrix/server (real-time calling debugging
+# follow-up to #72/#74) — originally assumed to have no functional purpose
+# with federation off (federation_domain_whitelist: [] in
+# synapse-config.yaml) and deliberately left unserved for that reason; that
+# assumption turned out to be wrong. lk-jwt-service validates a calling
+# user by presenting a Matrix native OpenID token to
+# /_matrix/federation/v1/openid/userinfo, which it locates via the exact
+# same server-name resolution algorithm real inter-server federation uses
+# (this well-known file, then DNS SRV, then a direct :8448 connection) --
+# confirmed live as a real "no route to host" on :8448 once every other
+# candidate cause (routing, CORS, the openid resource itself) had been
+# ruled out. Serving this file does not reopen real federation: Synapse's
+# own listener only registers the client and openid resources (see
+# synapse-config.yaml), so every actual federation servlet (send,
+# make_join, invite, ...) still 404s regardless of who discovers this
+# server via the file, and federation_domain_whitelist remains the
+# authoritative off switch for anything that isn't openid/userinfo.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,21 +41,57 @@ data:
         alias /www/matrix-client.json;
       }
 
+      location = /.well-known/matrix/server {
+        default_type application/json;
+        alias /www/matrix-server.json;
+      }
+
       location / {
         return 404;
       }
     }
-  # __APP_HOSTNAME__ is the only "/"-bearing text in this document (index 2,
-  # same delimiter/index mechanism as every other app's overlay here) — the
+  # __APP_HOSTNAME__ (index 2) and __MATRIX_CALLS_HOSTNAME__ (index 5) are
+  # the only "/"-bearing text in this document, same delimiter/index
+  # mechanism as every other app's overlay here — __APP_HOSTNAME__ is the
   # actual Synapse subdomain clients get redirected to, not the bare apex
-  # this file itself is served from. The trailing "/" after the token is
-  # deliberate, not stylistic: Kustomize's replacement swaps the *whole*
-  # delimited segment, so without a third "/" terminating it, the token's
-  # replacement value would swallow the rest of the string ("}}) with it —
-  # found live via a real test build that truncated this exact file before
-  # the trailing slash was added.
+  # this file itself is served from. Each token is immediately followed by
+  # its own trailing "/", deliberate not stylistic: Kustomize's replacement
+  # swaps the *whole* delimited segment, so without a terminating "/" the
+  # token's replacement value would swallow the rest of the string with it
+  # — found live via a real test build that truncated this exact file
+  # before __APP_HOSTNAME__'s trailing slash was added.
+  #
+  # org.matrix.msc4143.rtc_foci (added for real-time calling, #72/#74's
+  # calling-debugging follow-up): Element Call running as an embedded
+  # widget (this repo's only deployment shape) can't use the backend
+  # rtc/transports API at all — its own client has no direct access token
+  # in widget mode, and RtcTransportAutoDiscovery.tryBackendTransports()
+  # deliberately skips the call rather than attempt it, a documented
+  # upstream matrix-js-sdk gap (github.com/matrix-org/matrix-js-sdk/issues/5245),
+  # confirmed live via a real browser session where the direct endpoint
+  # call succeeded by hand but the widget still reported no transport.
+  # Element Call's own self_hosting.md recommends this exact well-known key
+  # as the primary discovery mechanism (not just a fallback for the widget
+  # gap above) — found live as a real MISSING_MATRIX_RTC_TRANSPORT error
+  # even after confirming Synapse's own matrix_rtc.transports config and
+  # the rtc/transports endpoint were both already correct.
   matrix-client.json: |
-    {"m.homeserver": {"base_url": "https://__APP_HOSTNAME__/"}}
+    {"m.homeserver": {"base_url": "https://__APP_HOSTNAME__/"}, "org.matrix.msc4143.rtc_foci": [{"type": "livekit", "livekit_service_url": "https://__MATRIX_CALLS_HOSTNAME__/livekit/jwt"}]}
+  # __APP_HOSTNAME_WITH_PORT__ is a whole-field quote-delimited token (index
+  # 3, same shape as __DOMAIN_NAME__ elsewhere in this app), not the
+  # delimiter/index-on-a-larger-string trick used above — m.server's value
+  # is "host:port" with no natural second occurrence of any single
+  # character on both sides of just the hostname, so the port is baked into
+  # this key's own source value (env-values.yaml) instead of being
+  # reconstructed here. Must match app-hostname with ":443" appended, kept
+  # in sync by hand same as matrix-calls-hostname already is against
+  # apps/matrix-livekit/'s own app-hostname. The port is mandatory, not
+  # decorative: per the server-server spec, an m.server value with no
+  # explicit port falls back to :8448 after well-known/SRV, which nothing
+  # in this repo listens on -- only :443 through ingress-nginx actually
+  # reaches Synapse.
+  matrix-server.json: |
+    {"m.server": "__APP_HOSTNAME_WITH_PORT__"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -80,6 +131,10 @@ spec:
             - name: config
               mountPath: /www/matrix-client.json
               subPath: matrix-client.json
+              readOnly: true
+            - name: config
+              mountPath: /www/matrix-server.json
+              subPath: matrix-server.json
               readOnly: true
           readinessProbe:
             httpGet:

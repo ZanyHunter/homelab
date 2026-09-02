@@ -135,6 +135,15 @@ locals {
   # core-addons' public_matrix_wellknown variable description.
   public_matrix_wellknown = true
 
+  # Real-time calling's LiveKit SFU (#72) — a static MetalLB IP (free within
+  # this environment's own lb-pool-range, apps/cluster-addons/overlays/prod/
+  # env-values.yaml) for its single-port UDP mux Service.
+  # matrix_calls_public_udp_forward stays false even in prod until calling
+  # is actually verified working on dev first and deliberately promoted
+  # beyond LAN/VPN testing — not flipped on as part of this same rollout.
+  matrix_calls_udp_ip             = "192.168.160.10"
+  matrix_calls_public_udp_forward = false
+
 
   ksops_version = "4.5.1"
 

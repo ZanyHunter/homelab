@@ -43,3 +43,24 @@ resource "unifi_dns_record" "apex_ingress" {
   value       = var.ingress_ip
   port        = 0
 }
+
+# Real-time calling's LiveKit SFU needs a single UDP-reachable port for
+# WebRTC media (#72) — deliberately one port (LiveKit's own single-port UDP
+# mux, rtc.udp_port), not the wide ephemeral range LiveKit's own "typical"
+# self-hosting example uses, which would have forced hostNetwork/a new
+# privileged PSA namespace this repo otherwise holds to exactly 3
+# namespaces. Gated off everywhere until calling is actually ready to leave
+# LAN/VPN-only testing — see var.matrix_calls_public_udp_forward. Schema
+# confirmed against the actual pinned provider version's resource schema
+# (flat dst_port/fwd_ip/fwd_port attributes, not the newer nested wan/forward
+# blocks shown in the provider's latest docs) rather than assumed.
+resource "unifi_port_forward" "matrix_calls_udp" {
+  count = var.matrix_calls_public_udp_forward ? 1 : 0
+
+  name                   = "Matrix Calls (LiveKit UDP)"
+  protocol               = "udp"
+  port_forward_interface = "wan"
+  dst_port               = "7882"
+  fwd_ip                 = var.matrix_calls_udp_ip
+  fwd_port               = "7882"
+}

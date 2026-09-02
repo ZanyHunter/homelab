@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-3cf92780.js";
+            window.path_to_searchindex_js = "../searchindex-d05ffd4f.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d1c1a3e9.js"></script>
@@ -215,6 +215,7 @@
 <tr><td><a href="../explanation/self-hosted-apps.html">Vikunja</a></td><td><code>projects.dev.thepugh.family</code></td><td>Postgres, <code>ceph-rbd-dev</code> (5Gi)</td><td>Attachments: 2Gi, <code>ceph-rbd-dev</code></td><td>Keycloak OIDC (native)</td></tr>
 <tr><td><a href="../explanation/self-hosted-apps.html">Mealie</a></td><td><code>recipes.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi, DB + images combined)</td><td>None — combined with DB above</td><td>Keycloak OIDC (native)</td></tr>
 <tr><td><a href="../explanation/self-hosted-apps.html">LubeLogger</a></td><td><code>lubelogger.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi, DB + documents combined)</td><td>None — combined with DB above</td><td>Keycloak OIDC (native)</td></tr>
+<tr><td><a href="../explanation/self-hosted-apps.html">Pinchflat</a></td><td><code>youtube.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Videos: <code>nfs-dev</code> (20Gi, prod: 500Gi)</td><td>Keycloak OIDC via oauth2-proxy (forward-auth)</td></tr>
 <tr><td><a href="../explanation/matrix.html">Matrix (Synapse)</a></td><td><code>matrix.dev.thepugh.family</code> + <code>element.dev.thepugh.family</code> + bare <code>dev.thepugh.family</code> (<code>/.well-known/matrix/client</code> only)</td><td>Postgres, <code>ceph-rbd-dev</code> (10Gi)</td><td>Media: <code>nfs-dev</code> (30Gi); signing key: 1Gi, <code>ceph-rbd-dev</code></td><td>Keycloak OIDC (native); prod’s <code>matrix</code>/<code>element</code> are public, federation off</td></tr>
 <tr><td><a href="../explanation/matrix.html#real-time-calling-element-call--matrixrtc">Matrix real-time calling (LiveKit)</a></td><td><code>matrix-calls.dev.thepugh.family</code></td><td>None</td><td>None — LiveKit’s config is a ksops <code>Secret</code></td><td>Delegated via Synapse’s own OIDC session; authenticated calling only, no anonymous joining yet; LAN/VPN-only, no public exposure</td></tr>
 </tbody>

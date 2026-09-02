@@ -1,0 +1,151 @@
+# Matrix Authentication Service (MAS, #74) — Element's OAuth 2.0/OIDC
+# authorization server for Matrix, replacing Synapse's own direct
+# oidc_providers integration (apps/matrix/base/synapse-config.yaml's
+# matrix_authentication_service block delegates to this). See
+# docs/src/explanation/matrix.md's MAS section for the full architecture.
+#
+# gcr.io/distroless/cc-debian13:nonroot base image (confirmed via research,
+# not assumed) — the well-known distroless nonroot uid/gid, set explicitly
+# here for the same reason as every other image in this repo whose non-root
+# user isn't verifiable by runAsNonRoot alone (Element Web's own USER nginx
+# gotcha, #57).
+#
+# --config is specified three times, mas-cli's own documented multi-file
+# merge (same capability Synapse's homeserver.yaml loader has) — one plain
+# ConfigMap (mas-config.yaml) for everything non-secret, one ksops Secret
+# key (mas-secrets.enc.yaml's database.yaml, the one block with no *_file
+# indirection available) for the database block, one ExternalSecret-rendered
+# file for upstream_oauth2 (Tofu-generated Keycloak client secret, kept
+# current across a keycloak-realm rotation the same way Synapse's old OIDC
+# secret was). Every other secret value (shared-secret, encryption key,
+# signing keys) uses MAS's own *_file config options instead of a fourth
+# merged document — see mas-config.yaml's own comment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mas
+  namespace: matrix-mas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mas
+  template:
+    metadata:
+      labels:
+        app: mas
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mas
+          image: ghcr.io/element-hq/matrix-authentication-service:1.23.0
+          args:
+            - "server"
+            - "--config"
+            - "/config/config.yaml"
+            - "--config"
+            - "/config/public-base.yaml"
+            - "--config"
+            - "/config/matrix.yaml"
+            - "--config"
+            - "/secrets/mas/database.yaml"
+            - "--config"
+            - "/secrets/oidc/upstream-oauth2.yaml"
+          ports:
+            - name: web
+              containerPort: 8080
+            - name: internal
+              containerPort: 8081
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: mas-secrets
+              mountPath: /secrets/mas
+              readOnly: true
+            - name: oidc-secret
+              mountPath: /secrets/oidc
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: mas-config
+        - name: mas-secrets
+          secret:
+            secretName: mas-secrets
+        - name: oidc-secret
+          secret:
+            secretName: mas-oidc-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mas
+  namespace: matrix-mas
+spec:
+  selector:
+    app: mas
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+    - name: internal
+      port: 8081
+      targetPort: 8081
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mas
+  namespace: matrix-mas
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mas
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: mas-tls

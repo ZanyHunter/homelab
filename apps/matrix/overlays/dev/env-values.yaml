@@ -1,5 +1,5 @@
 # The per-environment values this app's base/ manifests reference as
-# __APP_HOSTNAME__/__ELEMENT_HOSTNAME__/__DOMAIN_NAME__/__KEYCLOAK_HOSTNAME__/
+# __APP_HOSTNAME__/__ELEMENT_HOSTNAME__/__DOMAIN_NAME__/
 # __MATRIX_CALLS_HOSTNAME__/__STORAGE_CLASS_CEPH__/__STORAGE_CLASS_NFS__
 # tokens — see docs/src/explanation/gitops-app-of-apps.md for the
 # base/overlays pattern. domain-name is the bare apex (Matrix's server_name
@@ -8,6 +8,10 @@
 # apps/matrix-livekit/overlays/<env>/env-values.yaml's own app-hostname
 # exactly (#72) — two independently-set values kept in sync by hand, same
 # as every other cross-app hostname reference in this repo.
+# keycloak-hostname was removed here in #74 — Synapse no longer talks to
+# Keycloak directly at all, only apps/matrix-mas/ does now (mas-compat-service.yaml's
+# ExternalName routes the three MAS compat-proxy paths there by cluster-DNS
+# name, needing no hostname token at all).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,7 +20,6 @@ data:
   app-hostname: matrix.dev.thepugh.family
   element-hostname: element.dev.thepugh.family
   domain-name: dev.thepugh.family
-  keycloak-hostname: keycloak.dev.thepugh.family
   matrix-calls-hostname: matrix-calls.dev.thepugh.family
   storage-class-ceph: ceph-rbd-dev
   storage-class-nfs: nfs-dev

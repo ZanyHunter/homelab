@@ -7,7 +7,7 @@ resources:
   - signing-key-pvc.yaml
   - postgres.yaml
   - synapse-config.yaml
-  - synapse-secrets-externalsecret.yaml
+  - mas-compat-service.yaml
   - synapse.yaml
   - element-web-config.yaml
   - element-web.yaml

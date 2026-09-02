@@ -29,5 +29,6 @@ All hostnames below use `dev`'s domain suffix (`dev.thepugh.family`) — see [DN
 | [Pinchflat](../explanation/self-hosted-apps.md) | `youtube.dev.thepugh.family` | SQLite (bundled), `ceph-rbd-dev` (5Gi) | Videos: `nfs-dev` (20Gi, prod: 500Gi) | Keycloak OIDC via oauth2-proxy (forward-auth) |
 | [Matrix (Synapse)](../explanation/matrix.md) | `matrix.dev.thepugh.family` + `element.dev.thepugh.family` + bare `dev.thepugh.family` (`/.well-known/matrix/client` only) | Postgres, `ceph-rbd-dev` (10Gi) | Media: `nfs-dev` (30Gi); signing key: 1Gi, `ceph-rbd-dev` | Keycloak OIDC (native); prod's `matrix`/`element` are public, federation off |
 | [Matrix real-time calling (LiveKit)](../explanation/matrix.md#real-time-calling-element-call--matrixrtc) | `matrix-calls.dev.thepugh.family` | None | None — LiveKit's config is a ksops `Secret` | Delegated via Synapse's own OIDC session; authenticated calling only, no anonymous joining yet; LAN/VPN-only, no public exposure |
+| [Matrix Authentication Service (MAS)](../explanation/matrix.md#matrix-authentication-service-mas) | `matrix-auth.dev.thepugh.family` | Postgres, `ceph-rbd-dev` (5Gi) | None | Keycloak OIDC (MAS is the OIDC Relying Party, not Synapse); enables QR code sign-in |
 
 To add another app, see the [Onboard a New App](../guides/onboard-a-new-app.md) guide.

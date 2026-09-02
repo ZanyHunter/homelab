@@ -1,0 +1,75 @@
+# The static majority of MAS's own config.yaml (#74) — mas-cli accepts
+# multiple --config paths, merged at startup (same multi-file capability
+# Synapse's own homeserver.yaml loader has, see
+# apps/matrix/base/synapse-config.yaml's comment). Split into three keys
+# here rather than one: config.yaml holds everything with zero templated
+# tokens (verbose comments safe to keep inline), while public-base.yaml and
+# matrix.yaml are deliberately tiny, comment-free, single-purpose blocks
+# holding only a __APP_HOSTNAME__/__DOMAIN_NAME__ token each — Synapse's own
+# matrix_rtc gotcha (docs/src/explanation/matrix.md) already found live that
+# a comment's own "/" characters shift the delimiter/index math for any
+# token sharing its ConfigMap value, so those two tokens get files with
+# nothing else in them at all rather than risking that again inside a much
+# longer, path/CIDR/URL-heavy document like this one.
+#
+# Every other secret value (shared-secret, encryption key, signing keys)
+# uses MAS's own *_file config options rather than a merged secret document
+# — see matrix.yaml/database.yaml's own comments for the one exception
+# (database, which has no password_file option).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mas-config
+  namespace: matrix-mas
+data:
+  config.yaml: |
+    http:
+      listeners:
+        - name: web
+          resources:
+            - name: discovery
+            - name: human
+            - name: oauth
+            - name: compat
+            - name: graphql
+            - name: assets
+          binds:
+            - host: "0.0.0.0"
+              port: 8080
+        # Separate, non-public listener for Kubernetes probes -- MAS's docs
+        # recommend exposing "health" only on a listener that isn't
+        # reachable from the internet.
+        - name: internal
+          resources:
+            - name: health
+          binds:
+            - host: "0.0.0.0"
+              port: 8081
+      # Defaults only cover 10.0.0.0/10, which excludes this cluster's real
+      # pod CIDR (10.244.0.0/16) and service CIDR (10.96.0.0/12) -- confirmed
+      # live via kubectl cluster-info dump, not assumed. Without this,
+      # ingress-nginx's own pod IP wouldn't be trusted, and MAS would
+      # attribute every request to ingress-nginx's pod IP instead of the
+      # real client for rate-limiting purposes.
+      trusted_proxies:
+        - "10.0.0.0/8"
+        - "172.16.0.0/12"
+        - "192.168.0.0/16"
+        - "127.0.0.1/32"
+        - "::1/128"
+  public-base.yaml: |
+    http:
+      public_base: "https://__APP_HOSTNAME__/"
+  matrix.yaml: |
+    matrix:
+      kind: synapse
+      homeserver: "__DOMAIN_NAME__"
+      endpoint: "http://synapse.matrix.svc.cluster.local:8008"
+      secret_file: /secrets/mas/shared-secret
+    secrets:
+      encryption_file: /secrets/mas/encryption-key
+      keys:
+        - kid: "rsa1"
+          key_file: /secrets/mas/rsa_key.pem
+        - kid: "ec1"
+          key_file: /secrets/mas/ec_key.pem

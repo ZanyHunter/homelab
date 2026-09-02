@@ -3,11 +3,14 @@
 # SYNAPSE_SERVER_NAME-driven auto-generate wrapper entirely (that path only
 # fires when no config exists yet, and can't produce the multi-file split
 # this deployment relies on) — invoking python -m synapse.app.homeserver
-# directly with three -c paths is Synapse's own core config loader, well
+# directly with -c paths is Synapse's own core config loader, well
 # documented and unrelated to the docker wrapper. See
-# synapse-config.yaml/synapse-secrets-externalsecret.yaml/matrix-secrets.enc.yaml
-# for why the config is split three ways and docs/src/explanation/matrix.md
-# for the full picture.
+# synapse-config.yaml/matrix-secrets.enc.yaml/mas-shared-secret.enc.yaml
+# for why the config is split the way it is and docs/src/explanation/matrix.md
+# for the full picture. As of #74, Synapse no longer holds any Keycloak
+# client credentials of its own at all — auth is delegated to
+# apps/matrix-mas/ entirely (synapse-secrets-externalsecret.yaml, which used
+# to render oidc_providers here, is removed).
 #
 # No built-in non-root user confirmed for this image (unlike some official
 # images) — runAsUser/fsGroup below is an arbitrary uid, same reasoning as
@@ -55,8 +58,6 @@ spec:
             - "-c"
             - "/config/homeserver.yaml"
             - "-c"
-            - "/secrets/oidc/oidc.yaml"
-            - "-c"
             - "/secrets/matrix/secrets.yaml"
           ports:
             - containerPort: 8008
@@ -70,8 +71,8 @@ spec:
             - name: config
               mountPath: /config
               readOnly: true
-            - name: oidc-secret
-              mountPath: /secrets/oidc
+            - name: mas-shared-secret
+              mountPath: /secrets/mas
               readOnly: true
             - name: matrix-secrets
               mountPath: /secrets/matrix
@@ -103,9 +104,9 @@ spec:
         - name: config
           configMap:
             name: synapse-config
-        - name: oidc-secret
+        - name: mas-shared-secret
           secret:
-            secretName: synapse-oidc-secret
+            secretName: mas-shared-secret
         - name: matrix-secrets
           secret:
             secretName: matrix-secrets
@@ -128,6 +129,15 @@ spec:
     - port: 8008
       targetPort: 8008
 ---
+# The three MAS compat-proxy paths (#74, MAS's own documented reverse-proxy
+# requirement — see docs/src/explanation/matrix.md's MAS section) are listed
+# before the catch-all "/" path and routed to mas-compat (the same-namespace
+# ExternalName indirection to MAS's real Service, see
+# mas-compat-service.yaml's comment) — ingress-nginx prioritizes more
+# specific paths over a plain prefix match regardless of declaration order,
+# but listed first here for readability regardless. use-regex is required
+# for ingress-nginx to interpret this path as a regex at all; without it,
+# the literal "(login|logout|refresh)" text would never match anything.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -135,6 +145,7 @@ metadata:
   namespace: matrix
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
@@ -142,6 +153,13 @@ spec:
     - host: __APP_HOSTNAME__
       http:
         paths:
+          - path: /_matrix/client/[^/]+/(login|logout|refresh)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: mas-compat
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:

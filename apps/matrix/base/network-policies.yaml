@@ -62,10 +62,13 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
 ---
-# Synapse's own server-side OIDC calls (discovery, token exchange, jwks) go
-# to Keycloak's *external* hostname, which resolves back through
-# ingress-nginx's LoadBalancer IP — same pattern as every other app's OIDC
-# egress here.
+# Pre-#74 this covered Synapse's own direct OIDC calls to Keycloak's
+# external hostname; as of #74 auth is delegated to apps/matrix-mas/
+# entirely (matrix_authentication_service, see synapse-config.yaml), so
+# Synapse itself no longer talks to Keycloak. Retained defensively rather
+# than removed — no other app's egress rule set has been trimmed on a "no
+# longer strictly needed" basis either, and this is still a tightly-scoped
+# explicit allow within the same default-deny posture, not a broad opening.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -79,3 +82,40 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
+---
+# The genuinely new shape of rule #74 needs: Synapse and MAS call each other
+# directly, pod-to-pod, cross-namespace, for the matrix_authentication_service
+# relationship — MAS calling Synapse's admin API to provision users
+# (ingress here) and Synapse calling MAS's token introspection endpoint
+# (egress here). The compat-proxy paths on this namespace's own synapse.yaml
+# Ingress reach MAS a different way (through ingress-nginx, via an
+# ExternalName Service) and need no rule here — that path is covered by
+# ingress-nginx reaching MAS's own namespace, not this one. Mirrored by the
+# equivalent rules in apps/matrix-mas/base/network-policies.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-matrix-mas-namespace-ingress
+  namespace: matrix
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: matrix-mas
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-matrix-mas-namespace-egress
+  namespace: matrix
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: matrix-mas

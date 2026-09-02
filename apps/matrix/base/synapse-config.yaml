@@ -50,6 +50,14 @@ data:
       msc3266_enabled: true
       msc4143_enabled: true
       msc4222_enabled: true
+      # QR code login (#74) -- requires matrix_authentication_service to be
+      # enabled below; enabling this alone on plain Synapse crash-loops with
+      # "MSC4108 requires matrix_authentication_service to be enabled",
+      # confirmed live against this repo's pinned Synapse version before the
+      # rest of #74's work landed. Added last in that same incident, after
+      # matrix_authentication_service was already live and confirmed
+      # working -- not the first thing enabled.
+      msc4108_enabled: true
 
     matrix_rtc:
       transports:
@@ -94,6 +102,27 @@ data:
     # disposable personal data.
 
     report_stats: false
+
+    # Delegated auth to Matrix Authentication Service (#74) -- replaces
+    # oidc_providers entirely (apps/matrix/base/synapse-secrets-externalsecret.yaml
+    # is removed as of #74; MAS is now the only thing that talks to
+    # Keycloak). endpoint is an internal cluster-DNS address, not a public
+    # hostname, so it needs no per-environment token -- both dev and prod
+    # use the identical value, matching apps/matrix-mas/'s own namespace/
+    # Service names in both environments. secret_path is the one value that
+    # must match apps/matrix-mas/base/mas-config.yaml's own matrix.secret_file
+    # exactly; kept in its own single-purpose ksops secret
+    # (mas-shared-secret.enc.yaml) rather than folded into matrix-secrets.enc.yaml,
+    # deliberately additive-only to that file's other already-live values.
+    # Placed at the very end of this document specifically so it introduces
+    # no "/" characters before any of the delimiter/index-targeted tokens
+    # earlier in this same file (public_baseurl, server_name,
+    # matrix_rtc's livekit_service_url) -- see this file's own top-of-file
+    # comment for why that ordering matters.
+    matrix_authentication_service:
+      enabled: true
+      endpoint: http://mas.matrix-mas.svc.cluster.local:8080/
+      secret_path: /secrets/mas/shared-secret
   log_config.yaml: |
     version: 1
     formatters:

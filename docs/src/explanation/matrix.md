@@ -72,6 +72,41 @@ The user separately asked for real-time calling with anonymous-joinable meeting 
 - **Media relay (TURN)** is the same fundamental problem #57 itself already flagged for voice calls: this repo's Cloudflare Tunnel is outbound-only with no port-forward, and TURN traditionally needs a real UDP-reachable listener. **Cloudflare Realtime TURN** (a managed, edge-hosted TURN service, usable independently of Cloudflare's own SFU offering) looks like it could plug into a self-hosted LiveKit without a port-forward or a new component to operate — but this is unverified in depth and would be a new Cloudflare product/cost surface, needing the same ask-first treatment as any other new Cloudflare config.
 - **Anonymous guest joining** specifically requires enabling Matrix's guest-registration flow for the calling path — the first deliberately-open-to-unauthenticated-internet surface this repo would have (everything else gates through Keycloak). A real, distinct security-posture decision, not a technical footnote.
 
+## Real-time calling (Element Call / MatrixRTC)
+
+Split out from #57 into its own follow-up (#72) once it became clear "real-time calling with anonymous-joinable meeting links" was roughly as much new infrastructure as the base homeserver — a self-hosted LiveKit SFU, a small MatrixRTC Authorization Service (`lk-jwt-service`), and new Synapse experimental flags, added under `apps/matrix-livekit/` as a sibling app rather than folded into `apps/matrix/` itself.
+
+**This first rollout ships authenticated group calling only — no anonymous/guest joining.** Research found a real, previously-unknown tradeoff: Synapse's `allow_guest_access: true` opens the *entire* homeserver to unauthenticated account creation, not just "can join the one call a link points at" — a materially different posture than every other app in this repo, where everything gates through Keycloak with no exceptions so far. Element's own recommended containment pattern (a second, disposable, closed-federated "guest" homeserver) properly isolates that exposure but is genuinely a second full Matrix homeserver deployment. Rather than build either speculatively, this phase targets any Keycloak-authorized identity only; anonymous joining is a distinctly-scoped later phase once authenticated calling is proven live.
+
+### No coturn, no privileged namespace — a real correction mid-design
+
+The initial design followed LiveKit's own "typical" self-hosting guidance: a wide ephemeral UDP port range (`rtc.port_range_start`/`port_range_end`) needing `hostNetwork: true`, which would have made LiveKit's namespace a **fourth** `privileged`-PSA namespace in a repo that otherwise holds that to exactly 3 (`metallb-system`, `csi-driver-nfs`, `monitoring`). The user rejected that shape outright — not comfortable exposing a privileged namespace to the internet — and pointed out LiveKit supports a **single-port UDP mux** (`rtc.udp_port`, all media multiplexed over one port via SSRC identifiers) as an alternative. A single port behaves like any other Service port, so:
+
+- LiveKit runs as an ordinary `restricted`-PSA pod, no different in kind from every other app here.
+- Its media port (`livekit-media`, `livekit.yaml`) is a normal `type: LoadBalancer` Service, announced by the same MetalLB instance already fronting ingress-nginx (protocol-agnostic, no special UDP handling needed), pinned to a static IP the same way `core-addons` pins ingress-nginx's own.
+- `tofu/modules/network`'s new `unifi_port_forward` resource forwards exactly **one** WAN UDP port to that IP, not a wide range.
+
+This also closed out a real gap in #72's own draft scope: a separate self-hosted `coturn` isn't actually needed at all — LiveKit ships its own built-in TURN server, and the thing that needs a UDP-reachable path is LiveKit itself. LiveKit's built-in TURN listener is deliberately left off for this rollout, though — it needs its own additional listener/port, and this deployment is LAN/VPN-only for now, where same-network peers connect directly and never exercise TURN at all; worth revisiting once real off-LAN usage surfaces actual restrictive-NAT connection failures, not before.
+
+Two genuinely new NetworkPolicy shapes follow directly from this design (`apps/matrix-livekit/base/network-policies.yaml`): an ingress rule allowing `0.0.0.0/0` on LiveKit's single UDP port (every other app's ingress here only ever allows from the `ingress-nginx` namespace, since this port is reached directly rather than proxied), and an egress rule allowing LiveKit's own external-IP/STUN detection (`443`/TCP, `3478`/UDP to `0.0.0.0/0`) — the first genuine internet-egress rule in this repo, everything else only ever reaching this cluster's own `ingress-nginx` namespace.
+
+### Config shape
+
+- `apps/matrix-livekit/base/livekit-secrets.enc.yaml` (ksops) — LiveKit's full config (port, `rtc.udp_port`, `rtc.use_external_ip`, its own `keys` block) as one file, since `livekit-server` takes a single `--config` path with no Synapse-style multi-file merge.
+- `apps/matrix-livekit/base/lk-jwt-secrets.enc.yaml` (ksops) — the same API key/secret pair, mirrored into `lk-jwt-service`'s own env vars (`LIVEKIT_KEY`/`LIVEKIT_SECRET`) — a small, deliberate duplication kept in sync by hand, same category as Synapse's own Postgres-password duplication.
+- One shared public hostname (`matrix-calls.<domain>`), path-split by ingress-nginx: `/livekit/jwt` to `lk-jwt-service`, everything else to LiveKit's own WebSocket signaling endpoint — avoids sprawling into two new hostnames for one feature.
+- `apps/matrix/base/synapse-config.yaml` gained `experimental_features` (`msc3266_enabled`/`msc4143_enabled`/`msc4222_enabled`) and a `matrix_rtc.transports` block pointing at `lk-jwt-service` — still fully static/non-secret, no change to the file-splitting rationale from #57.
+
+### A real gotcha found in a test build: comments count toward token-replacement math too
+
+The Kustomize delimiter/index trick this repo uses to reach a token nested inside a larger text value (splitting the whole field on a character, replacing one indexed segment — see #57's own gotcha with the same mechanism) treats the *entire* field value as one opaque string, YAML comments included. Adding the `matrix_rtc` block's own explanatory comment — which happened to describe file paths using literal `/` characters — silently shifted the delimiter count and made the replacement land inside that comment instead of the intended `livekit_service_url` token, caught in a repo-server test build before it reached a live cluster. Fixed by rewriting the comment to use zero `/` characters at all, and confirmed this is now a standing rule for any comment placed before a delimiter/index-targeted token in this file.
+
+### Deferred / not built
+
+- Anonymous/guest-link joining (see above).
+- LiveKit's built-in TURN listener (see above).
+- Public exposure: `matrix-calls` is not in `public_apps` for either environment yet, and `matrix_calls_public_udp_forward` stays `false` everywhere — this phase is LAN/VPN-only, verified internally before any public exposure is considered.
+
 ## Verification
 
 Verified live on dev, matching this repo's usual bar of an actual working round-trip rather than "the pod is Running":
@@ -83,5 +118,14 @@ Verified live on dev, matching this repo's usual bar of an actual working round-
 - The actual OIDC bar this repo always checks, not just "the client exists": Synapse's `/_matrix/client/v3/login/sso/redirect` produces a real Keycloak authorize URL with the correct `client_id=matrix`, `redirect_uri` matching the registered value exactly, and a PKCE challenge — fetching it renders Keycloak's real "Sign in to Homelab" login form, not an error.
 - `SELECT datcollate, datctype FROM pg_database` confirms `C`/`C` on the live database, not just "Synapse didn't crash."
 - Both Ceph-backed volumes (Postgres, signing key) carry the `backup.velero.io/backup-volumes` annotation live; the NFS-backed media volume correctly carries none.
+- The apex `unifi_dns_record` flagged above has since been applied and confirmed live — real-world use surfaced Element Web's own "Failed to get autodiscovery configuration from server" error until it was, since the wildcard record never covered the bare apex. `dev.thepugh.family` now resolves correctly, `/.well-known/matrix/client` returns real Let's Encrypt TLS (not ingress-nginx's fallback cert), and Element's autodiscovery succeeds.
 
-Not verified: a real message send/receive round-trip and a real interactive Keycloak login completion both need a browser, same limitation as every other app's SSO verification in this repo. Public exposure's actual reachability from outside the LAN, and the apex DNS/Cloudflare records both flagged above, are the user's own remaining steps. Prod deployment deferred, same as every recent app onboarded here.
+Real-time calling (#72), verified live on dev:
+
+- Both `matrix-livekit` overlays (`dev`/`prod`) build cleanly via the same repo-server test-build pattern, every token correctly substituted (including the annotation-path and comment-count gotchas above).
+- LiveKit and `lk-jwt-service` pods reached `Running`/`Ready` on the very first apply — no PSA/security-context issues, unlike some other apps' images in this repo.
+- LiveKit's own STUN-based external-IP detection succeeded through the new egress NetworkPolicy rule, confirming that rule is correctly scoped rather than just present.
+- The shared `matrix-calls.<domain>` Ingress correctly path-splits: a plain request to `/livekit/jwt` reaches `lk-jwt-service` itself (confirmed by hitting the Service directly, bypassing Ingress, and getting the identical response) rather than ingress-nginx's own 404, and the default path reaches LiveKit's signaling endpoint.
+- Synapse's `/_matrix/client/versions` now reports `msc4143: true` in `unstable_features`, and its `/_matrix/client/unstable/org.matrix.msc4143/rtc/transports` endpoint returns a real Matrix API auth error (`M_MISSING_TOKEN`) rather than a 404 — confirming the endpoint exists and is wired, addressing the version-compatibility risk #72 itself flagged from a live upstream GitHub issue.
+
+Not verified: a real message send/receive round-trip, a real call between two authenticated participants, and a real interactive Keycloak login completion all need a browser/real client, same limitation as every other app's SSO verification in this repo. Public exposure (Cloudflare Tunnel route, port-forward) remains the user's own remaining step. Prod deployment deferred, same as every recent app onboarded here.

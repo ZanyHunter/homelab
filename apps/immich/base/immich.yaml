@@ -393,8 +393,15 @@ spec:
       enableServiceLinks: false
       serviceAccountName: immich-server
       automountServiceAccountToken: false
-      securityContext: 
+      securityContext:
         fsGroup: 1000
+        # Default (Always) recursively chowns the entire immich-media PVC on
+        # every pod start — found live during a legacy migration import: a
+        # real, freshly-populated NFS-backed library took long enough that
+        # the pod sat in ContainerCreating for many minutes. OnRootMismatch
+        # still does that walk the first time ownership doesn't already
+        # match, but skips it on every subsequent restart once it does.
+        fsGroupChangePolicy: OnRootMismatch
         runAsNonRoot: true
         runAsUser: 1000
         seccompProfile:

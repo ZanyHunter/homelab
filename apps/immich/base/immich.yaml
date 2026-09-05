@@ -259,8 +259,13 @@ metadata:
 spec:
   revisionHistoryLimit: 3
   replicas: 1
+  # RollingUpdate was safe while /cache was an emptyDir; now that it's a
+  # real ReadWriteOnce PVC (immich-ml-cache, issue #85), the default
+  # rolling update would try to schedule the replacement pod before the
+  # old one releases the volume and deadlock on a multi-attach error —
+  # same reasoning as every other RWO-PVC-backed Deployment in this repo.
   strategy:
-    type: RollingUpdate
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/controller: main
@@ -276,8 +281,13 @@ spec:
       enableServiceLinks: false
       serviceAccountName: immich-machine-learning
       automountServiceAccountToken: false
-      securityContext: 
+      securityContext:
         fsGroup: 1000
+        # Same reasoning as apps/immich/base/immich.yaml's immich-server
+        # sibling — skips re-walking the whole PVC on restart once
+        # ownership already matches. Only became relevant once /cache
+        # became a real PVC instead of an emptyDir (issue #85).
+        fsGroupChangePolicy: OnRootMismatch
         runAsNonRoot: true
         runAsUser: 1000
         seccompProfile:
@@ -286,7 +296,7 @@ spec:
       hostNetwork: false
       hostPID: false
       dnsPolicy: ClusterFirst
-      containers: 
+      containers:
         - env:
           - name: DB_DATABASE_NAME
             value: immich
@@ -333,12 +343,20 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 1
           resources:
+            # Bumped from 500m/512Mi requests, 2/3Gi limits for the
+            # ViT-L-16-SigLIP-256__webli CLIP model (issue #85). Verified
+            # live on dev: the combined visual+textual ONNX weights are
+            # ~2.5GB on disk, and cgroup memory.current reached ~5.3GiB
+            # with both towers loaded simultaneously (one real text query,
+            # one real image) — the 6Gi limit tried first left under 1GB
+            # of headroom, too tight for concurrent requests or a real
+            # Smart Search job batch, so this went to 8Gi instead.
             limits:
-              cpu: "2"
-              memory: 3Gi
+              cpu: "4"
+              memory: 8Gi
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "1"
+              memory: 2Gi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -356,9 +374,10 @@ spec:
           volumeMounts:
           - mountPath: /cache
             name: cache
-      volumes: 
-        - emptyDir: {}
-          name: cache
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: immich-ml-cache
 ---
 # Source: immich/templates/server.yaml
 apiVersion: apps/v1

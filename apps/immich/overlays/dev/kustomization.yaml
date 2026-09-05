@@ -38,6 +38,11 @@ replacements:
           kind: StatefulSet
         fieldPaths:
           - spec.volumeClaimTemplates.0.spec.storageClassName
+      - select:
+          kind: PersistentVolumeClaim
+          name: immich-ml-cache
+        fieldPaths:
+          - spec.storageClassName
   - source:
       kind: ConfigMap
       name: env-values
@@ -45,5 +50,6 @@ replacements:
     targets:
       - select:
           kind: PersistentVolumeClaim
+          name: immich-media
         fieldPaths:
           - spec.storageClassName

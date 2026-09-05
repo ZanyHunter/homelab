@@ -48,6 +48,9 @@ spec:
         runAsUser: 991
         runAsGroup: 991
         fsGroup: 991
+        # Same reasoning as apps/immich/base/immich.yaml — skips re-walking
+        # the whole PVC on restart once ownership already matches.
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:

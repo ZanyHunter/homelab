@@ -30,6 +30,10 @@ spec:
         runAsUser: 1001
         runAsGroup: 1001
         fsGroup: 1001
+        # Same reasoning as apps/immich/base/immich.yaml — skips re-walking
+        # the whole PVC on restart once ownership already matches. Matters
+        # here specifically: this PVC holds up to ~320Gi in prod.
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       # Runs the same reindex.sh the updater CronJob uses, so library.xml

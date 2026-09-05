@@ -42,6 +42,9 @@ spec:
         runAsNonRoot: true
         runAsUser: 70
         fsGroup: 70
+        # Same reasoning as apps/immich/base/immich.yaml — skips re-walking
+        # the whole PVC on restart once ownership already matches.
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: postgres
           image: postgres:16-alpine

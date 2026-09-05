@@ -55,6 +55,10 @@ spec:
           # as a real EACCES on every download.
           securityContext:
             fsGroup: 1001
+            # Same reasoning as apps/immich/base/immich.yaml — skips
+            # re-walking the whole PVC (up to ~320Gi in prod) on every
+            # monthly run once ownership already matches.
+            fsGroupChangePolicy: OnRootMismatch
             seccompProfile:
               type: RuntimeDefault
           initContainers:

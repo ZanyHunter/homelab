@@ -1,0 +1,22 @@
+# Persists the machine-learning service's downloaded CLIP model weights
+# across pod restarts — previously an emptyDir, fine for the small default
+# model but not for larger ones (e.g. ViT-L-16-SigLIP-256__webli's ~2.6GB of
+# combined visual/textual ONNX weights, issue #85), where re-downloading from
+# Hugging Face on every restart is a real, avoidable cost. Ceph-backed rather
+# than NFS: single-pod-owned, benefits from block storage over NFS latency,
+# same reasoning as every other app's database volume here. Deliberately gets
+# no backup.velero.io/backup-volumes annotation — this is a re-fetchable
+# cache, not source-of-truth data, same treatment as Wikipedia's ZIM cache
+# (docs/src/explanation/wikipedia-mirror.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-ml-cache
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 10Gi

@@ -68,6 +68,24 @@ The first real visit to `paperless.dev.thepugh.family` — before anyone had eve
 
 The fix isn't a config toggle (none exists), it's removing the precondition: `PAPERLESS_ADMIN_USER`/`PAPERLESS_ADMIN_PASSWORD` (consumed by the `manage_superuser` management command paperless-ngx's own entrypoint runs at container start) creates one real `User` row before anyone can ever visit, permanently falsifying `FIRST_INSTALL` and closing the `/accounts/signup/` bypass for good. This bootstrap account (`bootstrap-admin`, password ksops-encrypted in `apps/paperless/base/paperless-config.enc.yaml` even though it's provably inert) coexists safely with the `platform-admins` → superuser group-sync above — confirmed against the source that group sync (`handle_social_account_updated`) only ever mutates the specific user tied to a social login, never touching unrelated local rows — and can never itself be used to log in, since `PAPERLESS_DISABLE_REGULAR_LOGIN` rejects password auth unconditionally regardless of which account is attempting it. Verified live: after creating the bootstrap account, the login page no longer contains the signup-redirect script and shows only the Keycloak button, and a direct POST attempt to log in as `bootstrap-admin` with its real password is rejected with "Regular login is disabled" — not just "the config looks right."
 
+### A second real gotcha: a normal (non-admin) Keycloak login sees a permanently empty dashboard
+
+Found live during the legacy Immich/Paperless migration's account-linking step (`PAPERLESS-LEGACY-MIGRATION-PLAN.md`): a real person logging in via Keycloak with no `platform-admins` membership landed on a completely empty dashboard with a repeating `403` on `/api/ui_settings/`. Root cause, confirmed against the actual source (`documents/permissions.py`'s `PaperlessObjectPermissions`): it extends DRF's `DjangoObjectPermissions`, which requires the base Django model-level permission (`documents.view_document`, `documents.view_uisettings`, etc.) *before* object-level ownership is ever considered — Paperless-ngx's per-document ownership model decides *which* rows a user sees, it doesn't substitute for the base permission gate. A user with zero Django `Group` memberships has zero model-level permissions, full stop, regardless of which documents they actually own.
+
+Paperless-ngx's own mechanism for this is `PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS` — a Group auto-assigned to every new social-login signup — but it's a plain Django `Group` + `Permission` rows, which is application *data*, not something this repo's Kustomize manifests can create. So the env var alone only wires up *which* group new logins join; the group itself (and its permissions) is a one-time per-environment bootstrap step, same "managed by hand" category as Keycloak group membership itself:
+
+```bash
+kubectl -n paperless exec -i deploy/paperless -- python3 manage.py shell -c "
+from django.contrib.auth.models import Group, Permission
+group, _ = Group.objects.get_or_create(name='paperless-users')
+perms = Permission.objects.filter(content_type__app_label__in=['documents', 'paperless', 'paperless_mail'])
+perms |= Permission.objects.filter(content_type__app_label='auditlog', codename='view_logentry')
+group.permissions.set(perms)
+"
+```
+
+Deliberately excludes the `auth`, `account`, `socialaccount`, `mfa`, and `guardian` app labels — those cover user accounts, social-login linkage, MFA devices, and the object-permission system itself, i.e. actual user/permission management, not document use. `is_staff` (inherited as-is from an imported legacy account, or otherwise left `false` for a fresh signup) separately gates the raw system-log viewer (`LogViewSet`'s `PaperlessAdminPermissions`, hardcoded to `is_staff` rather than any assignable `Permission`) and the System Status page — a "can do most things but isn't a platform-admin" user needs `is_staff=true` explicitly set on their row for those two, independent of the group above.
+
 ### Forward-auth: changedetection.io, Pinchflat
 
 changedetection.io has no OIDC/SSO integration at all — confirmed against the project's own tracker (a feature request has been open since 2022 with no implementation), it only supports a single shared password. This is the first *real* app to use the `oauth2-proxy` + Ingress `auth-url`/`auth-signin` forward-auth template documented in the [Onboard a New App](../guides/onboard-a-new-app.md) guide and proven by the `sso-demo` reference deployment — copied as plain manifests under `apps/changedetection/base/` (`oauth2-proxy.yaml`) rather than the Tofu-managed Helm release `sso-demo` uses, matching every other app under `apps/` being plain Kustomize resources.

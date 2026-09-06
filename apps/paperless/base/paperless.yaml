@@ -136,6 +136,20 @@ spec:
               value: "true"
             - name: PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP
               value: platform-admins
+            # Without this, a brand-new Keycloak login gets zero Django
+            # permissions of any kind — paperless-ngx's own
+            # PaperlessObjectPermissions requires the base "view_x" model
+            # permission before object-level ownership is ever considered,
+            # so an unprivileged new user sees a permanently empty
+            # dashboard and a 403 on /api/ui_settings/ (found live during
+            # the legacy migration's account-linking step, issue-tracked
+            # in PAPERLESS-LEGACY-MIGRATION-PLAN.md). "paperless-users" is
+            # a plain Django Group, not something this manifest can create
+            # — it and its permissions are a one-time per-environment
+            # bootstrap step, same "managed by hand" category as Keycloak
+            # group membership itself. See docs/src/explanation/self-hosted-apps.md.
+            - name: PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS
+              value: paperless-users
           volumeMounts:
             - name: media
               mountPath: /usr/src/paperless/data

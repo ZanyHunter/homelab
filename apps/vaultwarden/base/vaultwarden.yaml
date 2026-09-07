@@ -138,6 +138,10 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Vault item attachments and the Send feature both upload arbitrary
+    # files that can exceed nginx's default 1MB limit. Same fix Actual
+    # Budget's/Paperless-ngx's uploads already needed.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   ingressClassName: nginx
   rules:

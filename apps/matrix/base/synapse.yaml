@@ -150,6 +150,13 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/use-regex: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Matrix's own media upload endpoint (images/files/videos sent in
+    # chat, /_matrix/media/*/upload) can exceed nginx's default 1MB
+    # limit. Same fix Actual Budget's/Paperless-ngx's uploads already
+    # needed. Synapse has its own independent max_upload_size too —
+    # not set here, so it defaults to Synapse's own value; revisit if a
+    # real upload is still rejected after this.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   ingressClassName: nginx
   rules:

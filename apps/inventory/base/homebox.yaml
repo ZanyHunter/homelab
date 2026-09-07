@@ -132,6 +132,10 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Collection import (a zip bundling items/locations/labels/photos) and
+    # individual item photo uploads can exceed nginx's default 1MB limit.
+    # Same fix Actual Budget's/Paperless-ngx's uploads already needed.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   ingressClassName: nginx
   rules:

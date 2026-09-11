@@ -1,0 +1,57 @@
+# Read-write mount of the same NFS tree arr-downloader's downloads-pv.yaml
+# is a subdirectory of, at /media -- gives Sonarr/Radarr /media/Downloads,
+# /media/Movies, /media/TV Shows all under one consistent mount, matching
+# qBittorrent's own /media/Downloads view of the same files. This is a new,
+# separate static PV from Jellyfin's own read-only jellyfin-media
+# (apps/jellyfin/base/media-pv.yaml) -- NFS tolerates concurrent mounts of
+# the same export from multiple namespaces/PV objects the same way
+# Jellyfin's RO + Pinchflat's RW mounts of overlapping paths already coexist
+# (apps/youtube-archiver/base/downloads-pvc.yaml).
+#
+# dev: points at the same isolated, non-Jellyfin NFS root arr-downloader's
+# dev downloads-pv points into (a subdirectory of it) -- so dev's Sonarr/
+# Radarr can safely exercise real import/rename/hardlink behavior against
+# disposable test content only. prod: points at the actual jellyfin-media
+# export root, so Sonarr/Radarr organize real files Jellyfin already scans
+# for its Movies/TV Shows libraries.
+#
+# accessModes: ReadWriteMany, no mountOptions: [ro] -- Sonarr/Radarr need to
+# write (import, rename, hardlink, delete on upgrade/replace).
+#
+# persistentVolumeReclaimPolicy: Retain -- deleting this PVC/PV must never
+# delete real library files.
+#
+# No Velero annotation, same reasoning as Jellyfin's own jellyfin-media and
+# arr-downloader's downloads-pv.yaml: relies on the NAS's own offsite
+# backup, flagged rather than silently assumed covered.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: arr-media-rw
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: __NFS_SERVER__
+    path: __NFS_MEDIA_ROOT_PATH__
+  claimRef:
+    namespace: arr-stack
+    name: arr-media-rw
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: arr-media-rw
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: arr-media-rw
+  resources:
+    requests:
+      storage: 200Gi

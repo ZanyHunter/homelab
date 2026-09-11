@@ -1,0 +1,18 @@
+# qBittorrent's own SQLite-backed session/torrent-state DB and settings
+# under /config -- real state (categories, per-torrent state, RSS rules),
+# not re-derivable. Ceph-backed, not NFS, for the same SQLite
+# file-locking-correctness reason as every other SQLite-on-Kubernetes app in
+# this repo (see docs/src/explanation/ceph-backed-storage.md). Standard 5Gi
+# SQLite-class default used throughout this repo.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-config
+  namespace: arr-downloader
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi

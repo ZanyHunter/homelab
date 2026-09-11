@@ -1,0 +1,165 @@
+# Sonarr — https://sonarr.tv/. TV show PVR: watches indexers (via Prowlarr)
+# for episodes matching tracked series, sends matches to qBittorrent
+# (apps/arr-downloader/), imports/hardlinks completed downloads into the
+# library once done.
+#
+# hotio's image over linuxserver.io's, same reasoning as qBittorrent's own
+# choice in apps/arr-downloader/base/gluetun-qbittorrent.yaml -- built to
+# run as an arbitrary non-root uid directly rather than needing a root-start
+# phase, which this repo's restricted-PSA namespaces force away from the
+# first process. :release is hotio's own documented stable channel (they
+# don't publish immutable per-version tags); re-pin if that ever changes.
+#
+# No OIDC of its own -- gated by oauth2-proxy forward-auth instead
+# (sonarr-oauth2-proxy.yaml), same template as every other app here.
+# Sonarr's own built-in authentication (username/password, or disabled
+# entirely) is left at its default off setting -- oauth2-proxy in front of
+# the whole app is the only auth layer, same "one credential set to
+# remember" reasoning as every other app.
+#
+# Two volumes: /config (its own SQLite DB -- series list, episode
+# history/state, real state) and /media (the read-write NFS tree shared
+# with qBittorrent's downloads and Radarr, media-rw-pv.yaml) -- Sonarr's own
+# library root points at /media/TV Shows, its download-client-watched
+# folder at /media/Downloads, both under the identical mount every other
+# container in this pipeline shares, so hardlinked imports stay on one
+# filesystem. qBittorrent connection details (host qbittorrent.arr-downloader.
+# svc.cluster.local, port 8080) and the /media/Downloads <-> /media path
+# mapping are configured by hand in Sonarr's own Settings UI after first
+# boot -- no env var covers either, same "managed by hand" precedent as
+# Jellyfin's SSO plugin config.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: arr-stack
+spec:
+  replicas: 1
+  # RWO config PVC: a rolling update would try to schedule the new pod
+  # before the old one releases the volume, same reasoning as every other
+  # RWO-PVC app here.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+      annotations:
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sonarr
+          image: ghcr.io/hotio/sonarr:release
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: UMASK
+              value: "002"
+          ports:
+            - containerPort: 8989
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /media
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8989
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8989
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: sonarr-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: arr-media-rw
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: sonarr
+  ports:
+    - port: 8989
+      targetPort: 8989
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonarr
+  namespace: arr-stack
+  annotations:
+    # No ssl-redirect/cert-manager annotations here -- sonarr-oauth2-proxy's
+    # own Ingress (same host) owns the actual Certificate, same as every
+    # other app's oauth2-proxy pairing.
+    nginx.ingress.kubernetes.io/auth-url: "http://sonarr-oauth2-proxy.arr-stack.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__SONARR_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __SONARR_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sonarr
+                port:
+                  number: 8989
+  tls:
+    - hosts:
+        - __SONARR_HOSTNAME__
+      secretName: sonarr-tls

@@ -39,3 +39,4 @@
 - [Wikipedia Mirror (Kiwix)](./explanation/wikipedia-mirror.md)
 - [Jellyfin](./explanation/jellyfin.md)
 - [Matrix (Synapse)](./explanation/matrix.md)
+- [*arr Stack (Sonarr/Radarr/Prowlarr/qBittorrent)](./explanation/arr-stack.md)

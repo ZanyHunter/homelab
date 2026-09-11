@@ -1,0 +1,147 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31). No native OIDC on
+# any of the three apps here -- gated by oauth2-proxy forward-auth instead,
+# one instance per app, same shape as changedetection.io/Pinchflat.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: arr-stack
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: arr-stack
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# sonarr/radarr/prowlarr talk to each other directly (Prowlarr pushes
+# indexer sync to Sonarr/Radarr's own APIs); the three oauth2-proxy
+# instances need none of this, but sharing one unconditional same-namespace
+# rule costs nothing, same reasoning as matrix's identical rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: arr-stack
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# ingress-nginx -> all three apps' own Ingresses and their oauth2-proxy
+# instances (the "/oauth2" paths, and each one's own auth-url subrequest).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: arr-stack
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# Each oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the
+# *external* keycloak.<domain_name> hostname, which resolves back through
+# ingress-nginx's LoadBalancer IP -- same pattern as every other app's
+# oauth2-proxy here. Scoped to the three oauth2-proxy pods specifically
+# (not namespace-wide) since Sonarr/Radarr/Prowlarr themselves have no
+# reason to reach ingress-nginx directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: arr-stack
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["sonarr-oauth2-proxy", "radarr-oauth2-proxy", "prowlarr-oauth2-proxy"]
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# Sonarr/Radarr's metadata-provider lookups (cover art/info) and Prowlarr's
+# indexer queries -- same exact rule shape as Pinchflat's precedent
+# (apps/youtube-archiver/base/network-policies.yaml): scoped to these three
+# pods' labels, not namespace-wide, and 443/TCP only since none of these
+# apps ever make a raw/non-HTTPS connection the way qBittorrent's torrent
+# traffic does (that traffic stays entirely inside apps/arr-downloader/,
+# behind Gluetun).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internet-egress
+  namespace: arr-stack
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["sonarr", "radarr", "prowlarr"]
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# Cross-namespace pod-to-pod egress: Sonarr/Radarr call qBittorrent's Web
+# API directly (apps/arr-downloader/) to submit and monitor downloads,
+# rather than through its oauth2-proxy-gated Ingress -- second use of the
+# precedent Matrix Authentication Service established (apps/matrix-mas/base/
+# network-policies.yaml). Prowlarr doesn't need this -- it manages indexers,
+# not download clients, in this deployment. Only one direction is needed
+# (Sonarr/Radarr initiate; qBittorrent never calls back into arr-stack) --
+# see apps/arr-downloader/base/network-policies.yaml's matching ingress
+# rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-arr-downloader-namespace-egress
+  namespace: arr-stack
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["sonarr", "radarr"]
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: arr-downloader
+      ports:
+        - port: 8080
+          protocol: TCP

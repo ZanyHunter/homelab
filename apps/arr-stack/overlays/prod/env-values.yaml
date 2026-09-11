@@ -1,0 +1,24 @@
+# The per-environment values this app's base/ manifests reference as
+# __SONARR_HOSTNAME__/__RADARR_HOSTNAME__/__PROWLARR_HOSTNAME__/
+# __KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__/__NFS_SERVER__/
+# __NFS_MEDIA_ROOT_PATH__ tokens -- see
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+# Three separate hostname keys (not one shared app-hostname like every
+# single-app namespace here) since this namespace holds three separate
+# apps, each with its own Ingress.
+#
+# nfs-media-root-path points at Jellyfin's real jellyfin-media export root
+# (same as apps/arr-downloader/'s prod overlay derives its own
+# nfs-downloads-path from) -- see media-rw-pv.yaml's own comment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-values
+data:
+  sonarr-hostname: sonarr.thepugh.family
+  radarr-hostname: radarr.thepugh.family
+  prowlarr-hostname: prowlarr.thepugh.family
+  keycloak-hostname: keycloak.thepugh.family
+  storage-class-ceph: ceph-rbd-prod
+  nfs-server: truenas.thepugh.family
+  nfs-media-root-path: /mnt/Main/jellyfin-media

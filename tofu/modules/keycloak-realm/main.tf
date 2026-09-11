@@ -418,6 +418,91 @@ resource "keycloak_openid_client" "pinchflat_oauth2_proxy" {
   web_origins         = ["+"]
 }
 
+# The *arr stack (Sonarr/Radarr/Prowlarr/qBittorrent, apps/arr-stack/ and
+# apps/arr-downloader/) -- none of the four has OIDC support of its own, so
+# each gets its own oauth2-proxy forward-auth client, same 1-app-1-client
+# shape as every other app here rather than one client shared across
+# multiple oauth2-proxy instances (an unprecedented pattern in this repo).
+# qBittorrent's client lives in this same section despite its Deployment
+# living in a different namespace (apps/arr-downloader/, the one privileged-
+# PSA namespace this stack needs for Gluetun's VPN tunnel) -- Keycloak client
+# management doesn't care about Kubernetes namespace boundaries.
+resource "random_password" "sonarr_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "sonarr_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "sonarr-oauth2-proxy"
+  name      = "oauth2-proxy (Sonarr forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.sonarr_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://sonarr.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
+resource "random_password" "radarr_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "radarr_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "radarr-oauth2-proxy"
+  name      = "oauth2-proxy (Radarr forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.radarr_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://radarr.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
+resource "random_password" "prowlarr_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "prowlarr_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "prowlarr-oauth2-proxy"
+  name      = "oauth2-proxy (Prowlarr forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.prowlarr_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://prowlarr.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
+resource "random_password" "qbittorrent_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "qbittorrent_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "qbittorrent-oauth2-proxy"
+  name      = "oauth2-proxy (qBittorrent forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.qbittorrent_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://qbittorrent.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
 resource "random_password" "vikunja_client_secret" {
   length  = 32
   special = false
@@ -848,6 +933,70 @@ resource "kubernetes_secret" "mas_oidc_client_secret" {
 
   data = {
     client-secret = keycloak_openid_client.mas.client_secret
+  }
+
+  type = "Opaque"
+}
+
+# Includes client-id alongside client-secret, same as changedetection's/
+# pinchflat's above -- all four *arr-stack oauth2-proxy instances need both.
+resource "kubernetes_secret" "sonarr_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "sonarr-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.sonarr_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.sonarr_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "radarr_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "radarr-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.radarr_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.radarr_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "prowlarr_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "prowlarr-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.prowlarr_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.prowlarr_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+# This app's Deployment lives in apps/arr-downloader/ (the privileged-PSA
+# namespace), not apps/arr-stack/ like the other three above -- see this
+# file's own comment on keycloak_openid_client.qbittorrent_oauth2_proxy.
+# ExternalSecrets Operator's ClusterSecretStore has no namespace
+# restriction on which app namespace can read from keycloak-secrets, so
+# this needs no special handling here.
+resource "kubernetes_secret" "qbittorrent_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "qbittorrent-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.qbittorrent_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.qbittorrent_oauth2_proxy.client_secret
   }
 
   type = "Opaque"

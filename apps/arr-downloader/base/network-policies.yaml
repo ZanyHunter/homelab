@@ -1,0 +1,163 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31) -- plus two genuinely
+# new shapes of rule this app needs, called out below.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: arr-downloader
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: arr-downloader
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# Costs nothing even though nothing in this namespace actually needs it today
+# (oauth2-proxy only ever answers its own /oauth2/* paths, same
+# static://202 upstream pattern as every other app's oauth2-proxy here) --
+# same reasoning as matrix's identical no-op rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: arr-downloader
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# ingress-nginx -> qBittorrent's own Ingress ("/" path) and oauth2-proxy's
+# ("/oauth2" path, plus its own auth-url subrequest for qBittorrent's
+# Ingress).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: arr-downloader
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the *external*
+# keycloak.<domain_name> hostname, which resolves back through
+# ingress-nginx's LoadBalancer IP -- same pattern as every other app's
+# oauth2-proxy here. Scoped to the oauth2-proxy pod specifically (not the
+# whole namespace) since the gluetun-qbittorrent pod's own egress is covered
+# by the dedicated VPN-establishment rule below instead -- it has no reason
+# to reach ingress-nginx directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: arr-downloader
+spec:
+  podSelector:
+    matchLabels:
+      app: oauth2-proxy
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# New shape #1: WireGuard tunnel establishment. Applies to the whole
+# gluetun-qbittorrent pod (NetworkPolicy is enforced per-pod regardless of
+# which container in it originates the traffic), scoped by the pod's own
+# label rather than namespace-wide. Can't pin the destination to a specific
+# IP the way most egress rules in this repo do -- Proton's WireGuard
+# endpoint isn't a fixed, knowable-in-advance address any more than
+# LiveKit's STUN-detection egress target was (apps/matrix-livekit/base/
+# network-policies.yaml) -- so this is 0.0.0.0/0 like that rule, not a
+# scoped ipBlock.
+#
+# Port 51820/UDP is WireGuard's conventional default and what Proton's own
+# WireGuard config generator typically assigns -- confirm against the actual
+# downloaded config (see proton-vpn-credentials.enc.yaml) before first apply
+# and adjust this rule if Proton assigned something else. 443/TCP covers
+# Gluetun's own startup HTTPS calls (server list refresh, version check).
+#
+# Open question, not assumed: once Gluetun's tunnel is up, qBittorrent's own
+# internet-bound torrent traffic exits via Gluetun's internal tun0 interface
+# rather than the pod's CNI-attached eth0 -- whether Kubernetes NetworkPolicy
+# enforcement (typically eth0-scoped, CNI-dependent) actually constrains
+# tun0 traffic is unverified here. Gluetun's own internal iptables kill
+# switch is the real leak-prevention mechanism regardless of how this
+# cluster's CNI handles it -- see docs/src/explanation/arr-stack.md for
+# whatever was actually found live.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-vpn-establishment-egress
+  namespace: arr-downloader
+spec:
+  podSelector:
+    matchLabels:
+      app: gluetun-qbittorrent
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 51820
+          protocol: UDP
+        - port: 443
+          protocol: TCP
+---
+# New shape #2: cross-namespace pod-to-pod traffic, second use of the
+# precedent Matrix Authentication Service established (apps/matrix-mas/base/
+# network-policies.yaml, apps/matrix/base/network-policies.yaml) -- the first
+# NetworkPolicy shape in this repo naming another app's namespace directly
+# rather than kube-system/ingress-nginx. Sonarr/Radarr (apps/arr-stack/) call
+# qBittorrent's Web API directly -- to submit/monitor downloads -- rather
+# than through its oauth2-proxy-gated Ingress, the same way every other
+# internal service-to-service call in this repo bypasses its target's
+# forward-auth layer. Only one direction is needed here (Sonarr/Radarr
+# initiate; qBittorrent never calls back into arr-stack), unlike MAS <->
+# Synapse's bidirectional relationship.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-arr-stack-namespace-ingress
+  namespace: arr-downloader
+spec:
+  podSelector:
+    matchLabels:
+      app: gluetun-qbittorrent
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: arr-stack
+      ports:
+        - port: 8080
+          protocol: TCP

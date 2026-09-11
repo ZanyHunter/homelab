@@ -1,0 +1,149 @@
+# Forward-auth for Radarr, which has no OIDC support of its own -- same
+# copy-paste template as every other app's oauth2-proxy here
+# (apps/changedetection/base/oauth2-proxy.yaml). Named radarr-oauth2-proxy
+# throughout (not the bare "oauth2-proxy" every single-instance app uses)
+# since this namespace holds three separate instances, one per app.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr-oauth2-proxy
+  namespace: arr-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: radarr-oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: radarr-oauth2-proxy
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3
+          args:
+            - --provider=oidc
+            - --oidc-issuer-url=https://__KEYCLOAK_HOSTNAME__/realms/homelab
+            - --redirect-url=https://__RADARR_HOSTNAME__/oauth2/callback
+            - --email-domain=*
+            - --cookie-secure=true
+            - --scope=openid email profile
+            - --set-xauthrequest=true
+            - --upstream=static://202
+            - --http-address=0.0.0.0:4180
+          ports:
+            - containerPort: 4180
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: radarr-oauth2-proxy-credentials
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: radarr-oauth2-proxy-credentials
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: radarr-oauth2-proxy-cookie-secret
+                  key: cookie-secret
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr-oauth2-proxy
+  namespace: arr-stack
+spec:
+  selector:
+    app: radarr-oauth2-proxy
+  ports:
+    - port: 80
+      targetPort: 4180
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: radarr-oauth2-proxy
+  namespace: arr-stack
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # oauth2-proxy's session cookie bundles Keycloak's access/ID/refresh
+    # tokens, which routinely exceeds ingress-nginx's default proxy buffer
+    # size -- found live on sso-demo as a real "upstream sent too big
+    # header" 502 on /oauth2/callback, not a transient issue.
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __RADARR_HOSTNAME__
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: radarr-oauth2-proxy
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - __RADARR_HOSTNAME__
+      secretName: radarr-tls
+---
+# Mirrors keycloak-realm's kubernetes_secret.radarr_oauth2_proxy_client_secret
+# (namespace keycloak-secrets) via ESO's kubernetes-provider ClusterSecretStore
+# -- same mechanism as every other oauth2-proxy app here (#42). client-id
+# rides along even though it isn't actually sensitive, same shape as every
+# other app's oauth2-proxy credentials. cookie-secret has no Tofu
+# counterpart and stays ksops-encrypted
+# (radarr-oauth2-proxy-cookie-secret.enc.yaml).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: radarr-oauth2-proxy-credentials
+  namespace: arr-stack
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: keycloak-secrets
+    kind: ClusterSecretStore
+  target:
+    name: radarr-oauth2-proxy-credentials
+  data:
+    - secretKey: client-id
+      remoteRef:
+        key: radarr-oidc-client-secret
+        property: client-id
+    - secretKey: client-secret
+      remoteRef:
+        key: radarr-oidc-client-secret
+        property: client-secret

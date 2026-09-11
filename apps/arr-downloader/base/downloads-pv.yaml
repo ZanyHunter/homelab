@@ -1,0 +1,73 @@
+# In-progress/completed torrent downloads under /media/Downloads. Static
+# PV/PVC pointing directly at an NFS directory the user creates by hand,
+# same mechanism as Jellyfin's own media-pv.yaml (read-only) and Pinchflat's
+# downloads-pvc.yaml (read-write) -- this is that pattern's third use, and
+# its first where the underlying path genuinely differs dev vs prod (see the
+# storage-scoping decision in docs/src/explanation/arr-stack.md): Jellyfin's
+# and Pinchflat's shared paths were a deliberate exception to this repo's
+# usual per-environment split; this one isn't, since Sonarr/Radarr actively
+# rename/move/delete files on import and a dev misconfiguration touching the
+# real household library would have real consequences Pinchflat's
+# append-only downloads never risked.
+#
+# Mounted at /media/Downloads (not /downloads) specifically so its
+# container-local path lines up with arr-stack's own /media mount of the
+# same NFS tree's root (apps/arr-stack/base/media-rw-pv.yaml) -- Sonarr/
+# Radarr hardlink completed downloads into the library rather than copying
+# them, which requires the source and destination to be on the same
+# filesystem/mount, and keeping every container's view of this tree at an
+# identical absolute path avoids needing Sonarr/Radarr's separate "Remote
+# Path Mapping" feature (the TRaSH-guides-recommended approach).
+#
+# dev: __NFS_SERVER__/__NFS_DOWNLOADS_PATH__ points at a new, isolated
+# directory the user creates by hand under dev's own NFS root -- NOT the
+# Jellyfin export. Its contents are invisible to Jellyfin (which only ever
+# reads the one real shared export), by design -- this exists purely to
+# exercise the pipeline mechanics safely.
+# prod: points at a new Downloads/ subdirectory inside Jellyfin's actual
+# jellyfin-media export, alongside the existing Movies/TV Shows/Other/
+# YouTube.
+#
+# accessModes: ReadWriteMany + no mountOptions: [ro] -- both qBittorrent and
+# Sonarr/Radarr need to write here (qBittorrent writing the files,
+# Sonarr/Radarr moving/renaming/deleting them on import).
+#
+# persistentVolumeReclaimPolicy: Retain -- deleting this PVC/PV must never
+# delete real in-progress or completed downloads.
+#
+# No Velero annotation, same reasoning as Immich's/Pinchflat's media
+# libraries: downloaded files aren't Velero's concern here (dev's are
+# disposable test content; prod's real files rely on the NAS's own offsite
+# backup, same as every other bulk-media PVC in this repo) -- flagged, not
+# silently assumed covered.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: arr-downloads
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: __NFS_SERVER__
+    path: __NFS_DOWNLOADS_PATH__
+  claimRef:
+    namespace: arr-downloader
+    name: arr-downloads
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: arr-downloads
+  namespace: arr-downloader
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: arr-downloads
+  resources:
+    requests:
+      storage: 100Gi

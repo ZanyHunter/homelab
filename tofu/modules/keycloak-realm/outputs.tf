@@ -51,3 +51,27 @@ output "jellyfin_oidc_client_secret" {
   value       = keycloak_openid_client.jellyfin.client_secret
   sensitive   = true
 }
+
+output "sonarr_oauth2_proxy_client_secret" {
+  description = "Sonarr's forward-auth oauth2-proxy Keycloak client secret. No longer needs manual action (#42) — automatically synced via ExternalSecrets Operator, same mechanism as immich_oidc_client_secret above. This output exists for break-glass/debugging only."
+  value       = keycloak_openid_client.sonarr_oauth2_proxy.client_secret
+  sensitive   = true
+}
+
+output "radarr_oauth2_proxy_client_secret" {
+  description = "Radarr's forward-auth oauth2-proxy Keycloak client secret. No longer needs manual action (#42) — automatically synced via ExternalSecrets Operator, same mechanism as immich_oidc_client_secret above. This output exists for break-glass/debugging only."
+  value       = keycloak_openid_client.radarr_oauth2_proxy.client_secret
+  sensitive   = true
+}
+
+output "prowlarr_oauth2_proxy_client_secret" {
+  description = "Prowlarr's forward-auth oauth2-proxy Keycloak client secret. No longer needs manual action (#42) — automatically synced via ExternalSecrets Operator, same mechanism as immich_oidc_client_secret above. This output exists for break-glass/debugging only."
+  value       = keycloak_openid_client.prowlarr_oauth2_proxy.client_secret
+  sensitive   = true
+}
+
+output "qbittorrent_oauth2_proxy_client_secret" {
+  description = "qBittorrent's forward-auth oauth2-proxy Keycloak client secret. No longer needs manual action (#42) — automatically synced via ExternalSecrets Operator, same mechanism as immich_oidc_client_secret above. This output exists for break-glass/debugging only."
+  value       = keycloak_openid_client.qbittorrent_oauth2_proxy.client_secret
+  sensitive   = true
+}

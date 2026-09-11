@@ -1,0 +1,176 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - env-values.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.sonarr-hostname
+    targets:
+      - select:
+          kind: Ingress
+          name: sonarr
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Ingress
+          name: sonarr
+        fieldPaths:
+          - metadata.annotations.[nginx.ingress.kubernetes.io/auth-signin]
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Ingress
+          name: sonarr-oauth2-proxy
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: sonarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.2
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.radarr-hostname
+    targets:
+      - select:
+          kind: Ingress
+          name: radarr
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Ingress
+          name: radarr
+        fieldPaths:
+          - metadata.annotations.[nginx.ingress.kubernetes.io/auth-signin]
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Ingress
+          name: radarr-oauth2-proxy
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: radarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.2
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.prowlarr-hostname
+    targets:
+      - select:
+          kind: Ingress
+          name: prowlarr
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Ingress
+          name: prowlarr
+        fieldPaths:
+          - metadata.annotations.[nginx.ingress.kubernetes.io/auth-signin]
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Ingress
+          name: prowlarr-oauth2-proxy
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: prowlarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.2
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.keycloak-hostname
+    targets:
+      - select:
+          kind: Deployment
+          name: sonarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.1
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Deployment
+          name: radarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.1
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Deployment
+          name: prowlarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.1
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.storage-class-ceph
+    targets:
+      - select:
+          kind: PersistentVolumeClaim
+          name: sonarr-config
+        fieldPaths:
+          - spec.storageClassName
+      - select:
+          kind: PersistentVolumeClaim
+          name: radarr-config
+        fieldPaths:
+          - spec.storageClassName
+      - select:
+          kind: PersistentVolumeClaim
+          name: prowlarr-config
+        fieldPaths:
+          - spec.storageClassName
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.nfs-server
+    targets:
+      - select:
+          kind: PersistentVolume
+          name: arr-media-rw
+        fieldPaths:
+          - spec.nfs.server
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.nfs-media-root-path
+    targets:
+      - select:
+          kind: PersistentVolume
+          name: arr-media-rw
+        fieldPaths:
+          - spec.nfs.path

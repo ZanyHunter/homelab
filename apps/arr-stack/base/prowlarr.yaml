@@ -1,0 +1,145 @@
+# Prowlarr — https://prowlarr.com/. Shared indexer manager: holds the real
+# indexer/tracker credentials and search config once, syncs them out to
+# Sonarr's and Radarr's own indexer lists via their APIs, so indexers are
+# configured in exactly one place.
+#
+# hotio's image, same reasoning as Sonarr/Radarr's own choice above.
+#
+# No OIDC of its own -- gated by oauth2-proxy forward-auth instead
+# (prowlarr-oauth2-proxy.yaml), same template as every other app here.
+#
+# Single volume: /config only (its own SQLite DB -- indexer definitions,
+# search history, real state). Unlike Sonarr/Radarr, Prowlarr never touches
+# the media library or qBittorrent directly in this deployment -- it only
+# ever talks to Sonarr/Radarr's own APIs (same-namespace) and to indexer
+# websites over HTTPS (network-policies.yaml's allow-internet-egress).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prowlarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: arr-stack
+spec:
+  replicas: 1
+  # RWO config PVC: a rolling update would try to schedule the new pod
+  # before the old one releases the volume, same reasoning as every other
+  # RWO-PVC app here.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+      annotations:
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prowlarr
+          image: ghcr.io/hotio/prowlarr:release
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: UMASK
+              value: "002"
+          ports:
+            - containerPort: 9696
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 9696
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 9696
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: prowlarr-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: prowlarr
+  ports:
+    - port: 9696
+      targetPort: 9696
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prowlarr
+  namespace: arr-stack
+  annotations:
+    # No ssl-redirect/cert-manager annotations here -- prowlarr-oauth2-proxy's
+    # own Ingress (same host) owns the actual Certificate, same as every
+    # other app's oauth2-proxy pairing.
+    nginx.ingress.kubernetes.io/auth-url: "http://prowlarr-oauth2-proxy.arr-stack.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__PROWLARR_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __PROWLARR_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prowlarr
+                port:
+                  number: 9696
+  tls:
+    - hosts:
+        - __PROWLARR_HOSTNAME__
+      secretName: prowlarr-tls

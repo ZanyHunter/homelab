@@ -1,0 +1,12 @@
+apiVersion: viaduct.ai/v1
+kind: ksops
+metadata:
+  name: arr-stack-secrets
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: ksops
+files:
+  - ./sonarr-oauth2-proxy-cookie-secret.enc.yaml
+  - ./radarr-oauth2-proxy-cookie-secret.enc.yaml
+  - ./prowlarr-oauth2-proxy-cookie-secret.enc.yaml

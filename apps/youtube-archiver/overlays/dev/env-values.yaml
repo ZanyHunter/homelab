@@ -1,15 +1,12 @@
 # The per-environment values this app's base/ manifests reference as
-# __APP_HOSTNAME__/__KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__/
-# __STORAGE_CLASS_NFS__/__DOWNLOADS_PVC_SIZE__ tokens -- see
+# __APP_HOSTNAME__/__KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__ tokens -- see
 # docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
 # keycloak-hostname is for oauth2-proxy.yaml's own OIDC discovery calls,
 # not Pinchflat itself (no native OIDC support).
 #
-# downloads-pvc-size is small (20Gi), not prod's 500Gi: unlike Wikipedia's
-# fixed ZIM catalog, there's no natural content subset to scope dev down to
-# here -- growth depends entirely on which channels get subscribed to. 20Gi
-# is enough to prove the subscribe-and-download pipeline live without
-# carrying a large permanent footprint on a dev-only testing cluster.
+# No storage-class-nfs/downloads-pvc-size here: the downloads PVC
+# (downloads-pvc.yaml) is a static PV/PVC shared with Jellyfin's media
+# export, deliberately not per-environment -- see that file's own comment.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,5 +15,3 @@ data:
   app-hostname: youtube.dev.thepugh.family
   keycloak-hostname: keycloak.dev.thepugh.family
   storage-class-ceph: ceph-rbd-dev
-  storage-class-nfs: nfs-dev
-  downloads-pvc-size: 20Gi

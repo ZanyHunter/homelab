@@ -7,12 +7,49 @@
 # top-of-file comment for why that's a flagged, not silently-assumed,
 # decision (#54).
 #
-# Sizing is per-environment (env-values.yaml's downloads-pvc-size), same
-# pattern as Wikipedia's pvc-size -- dev stays deliberately small (unlike
-# Wikipedia, there's no natural content subset to scope down to here, since
-# growth depends entirely on which channels get subscribed to), prod sized
-# generously per #54's own scope. PVCs can only grow, never shrink, so this
-# is a floor to raise later, not a ceiling.
+# Static PV/PVC pointing directly into Jellyfin's existing jellyfin-media NFS
+# export (apps/jellyfin/base/media-pv.yaml), at a dedicated YouTube/
+# subdirectory -- not a normal per-environment dynamically-provisioned PVC on
+# nfs-dev/nfs-prod like this file used to be. Since Jellyfin already mounts
+# that export's entire root read-only at /media, anything Pinchflat writes
+# here shows up under /media/YouTube with zero changes needed on Jellyfin's
+# side -- just a manually-added Library pointed at that path (see
+# docs/src/explanation/self-hosted-apps.md).
+#
+# Deliberately shared across dev and prod, same exception as jellyfin-media
+# itself, rather than the per-environment split every other app's NFS-backed
+# PVC gets: the user explicitly chose simplicity (one directory, no
+# per-environment tokens/exports to manage) over isolation here, having
+# weighed and accepted the one real tradeoff -- if dev's and prod's
+# subscriptions ever overlap, both could write the same filename around the
+# same time (a harmless same-content overwrite in practice, not corruption).
+# This is why storageClassName/capacity are fixed values below rather than
+# env-values.yaml tokens.
+#
+# accessModes: ReadWriteMany (not Jellyfin's ReadOnlyMany) and no
+# mountOptions: [ro] -- Pinchflat needs to write here, unlike Jellyfin's own
+# read-only mount of the export root.
+#
+# persistentVolumeReclaimPolicy: Retain -- same reasoning as jellyfin-media:
+# deleting this PVC/PV must never delete real downloaded videos.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pinchflat-downloads
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: truenas.thepugh.family
+    path: /mnt/Main/jellyfin-media/YouTube
+  claimRef:
+    namespace: youtube-archiver
+    name: pinchflat-downloads
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -21,7 +58,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: __STORAGE_CLASS_NFS__
+  storageClassName: ""
+  volumeName: pinchflat-downloads
   resources:
     requests:
-      storage: __DOWNLOADS_PVC_SIZE__
+      storage: 500Gi

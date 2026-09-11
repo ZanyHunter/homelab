@@ -55,23 +55,3 @@ replacements:
           name: pinchflat-config
         fieldPaths:
           - spec.storageClassName
-  - source:
-      kind: ConfigMap
-      name: env-values
-      fieldPath: data.storage-class-nfs
-    targets:
-      - select:
-          kind: PersistentVolumeClaim
-          name: pinchflat-downloads
-        fieldPaths:
-          - spec.storageClassName
-  - source:
-      kind: ConfigMap
-      name: env-values
-      fieldPath: data.downloads-pvc-size
-    targets:
-      - select:
-          kind: PersistentVolumeClaim
-          name: pinchflat-downloads
-        fieldPaths:
-          - spec.resources.requests.storage

@@ -1,0 +1,19 @@
+# privileged, not restricted/baseline like almost every other app namespace
+# in this repo -- the 4th such namespace, joining metallb-system/
+# csi-driver-nfs/monitoring. Gluetun (gluetun-qbittorrent.yaml) needs the
+# NET_ADMIN capability and /dev/net/tun to build its own WireGuard tunnel and
+# enforce its own kill switch; NET_ADMIN is disallowed under both restricted
+# and baseline Pod Security Standards, so privileged is the only level that
+# permits it. User-confirmed tradeoff (see docs/src/explanation/arr-stack.md):
+# scoped to the smallest possible surface -- only this namespace's two
+# containers (Gluetun + qBittorrent) need it. Sonarr/Radarr/Prowlarr
+# (apps/arr-stack/) stay in the normal restricted posture, since they only
+# ever make plain HTTPS calls and never touch peers/trackers directly.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arr-downloader
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

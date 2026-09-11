@@ -1,0 +1,20 @@
+# The per-environment values this app's base/ manifests reference as
+# __APP_HOSTNAME__/__KEYCLOAK_HOSTNAME__/__STORAGE_CLASS_CEPH__/
+# __NFS_SERVER__/__NFS_DOWNLOADS_PATH__ tokens -- see
+# docs/src/explanation/gitops-app-of-apps.md for the base/overlays pattern.
+#
+# nfs-downloads-path is a new Downloads/ subdirectory inside Jellyfin's real
+# jellyfin-media export (create by hand: mkdir -p
+# /mnt/Main/jellyfin-media/{Downloads,Movies,TV Shows} on the NAS if not
+# already present, chowned to uid/gid 1000) -- see downloads-pv.yaml's own
+# comment for why this differs from dev's isolated path.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-values
+data:
+  app-hostname: qbittorrent.thepugh.family
+  keycloak-hostname: keycloak.thepugh.family
+  storage-class-ceph: ceph-rbd-prod
+  nfs-server: truenas.thepugh.family
+  nfs-downloads-path: /mnt/Main/jellyfin-media/Downloads

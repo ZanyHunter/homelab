@@ -48,8 +48,9 @@ spec:
       # iptables-based kill switch, which this repo's other apps never
       # need -- this is the one pod in the one namespace where that's
       # actually allowed (privileged PSA, see namespace.yaml). qBittorrent's
-      # own container still opts into a non-root uid below, for defense in
-      # depth even though the namespace itself permits more.
+      # own container also needs to start as root (see its own comment
+      # below) -- found live, not the defense-in-depth non-root uid
+      # originally planned here.
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
@@ -117,15 +118,21 @@ spec:
               cpu: 500m
               memory: 256Mi
         - name: qbittorrent
-          # hotio's image over linuxserver.io's: hotio's entrypoint is built
-          # to run as an arbitrary non-root uid directly (PUID/PGID), rather
-          # than linuxserver.io's root-start-then-drop-via-s6-overlay model,
-          # which tends to conflict with Kubernetes forcing a non-root start
-          # from the very first process. hotio doesn't publish immutable
-          # per-version tags the way this repo otherwise prefers (only
-          # floating release/testing/nightly channels) -- :release is their
-          # documented stable channel, the closest available; re-pin if
-          # hotio ever adds versioned tags.
+          # hotio's image over linuxserver.io's -- chosen expecting
+          # rootless-first behaviour, but found live to use the identical
+          # s6-overlay root-start-then-drop-to-PUID/PGID model
+          # linuxserver.io's images use: dropping ALL capabilities (as this
+          # container originally did) left even root unable to chown
+          # /config during s6-overlay's preinit, crash-looping with "chown:
+          # changing ownership of '/config': Operation not permitted".
+          # Fine to let it start as root here specifically -- this is
+          # already the one privileged-PSA namespace in this repo, so
+          # nothing is lost that wasn't already permitted at the namespace
+          # level. hotio doesn't publish immutable per-version tags the way
+          # this repo otherwise prefers (only floating release/testing/
+          # nightly channels) -- :release is their documented stable
+          # channel, the closest available; re-pin if hotio ever adds
+          # versioned tags.
           image: ghcr.io/hotio/qbittorrent:release
           env:
             - name: PUID
@@ -138,8 +145,6 @@ spec:
             - containerPort: 8080
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
           volumeMounts:
             - name: config
               mountPath: /config

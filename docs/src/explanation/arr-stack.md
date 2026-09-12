@@ -39,9 +39,19 @@ Standard per-namespace trio (`default-deny-all`, `allow-dns-egress`, `allow-same
 
 An open question flagged rather than assumed: once Gluetun's tunnel is up, qBittorrent's actual torrent traffic exits via Gluetun's internal `tun0` interface, not the pod's CNI-attached `eth0`. Whether this cluster's CNI enforces NetworkPolicy against `tun0` traffic the same way it does `eth0` traffic is unverified — Gluetun's own internal kill switch is the real leak-prevention mechanism regardless of how that turns out.
 
-## Images: hotio over linuxserver.io
+## Images: hotio, and a real gotcha that changed `arr-stack`'s PSA level
 
-Sonarr, Radarr, Prowlarr, and qBittorrent all use `ghcr.io/hotio/*:release` rather than the more commonly-referenced `lscr.io/linuxserver/*` images. linuxserver.io's images are built around an s6-overlay init that typically starts as root before dropping to the configured `PUID`/`PGID` — a model that tends to conflict with Kubernetes forcing a non-root start from the very first process, which `restricted` PSA requires in `arr-stack`. hotio's images are built to run as an arbitrary non-root uid directly. hotio doesn't publish immutable per-version tags the way this repo otherwise prefers (only floating `release`/`testing`/`nightly` channels) — `:release` is the closest available, their own documented stable channel.
+Sonarr, Radarr, Prowlarr, and qBittorrent all use `ghcr.io/hotio/*:release` rather than the more commonly-referenced `lscr.io/linuxserver/*` images, chosen expecting hotio to run as an arbitrary non-root uid directly rather than needing linuxserver.io's root-start-then-drop model. **Found live to be wrong**: hotio's images use the identical s6-overlay preinit as linuxserver.io's. Forcing `restricted` PSA's non-root-from-the-first-process onto them failed outright —
+
+```
+/package/admin/s6-overlay/libexec/preinit: fatal: /run belongs to uid 0 instead of 1000, has insecure and/or unworkable permissions, and we're lacking the privileges to fix it.
+```
+
+— for Sonarr/Radarr/Prowlarr, and a related failure crash-looped qBittorrent even without `runAsNonRoot` forced, because its container still had `capabilities: {drop: ["ALL"]}`, which strips `CAP_CHOWN` from root too: `chown: changing ownership of '/config': Operation not permitted`.
+
+The real fix: `apps/arr-stack/base/namespace.yaml` moved from `restricted` to **`baseline`** PSA — the same can't-quite-reach-restricted tier `minio`/`velero` already use for their own Helm hook Jobs ([NetworkPolicies and Pod Security Admission](./network-policies.md)) — and all four containers (Sonarr, Radarr, Prowlarr, qBittorrent) had `runAsNonRoot`/`runAsUser`/`capabilities: drop: ["ALL"]` removed from their securityContext entirely, letting s6-overlay's preinit run as root and do its own chown/setup before dropping to `PUID`/`PGID` internally, exactly like a normal Docker deployment of these images would. `apps/arr-downloader/` needed no namespace change (already `privileged`, a superset of `baseline`) — just the same container-level fix on qBittorrent's own securityContext. `allowPrivilegeEscalation: false` stayed on all four; dropping privileges via `setuid()` doesn't need privilege escalation, only gaining them would.
+
+hotio doesn't publish immutable per-version tags the way this repo otherwise prefers (only floating `release`/`testing`/`nightly` channels) — `:release` is the closest available, their own documented stable channel.
 
 ## Secrets
 
@@ -53,16 +63,15 @@ Proton's WireGuard credentials (`WIREGUARD_PRIVATE_KEY`, `WIREGUARD_ADDRESSES`) 
 
 ## Verification
 
-Design-complete and confirmed via the ArgoCD repo-server test-build pattern for all four overlay combinations (`arr-stack`/`arr-downloader` × dev/prod): each builds cleanly with no leftover `__TOKEN__` placeholders, ksops decrypts every secret correctly, and a `kubectl apply --dry-run=server` confirms every cluster-scoped resource (namespaces, PSA labels, the static PVs) is schema-valid against the live dev API server.
+Verified live on dev, past the design-complete/test-build-only stage: `keycloak-realm`'s `tofu apply` created all four new oauth2-proxy clients cleanly (12 resources — client + `random_password` + `kubernetes_secret` each — zero drift elsewhere), both `dev` Kustomize builds were confirmed via the ArgoCD repo-server test-build pattern (ksops decrypting real secrets correctly, no leftover `__TOKEN__` placeholders), and applying that output directly to dev showed:
 
-Live deployment is deliberately held, not yet attempted: it needs two things only the user can do — a real Proton VPN WireGuard config (`account.protonvpn.com`, copied into `apps/arr-downloader/base/proton-vpn-credentials.enc.yaml`, currently placeholder text) and the dev-only NAS directory tree (`/mnt/Main/k8s-dev/arr-downloads/{Downloads,Movies,TV Shows}`, chowned to uid/gid 1000) created by hand. Applying with placeholder credentials now would just crash-loop Gluetun and leave the static PVCs unbound — informative about nothing except the one thing not yet directly confirmed (whether the API server actually admits a pod requesting `NET_ADMIN` under `privileged` PSA the way this is designed), which is deferred to the same verification pass rather than done in isolation.
+- **The VPN actually works, not just "the pod is Running"**: Gluetun's own logs report a successful WireGuard handshake to Proton's `CH-FREE#11` endpoint, and its `[ip getter]` log line confirms the tunnel's egress IP resolves to **Switzerland, Zurich** — the whole reason this app's architecture looks the way it does, genuinely confirmed rather than assumed. Stable for 8+ hours with zero restarts on the Gluetun+qBittorrent pod.
+- **The privileged-PSA/`NET_ADMIN` design is sound**: the API server admitted the Gluetun+qBittorrent pod's capability request under `privileged` PSA with no admission errors, on the first apply.
+- **A real, live-found gotcha changed `arr-stack`'s PSA level from `restricted` to `baseline`** — see the Images section above for the full story (hotio's images need to start as root, same as linuxserver.io's, which `restricted` flatly disallows).
+- **All four apps reach a real Keycloak login, not just "the client exists"**: an unauthenticated request to each hostname redirects through `/oauth2/start` to a real Keycloak authorize URL with the correct `client_id`/`redirect_uri`/scope for that specific app, and fetching Sonarr's authorize URL rendered Keycloak's actual `Sign in to Homelab` login form.
+- **The new cross-namespace NetworkPolicy actually works**: `kubectl exec`'d from Sonarr's pod (`arr-stack`) to qBittorrent's Service DNS (`arr-downloader`) and got a real HTTP response (`403 Forbidden` — qBittorrent's own CSRF/auth check, not a network-level block; a blocked connection would have timed out with no response at all, not returned a real HTTP status).
+- Real Let's Encrypt certificates issued for all four hostnames on the first apply.
 
-This section will be updated with what's actually found once both prerequisites are in place and a real `kubectl apply` runs — in particular:
-
-- Whether Gluetun's tunnel actually establishes against Proton's free-tier Switzerland server, confirmed via a public-IP check from inside the pod (not just "the pod is Running").
-- Whether hotio's images really do start cleanly as a non-root uid under `restricted` PSA, or need a fallback.
-- Whether the cross-namespace NetworkPolicy between `arr-stack` and `arr-downloader` actually works (Sonarr successfully adding and monitoring a real download).
-- Whether Kubernetes NetworkPolicy meaningfully constrains Gluetun's `tun0` traffic, or only its pre-tunnel `eth0` traffic.
-- A real end-to-end pipeline run: Prowlarr synced to Sonarr/Radarr, a real download completing, and Sonarr/Radarr importing/hardlinking it into `/media/Movies` or `/media/TV Shows`.
+**Not yet exercised**: a full pipeline run (a real indexer configured in Prowlarr, synced to Sonarr/Radarr, a real download completing in qBittorrent, and Sonarr/Radarr importing/hardlinking it into `/media/Movies` or `/media/TV Shows`) — this needs interactive indexer/account setup through each app's own UI, left as a follow-up rather than done speculatively here. Also unresolved: whether Kubernetes NetworkPolicy meaningfully constrains Gluetun's post-tunnel `tun0` traffic or only its pre-tunnel `eth0` traffic — Gluetun's own internal kill switch is the real leak-prevention mechanism regardless of how that turns out, so this was left as a documented open question rather than chased further.
 
 Public exposure and prod deployment both stay deferred, matching every other app in this repo's rollout history.

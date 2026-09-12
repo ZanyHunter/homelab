@@ -1,8 +1,21 @@
+# baseline, not restricted like almost every other app namespace here --
+# found live that Sonarr/Radarr/Prowlarr's hotio images need to start as
+# root (s6-overlay's own preinit owns /run and chowns /config before
+# dropping to PUID/PGID internally, the same model linuxserver.io's images
+# use), which restricted's forced non-root-from-the-first-process
+# requirement broke outright ("fatal: /run belongs to uid 0 instead of
+# 1000, has insecure and/or unworkable permissions, and we're lacking the
+# privileges to fix it."). Same can't-quite-reach-restricted reasoning as
+# minio/velero's Helm hook Jobs (docs/src/explanation/network-policies.md)
+# -- baseline still forbids privileged containers, host namespaces, and
+# capability additions beyond the default set; it just doesn't force a
+# non-root start the way restricted does. See the securityContext comment
+# in sonarr.yaml/radarr.yaml/prowlarr.yaml for the full story.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: arr-stack
   labels:
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline

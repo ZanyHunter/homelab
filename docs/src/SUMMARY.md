@@ -11,6 +11,7 @@
 - [Restore From a Backup](./guides/restore-from-a-backup.md)
 - [Migrate Storage to Ceph](./guides/migrate-storage-to-ceph.md)
 - [Grant Platform-Admin Access](./guides/grant-platform-admin-access.md)
+- [Wire Up the *arr Stack](./guides/wire-up-arr-stack.md)
 
 # Tutorials
 

@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-f93f9ddb.js";
+            window.path_to_searchindex_js = "../searchindex-1287cc93.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-260e4ae9.js"></script>
@@ -210,16 +210,18 @@ curl -s -c /tmp/cookies.txt -H "Referer: http://localhost:8080" \
   http://localhost:8080/api/v2/auth/login
 
 curl -s -b /tmp/cookies.txt -H "Referer: http://localhost:8080" \
-  --data-urlencode '"'"'json={"web_ui_reverse_proxy_enabled": true, "web_ui_reverse_proxies_list": "&lt;POD_CIDR&gt;", "bypass_auth_subnet_whitelist_enabled": true, "bypass_auth_subnet_whitelist": "&lt;ENV_NETWORK_CIDR&gt;", "web_ui_password": "&lt;NEW_PERMANENT_PASSWORD&gt;", "save_path": "/media/Downloads"}'"'"' \
+  --data-urlencode '"'"'json={"web_ui_reverse_proxy_enabled": true, "web_ui_reverse_proxies_list": "&lt;POD_CIDR&gt;", "bypass_auth_subnet_whitelist_enabled": true, "bypass_auth_subnet_whitelist": "&lt;ENV_NETWORK_CIDR&gt;,&lt;POD_CIDR&gt;", "web_ui_password": "&lt;NEW_PERMANENT_PASSWORD&gt;", "save_path": "/media/Downloads"}'"'"' \
   http://localhost:8080/api/v2/app/setPreferences
 '
 </code></pre>
 <ul>
 <li><code>&lt;POD_CIDR&gt;</code>: the cluster’s pod network (dev: <code>10.244.0.0/16</code> — get any cluster’s via <code>kubectl get nodes -o jsonpath='"'"'{range .items[*]}{.spec.podCIDR}{"\n"}{end}'"'"'</code> and take the common supernet). This is what lets qBittorrent trust <code>X-Forwarded-For</code> from ingress-nginx instead of seeing every request as coming from ingress-nginx’s own pod IP.</li>
-<li><code>&lt;ENV_NETWORK_CIDR&gt;</code>: that environment’s <code>network_cidr</code> from <code>env.hcl</code> (dev: <code>192.168.160.32/27</code>) — once the real client IP is resolved via the setting above, this skips qBittorrent’s own login for that subnet, since oauth2-proxy already Keycloak-authenticated it.</li>
+<li><code>&lt;ENV_NETWORK_CIDR&gt;</code>: that environment’s <code>network_cidr</code> from <code>env.hcl</code> (dev: <code>192.168.160.32/27</code>) — the real LAN/VPN subnet browser clients connect from.</li>
+<li><code>bypass_auth_subnet_whitelist</code> needs <strong>both</strong> CIDRs, comma-separated — found live that <code>&lt;ENV_NETWORK_CIDR&gt;</code> alone never matched. Checking ingress-nginx’s own access log for a failed request showed its <code>$remote_addr</code> was already a pod-network address (<code>10.244.6.1</code>, not a real LAN IP) by the time it reached ingress-nginx — something upstream (most likely kube-proxy/MetalLB’s default SNAT behavior for <code>externalTrafficPolicy: Cluster</code>) masks the real client IP before ingress-nginx ever sees it, so that’s also what ends up in <code>X-Forwarded-For</code>. Include <code>&lt;POD_CIDR&gt;</code> in the whitelist too (not just the trusted-proxies-list field above) to match what’s actually observed.</li>
 <li><code>save_path</code>: qBittorrent’s own “default save path” preference — mounting the <code>arr-downloads</code> PVC at <code>/media/Downloads</code> doesn’t automatically tell qBittorrent to save there; this is a separate internal setting.</li>
 <li>Pick <code>&lt;NEW_PERMANENT_PASSWORD&gt;</code> yourself (e.g. <code>openssl rand -base64 24 | tr -d '=+/' | head -c 24</code>) — Sonarr/Radarr’s download-client login (step 4) needs a password that doesn’t rotate on every pod restart.</li>
 </ul>
+<p><strong>If login still fails after this</strong>: check <code>kubectl logs -n ingress-nginx deploy/ingress-nginx-controller | grep qbittorrent</code> for the actual <code>$remote_addr</code> ingress-nginx is logging on the failing request, and add whatever CIDR that address actually falls in to <code>bypass_auth_subnet_whitelist</code> — don’t assume the LAN subnet is what’s really arriving.</p>
 <p>Verify it took:</p>
 <pre><code class="language-bash">kubectl exec -n arr-downloader deploy/gluetun-qbittorrent -c qbittorrent -- sh -c '
 curl -s -b /tmp/cookies.txt http://localhost:8080/api/v2/app/preferences

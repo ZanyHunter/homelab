@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-f93f9ddb.js";
+            window.path_to_searchindex_js = "../searchindex-1287cc93.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-260e4ae9.js"></script>
@@ -222,8 +222,9 @@
 <p>qBittorrent has a documented mechanism for exactly this “behind a reverse proxy with its own auth” scenario, applied here via its own WebUI API (<code>POST /api/v2/app/setPreferences</code>, matching this repo’s “managed by hand, not by Tofu/GitOps” precedent for admin-UI-only settings — done via the API instead of clicking through the UI, functionally identical):</p>
 <ul>
 <li><code>web_ui_reverse_proxy_enabled: true</code> + <code>web_ui_reverse_proxies_list: "10.244.0.0/16"</code> (the cluster’s pod CIDR) — without this, qBittorrent sees every request as originating from ingress-nginx’s own pod IP rather than the real client, since it doesn’t trust <code>X-Forwarded-For</code> from an untrusted source by default.</li>
-<li><code>bypass_auth_subnet_whitelist_enabled: true</code> + <code>bypass_auth_subnet_whitelist: "192.168.160.32/27"</code> (dev’s <code>network_cidr</code>) — once the real client IP is resolved via the trusted-proxy setting above, this skips qBittorrent’s own login for that subnet, since oauth2-proxy has already verified the user via Keycloak. This doesn’t widen access beyond what NetworkPolicy already permits — only ingress-nginx and Sonarr/Radarr can reach qBittorrent’s port at all.</li>
+<li><code>bypass_auth_subnet_whitelist_enabled: true</code> + <code>bypass_auth_subnet_whitelist</code> — skips qBittorrent’s own login for trusted source IPs, since oauth2-proxy has already verified the user via Keycloak. This doesn’t widen access beyond what NetworkPolicy already permits — only ingress-nginx and Sonarr/Radarr can reach qBittorrent’s port at all.</li>
 </ul>
+<p><strong>Corrected after a real live test failed</strong>: the initial value (dev’s <code>network_cidr</code>, <code>192.168.160.32/27</code> — the real LAN/VPN subnet browser clients actually connect from) never matched. Checking ingress-nginx’s own access log for the failed request showed its <code>$remote_addr</code> was already <code>10.244.6.1</code> — a pod-network address, not the real client’s LAN IP — meaning something upstream of ingress-nginx (most likely kube-proxy/MetalLB’s default SNAT behavior for <code>externalTrafficPolicy: Cluster</code>) masks the real source IP before ingress-nginx ever sees it, so that’s also what it forwards via <code>X-Forwarded-For</code>. The actual working value is both CIDRs together: <code>"192.168.160.32/27,10.244.0.0/16"</code> — the pod CIDR covers what’s actually observed in practice, the LAN CIDR is kept in case a future path ever does deliver the real client IP unmasked.</p>
 <p>Also set a permanent WebUI password in the same call — qBittorrent generates a new temporary one on every restart until an operator sets a real one, which would otherwise also silently break Sonarr/Radarr’s own download-client login to qBittorrent’s API on the next pod restart.</p>
 <p>This lives entirely in qBittorrent’s own persistent <code>/config</code> state (its Ceph-backed PVC), not in git — same category as Jellyfin’s SSO plugin config or LubeLogger’s <code>EnableAuth</code> flag. A future qBittorrent PVC loss/recreation needs this redone by hand. See <a href="../guides/wire-up-arr-stack.html">Wire Up the *arr Stack</a> for the exact, reproducible commands — for this and every other piece of cross-app wiring below.</p>
 <h2 id="the-rest-of-the-pipeline-also-runtime-state-not-git"><a class="header" href="#the-rest-of-the-pipeline-also-runtime-state-not-git">The rest of the pipeline: also runtime state, not git</a></h2>

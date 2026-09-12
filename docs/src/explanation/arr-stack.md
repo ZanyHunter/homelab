@@ -53,6 +53,19 @@ The real fix: `apps/arr-stack/base/namespace.yaml` moved from `restricted` to **
 
 hotio doesn't publish immutable per-version tags the way this repo otherwise prefers (only floating `release`/`testing`/`nightly` channels) — `:release` is the closest available, their own documented stable channel.
 
+## qBittorrent's own login, on top of oauth2-proxy's
+
+Found live: completing Keycloak login through oauth2-proxy still landed on qBittorrent's own separate WebUI login page. This is expected, not a bug in the forward-auth wiring — oauth2-proxy's `auth-url` check happens entirely at ingress-nginx, gating whether a request reaches qBittorrent's Ingress at all; it has no mechanism to also authenticate *into* qBittorrent's own independent account system once the request is let through.
+
+qBittorrent has a documented mechanism for exactly this "behind a reverse proxy with its own auth" scenario, applied here via its own WebUI API (`POST /api/v2/app/setPreferences`, matching this repo's "managed by hand, not by Tofu/GitOps" precedent for admin-UI-only settings — done via the API instead of clicking through the UI, functionally identical):
+
+- `web_ui_reverse_proxy_enabled: true` + `web_ui_reverse_proxies_list: "10.244.0.0/16"` (the cluster's pod CIDR) — without this, qBittorrent sees every request as originating from ingress-nginx's own pod IP rather than the real client, since it doesn't trust `X-Forwarded-For` from an untrusted source by default.
+- `bypass_auth_subnet_whitelist_enabled: true` + `bypass_auth_subnet_whitelist: "192.168.160.32/27"` (dev's `network_cidr`) — once the real client IP is resolved via the trusted-proxy setting above, this skips qBittorrent's own login for that subnet, since oauth2-proxy has already verified the user via Keycloak. This doesn't widen access beyond what NetworkPolicy already permits — only ingress-nginx and Sonarr/Radarr can reach qBittorrent's port at all.
+
+Also set a permanent WebUI password in the same call — qBittorrent generates a new temporary one on every restart until an operator sets a real one, which would otherwise also silently break Sonarr/Radarr's own download-client login to qBittorrent's API on the next pod restart.
+
+This lives entirely in qBittorrent's own persistent `/config` state (its Ceph-backed PVC), not in git — same category as Jellyfin's SSO plugin config or LubeLogger's `EnableAuth` flag. A future qBittorrent PVC loss/recreation needs this redone by hand.
+
 ## Secrets
 
 Four new Keycloak clients (`sonarr-oauth2-proxy`, `radarr-oauth2-proxy`, `prowlarr-oauth2-proxy`, `qbittorrent-oauth2-proxy`), one per app, following the same 1-app-1-client shape every other oauth2-proxy app here uses — deliberately *not* one client shared across all four oauth2-proxy instances, which would have been a genuinely new, unprecedented pattern in this repo. Each app's own oauth2-proxy cookie secret is ksops-encrypted, generated via `openssl rand -hex 16` (a raw 32-byte value — `openssl rand -base64 32` produces a 44-character string that crashes oauth2-proxy, the exact bug already hit and fixed for Pinchflat).
@@ -71,6 +84,7 @@ Verified live on dev, past the design-complete/test-build-only stage: `keycloak-
 - **All four apps reach a real Keycloak login, not just "the client exists"**: an unauthenticated request to each hostname redirects through `/oauth2/start` to a real Keycloak authorize URL with the correct `client_id`/`redirect_uri`/scope for that specific app, and fetching Sonarr's authorize URL rendered Keycloak's actual `Sign in to Homelab` login form.
 - **The new cross-namespace NetworkPolicy actually works**: `kubectl exec`'d from Sonarr's pod (`arr-stack`) to qBittorrent's Service DNS (`arr-downloader`) and got a real HTTP response (`403 Forbidden` — qBittorrent's own CSRF/auth check, not a network-level block; a blocked connection would have timed out with no response at all, not returned a real HTTP status).
 - Real Let's Encrypt certificates issued for all four hostnames on the first apply.
+- **A real post-merge gotcha, found by the user actually logging in**: completing Keycloak login still landed on qBittorrent's own separate login page (see the section above) — fixed via qBittorrent's own API, confirmed by a fresh login with the new permanent password returning a real authenticated session (`/api/v2/app/version` succeeding, not a 403) and the reverse-proxy/whitelist preferences reading back exactly as set. The actual end-to-end browser experience (Keycloak login landing directly in qBittorrent with no second prompt) still needs the user's own confirmation, since it requires a real interactive login this environment can't perform.
 
 **Not yet exercised**: a full pipeline run (a real indexer configured in Prowlarr, synced to Sonarr/Radarr, a real download completing in qBittorrent, and Sonarr/Radarr importing/hardlinking it into `/media/Movies` or `/media/TV Shows`) — this needs interactive indexer/account setup through each app's own UI, left as a follow-up rather than done speculatively here. Also unresolved: whether Kubernetes NetworkPolicy meaningfully constrains Gluetun's post-tunnel `tun0` traffic or only its pre-tunnel `eth0` traffic — Gluetun's own internal kill switch is the real leak-prevention mechanism regardless of how that turns out, so this was left as a documented open question rather than chased further.
 

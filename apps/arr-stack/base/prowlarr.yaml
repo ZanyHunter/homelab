@@ -3,7 +3,9 @@
 # Sonarr's and Radarr's own indexer lists via their APIs, so indexers are
 # configured in exactly one place.
 #
-# hotio's image, same reasoning as Sonarr/Radarr's own choice above.
+# hotio's image, same reasoning as Sonarr/Radarr's own choice above --
+# including the same live-found s6-overlay root-start requirement (see the
+# securityContext comment below).
 #
 # No OIDC of its own -- gated by oauth2-proxy forward-auth instead
 # (prowlarr-oauth2-proxy.yaml), same template as every other app here.
@@ -49,10 +51,19 @@ spec:
         backup.velero.io/backup-volumes: "config"
     spec:
       enableServiceLinks: false
+      # No runAsNonRoot/runAsUser here -- found live that hotio's images use
+      # the same s6-overlay root-start-then-drop-to-PUID/PGID model as
+      # linuxserver.io's after all (this repo's own comment originally
+      # assumed otherwise): s6-overlay's preinit needs to own /run and
+      # chown /config before its own suexec step drops to PUID/PGID, and
+      # forcing a non-root start from the first process breaks that with
+      # "fatal: /run belongs to uid 0 instead of 1000, has insecure and/or
+      # unworkable permissions, and we're lacking the privileges to fix it."
+      # This is why apps/arr-stack/base/namespace.yaml is baseline, not
+      # restricted, like every other app namespace here -- the same
+      # can't-quite-reach-restricted reasoning as minio/velero's Helm hook
+      # Jobs (docs/src/explanation/network-policies.md).
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
@@ -71,10 +82,6 @@ spec:
             - containerPort: 9696
           securityContext:
             allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop: ["ALL"]
           volumeMounts:
             - name: config
               mountPath: /config

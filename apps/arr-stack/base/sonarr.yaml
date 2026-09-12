@@ -3,12 +3,14 @@
 # (apps/arr-downloader/), imports/hardlinks completed downloads into the
 # library once done.
 #
-# hotio's image over linuxserver.io's, same reasoning as qBittorrent's own
-# choice in apps/arr-downloader/base/gluetun-qbittorrent.yaml -- built to
-# run as an arbitrary non-root uid directly rather than needing a root-start
-# phase, which this repo's restricted-PSA namespaces force away from the
-# first process. :release is hotio's own documented stable channel (they
-# don't publish immutable per-version tags); re-pin if that ever changes.
+# hotio's image over linuxserver.io's -- chosen expecting rootless-first
+# behaviour, but found live to use the identical s6-overlay root-start-then-
+# drop-to-PUID/PGID model linuxserver.io's images use (see the
+# securityContext comment below); kept anyway since switching to
+# linuxserver.io's image now would carry no benefit, having already worked
+# around the actual constraint at the namespace level. :release is hotio's
+# own documented stable channel (they don't publish immutable per-version
+# tags); re-pin if that ever changes.
 #
 # No OIDC of its own -- gated by oauth2-proxy forward-auth instead
 # (sonarr-oauth2-proxy.yaml), same template as every other app here.
@@ -64,10 +66,19 @@ spec:
         backup.velero.io/backup-volumes: "config"
     spec:
       enableServiceLinks: false
+      # No runAsNonRoot/runAsUser here -- found live that hotio's images use
+      # the same s6-overlay root-start-then-drop-to-PUID/PGID model as
+      # linuxserver.io's after all (this repo's own comment originally
+      # assumed otherwise): s6-overlay's preinit needs to own /run and
+      # chown /config before its own suexec step drops to PUID/PGID, and
+      # forcing a non-root start from the first process breaks that with
+      # "fatal: /run belongs to uid 0 instead of 1000, has insecure and/or
+      # unworkable permissions, and we're lacking the privileges to fix it."
+      # This is why apps/arr-stack/base/namespace.yaml is baseline, not
+      # restricted, like every other app namespace here -- the same
+      # can't-quite-reach-restricted reasoning as minio/velero's Helm hook
+      # Jobs (docs/src/explanation/network-policies.md).
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
@@ -86,10 +97,6 @@ spec:
             - containerPort: 8989
           securityContext:
             allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop: ["ALL"]
           volumeMounts:
             - name: config
               mountPath: /config

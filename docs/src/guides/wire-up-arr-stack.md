@@ -46,15 +46,18 @@ curl -s -c /tmp/cookies.txt -H "Referer: http://localhost:8080" \
   http://localhost:8080/api/v2/auth/login
 
 curl -s -b /tmp/cookies.txt -H "Referer: http://localhost:8080" \
-  --data-urlencode '"'"'json={"web_ui_reverse_proxy_enabled": true, "web_ui_reverse_proxies_list": "<POD_CIDR>", "bypass_auth_subnet_whitelist_enabled": true, "bypass_auth_subnet_whitelist": "<ENV_NETWORK_CIDR>", "web_ui_password": "<NEW_PERMANENT_PASSWORD>", "save_path": "/media/Downloads"}'"'"' \
+  --data-urlencode '"'"'json={"web_ui_reverse_proxy_enabled": true, "web_ui_reverse_proxies_list": "<POD_CIDR>", "bypass_auth_subnet_whitelist_enabled": true, "bypass_auth_subnet_whitelist": "<ENV_NETWORK_CIDR>,<POD_CIDR>", "web_ui_password": "<NEW_PERMANENT_PASSWORD>", "save_path": "/media/Downloads"}'"'"' \
   http://localhost:8080/api/v2/app/setPreferences
 '
 ```
 
 - `<POD_CIDR>`: the cluster's pod network (dev: `10.244.0.0/16` — get any cluster's via `kubectl get nodes -o jsonpath='"'"'{range .items[*]}{.spec.podCIDR}{"\n"}{end}'"'"'` and take the common supernet). This is what lets qBittorrent trust `X-Forwarded-For` from ingress-nginx instead of seeing every request as coming from ingress-nginx's own pod IP.
-- `<ENV_NETWORK_CIDR>`: that environment's `network_cidr` from `env.hcl` (dev: `192.168.160.32/27`) — once the real client IP is resolved via the setting above, this skips qBittorrent's own login for that subnet, since oauth2-proxy already Keycloak-authenticated it.
+- `<ENV_NETWORK_CIDR>`: that environment's `network_cidr` from `env.hcl` (dev: `192.168.160.32/27`) — the real LAN/VPN subnet browser clients connect from.
+- `bypass_auth_subnet_whitelist` needs **both** CIDRs, comma-separated — found live that `<ENV_NETWORK_CIDR>` alone never matched. Checking ingress-nginx's own access log for a failed request showed its `$remote_addr` was already a pod-network address (`10.244.6.1`, not a real LAN IP) by the time it reached ingress-nginx — something upstream (most likely kube-proxy/MetalLB's default SNAT behavior for `externalTrafficPolicy: Cluster`) masks the real client IP before ingress-nginx ever sees it, so that's also what ends up in `X-Forwarded-For`. Include `<POD_CIDR>` in the whitelist too (not just the trusted-proxies-list field above) to match what's actually observed.
 - `save_path`: qBittorrent's own "default save path" preference — mounting the `arr-downloads` PVC at `/media/Downloads` doesn't automatically tell qBittorrent to save there; this is a separate internal setting.
 - Pick `<NEW_PERMANENT_PASSWORD>` yourself (e.g. `openssl rand -base64 24 | tr -d '=+/' | head -c 24`) — Sonarr/Radarr's download-client login (step 4) needs a password that doesn't rotate on every pod restart.
+
+**If login still fails after this**: check `kubectl logs -n ingress-nginx deploy/ingress-nginx-controller | grep qbittorrent` for the actual `$remote_addr` ingress-nginx is logging on the failing request, and add whatever CIDR that address actually falls in to `bypass_auth_subnet_whitelist` — don't assume the LAN subnet is what's really arriving.
 
 Verify it took:
 

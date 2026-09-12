@@ -98,20 +98,31 @@ spec:
 # network-policies.yaml) -- so this is 0.0.0.0/0 like that rule, not a
 # scoped ipBlock.
 #
-# Port 51820/UDP is WireGuard's conventional default and what Proton's own
-# WireGuard config generator typically assigns -- confirm against the actual
-# downloaded config (see proton-vpn-credentials.enc.yaml) before first apply
-# and adjust this rule if Proton assigned something else. 443/TCP covers
-# Gluetun's own startup HTTPS calls (server list refresh, version check).
+# No port restriction, unlike every other egress rule in this repo --
+# initially scoped to just 51820/UDP (WireGuard) + 443/TCP (Gluetun's own
+# startup calls), which turned out to be wrong for a fundamentally different
+# reason than the tun0-vs-NetworkPolicy question below: BitTorrent itself
+# needs arbitrary destination ports (DHT, peer connections, tracker
+# announces all use ports the client doesn't control), so a real download
+# stalled at 0% with dht_nodes: 0 in qBittorrent's own /api/v2/transfer/info
+# until this was widened. Confirmed live: widening this rule alone did NOT
+# fix that specific stall -- the actual root cause was Proton's free plan
+# blocking P2P/torrent traffic outright at the provider level (confirmed
+# against Proton's own https://protonvpn.com/torrenting: "you'll need a
+# paid plan to use our dedicated P2P servers"), a separate, unrelated
+# problem this widened rule doesn't solve by itself. Kept widened anyway
+# since it's the objectively correct shape for a torrent client regardless
+# of which VPN tier is in use -- see docs/src/explanation/arr-stack.md.
 #
 # Open question, not assumed: once Gluetun's tunnel is up, qBittorrent's own
 # internet-bound torrent traffic exits via Gluetun's internal tun0 interface
 # rather than the pod's CNI-attached eth0 -- whether Kubernetes NetworkPolicy
 # enforcement (typically eth0-scoped, CNI-dependent) actually constrains
-# tun0 traffic is unverified here. Gluetun's own internal iptables kill
-# switch is the real leak-prevention mechanism regardless of how this
-# cluster's CNI handles it -- see docs/src/explanation/arr-stack.md for
-# whatever was actually found live.
+# tun0 traffic is still unverified (widening this rule and the stall
+# persisting doesn't resolve the question, since the real blocker turned
+# out to be upstream of the tunnel entirely). Gluetun's own internal
+# iptables kill switch is the real leak-prevention mechanism regardless of
+# how this cluster's CNI handles it.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -126,11 +137,6 @@ spec:
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
-      ports:
-        - port: 51820
-          protocol: UDP
-        - port: 443
-          protocol: TCP
 ---
 # New shape #2: cross-namespace pod-to-pod traffic, second use of the
 # precedent Matrix Authentication Service established (apps/matrix-mas/base/

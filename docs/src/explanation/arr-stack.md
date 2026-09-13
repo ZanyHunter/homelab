@@ -115,6 +115,21 @@ Bazarr's settings API takes a genuinely different shape than Sonarr/Radarr/Prowl
 
 One low-stakes rough edge, not chased further: an accidental duplicate Library entry (from a retried API call before the exact `cruddb` mode names were confirmed) couldn't be deleted via any `cruddb` mode this session found (`removeByDB` returns `200` but doesn't remove the row) — disabled instead (`process_library: false`, confirmed harmless: Tdarr only scans libraries with this flag true) rather than left fully cleaned up. Removing it properly is a one-click action in Tdarr's own Library management UI, left as a trivial manual follow-up.
 
+## Seerr: a request manager, in its own namespace
+
+Seerr (`ghcr.io/seerr-team/seerr`) is a request-management frontend connecting to Jellyfin and Sonarr/Radarr — the maintained successor to Jellyseerr and Overseerr, which merged into one codebase (Jellyseerr itself is now deprecated; the image reference and every setting below is Seerr's own, not carried over from either predecessor).
+
+Unlike Byparr/Bazarr/Tdarr, Seerr got its **own namespace** (`apps/media-requests/`, `restricted` PSA) rather than joining `arr-stack` — it isn't security-coupled to the VPN/hotio posture the other three share, and its image runs as a plain non-root user with no root-start dance (confirmed live: both pods reached `Running`/`Ready` on the very first apply, no PSA gotcha the way every hotio/LinuxServer.io image in this stack hit). Gated by the standard oauth2-proxy template (new Keycloak client `seerr-oauth2-proxy`) — Seerr's own OIDC support is preview/experimental only (inherited from the Jellyseerr codebase), so this is the stable option, consistent with every other non-native-OIDC app here.
+
+Two new cross-namespace NetworkPolicy rules (a further use of the MAS↔Synapse precedent, now used a third time in this repo): `media-requests` → `arr-stack` (Sonarr 8989, Radarr 7878) and `media-requests` → `jellyfin` (8096). Confirmed live, not just present: from inside Seerr's own pod, real requests to `sonarr.arr-stack.svc.cluster.local:8989/ping`, `radarr.arr-stack.svc.cluster.local:7878/ping`, and `jellyfin.jellyfin.svc.cluster.local:8096/health` all got genuine application-level responses, not timeouts.
+
+**The remaining setup is a real manual step, not yet completed**: Seerr's very first action is its own setup wizard, which requires signing in with a real Jellyfin account (`POST /api/v1/auth/jellyfin`) before any other settings endpoint accepts requests — confirmed live, `POST /api/v1/settings/jellyfin` returns `401 cookie 'connect.sid' required` without first completing that sign-in. This genuinely needs the user's own Jellyfin credentials (or a fresh account created for the purpose), same "managed by hand" category as Jellyfin's own SSO plugin config — not something to work around with a guessed or synthetic credential. Left as the actual next step:
+
+1. Log into Seerr's setup wizard with a real Jellyfin account (this becomes Seerr's admin, with full "Manage Requests" permission automatically).
+2. Connect Sonarr and Radarr (API keys, quality profile, root folder) so requests actually submit downloads.
+3. **Do not** grant "Manage Requests"/auto-approve to any other imported account afterward — Seerr's own default (requests need approval unless explicitly granted otherwise) is what satisfies "only I can approve requests"; the requirement is enforced by simply leaving every other account at its default permission level.
+4. No separate "trigger a Jellyfin reindex" integration to build — Seerr natively triggers a library scan once a request it submitted finishes importing via Sonarr/Radarr, inherent to how it already connects to Jellyfin in step 1.
+
 ## Secrets
 
 Four new Keycloak clients (`sonarr-oauth2-proxy`, `radarr-oauth2-proxy`, `prowlarr-oauth2-proxy`, `qbittorrent-oauth2-proxy`), one per app, following the same 1-app-1-client shape every other oauth2-proxy app here uses — deliberately *not* one client shared across all four oauth2-proxy instances, which would have been a genuinely new, unprecedented pattern in this repo. Each app's own oauth2-proxy cookie secret is ksops-encrypted, generated via `openssl rand -hex 16` (a raw 32-byte value — `openssl rand -base64 32` produces a 44-character string that crashes oauth2-proxy, the exact bug already hit and fixed for Pinchflat).

@@ -18,7 +18,10 @@ data:
   sonarr-hostname: sonarr.dev.thepugh.family
   radarr-hostname: radarr.dev.thepugh.family
   prowlarr-hostname: prowlarr.dev.thepugh.family
+  bazarr-hostname: bazarr.dev.thepugh.family
+  tdarr-hostname: tdarr.dev.thepugh.family
   keycloak-hostname: keycloak.dev.thepugh.family
   storage-class-ceph: ceph-rbd-dev
+  storage-class-nfs: nfs-dev
   nfs-server: truenas.thepugh.family
   nfs-media-root-path: /mnt/Main/k8s-dev/arr-downloads

@@ -1,0 +1,182 @@
+# Tdarr (https://docs.tdarr.io/) -- library health-check/transcode
+# automation. Software (CPU) transcoding only for this pass, per the user's
+# own choice -- no /dev/dri device passthrough, no Talos iGPU system
+# extension, nothing this repo hasn't already granted a pod before.
+#
+# Combined server+node in one pod (internalNode: true) rather than splitting
+# them -- simplest shape for a "reasonable starter config"; split out a
+# separate Tdarr_Node Deployment later if transcode throughput needs more
+# than one worker.
+#
+# Shares arr-media-rw at /media, same as Bazarr -- no new PV/PVC for the
+# library itself. Needs a *separate* scratch volume for in-progress
+# transcodes though: emptyDir would be backed by the node's own root disk
+# (20GB total), far too small next to a 50GB+ UHD source file mid-transcode,
+# so this gets its own dynamically-provisioned NFS-backed PVC instead (the
+# general-purpose nfs-dev/nfs-prod StorageClass, not a static PV -- there's
+# no pre-existing directory to point at, just scratch space).
+#
+# Starter flow (configured by hand via Tdarr's own UI/plugin marketplace
+# after first boot, same "managed by hand" precedent as every other app's
+# admin-only config in this repo): skip files already efficient for their
+# resolution (roughly 9 Mbps at 2160p/UHD, 5 Mbps at 1080p); for files above
+# threshold, re-encode video only to HEVC/x265 at a quality-preserving CRF
+# (~20-23); leave all audio streams untouched (stream-copy, no re-encode,
+# no downmix) so Atmos/TrueHD/DTS:X survive intact.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tdarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tdarr-cache
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_NFS__
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdarr
+  namespace: arr-stack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tdarr
+  template:
+    metadata:
+      labels:
+        app: tdarr
+      annotations:
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: tdarr
+          image: ghcr.io/haveagitgat/tdarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: UMASK
+              value: "002"
+            - name: serverIP
+              value: "0.0.0.0"
+            - name: serverPort
+              value: "8266"
+            - name: webUIPort
+              value: "8265"
+            - name: internalNode
+              value: "true"
+            - name: nodeName
+              value: "internal"
+          ports:
+            - containerPort: 8265
+            - containerPort: 8266
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+            - name: cache
+              mountPath: /temp
+            - name: media
+              mountPath: /media
+          readinessProbe:
+            tcpSocket:
+              port: 8265
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8265
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            # Real software HEVC transcoding is genuinely CPU-expensive on a
+            # shared 8-vCPU worker -- generous but bounded, expect to tune
+            # after observing real job duration/impact on the rest of the
+            # cluster.
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: tdarr-config
+        - name: cache
+          persistentVolumeClaim:
+            claimName: tdarr-cache
+        - name: media
+          persistentVolumeClaim:
+            claimName: arr-media-rw
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tdarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: tdarr
+  ports:
+    - name: webui
+      port: 8265
+      targetPort: 8265
+    - name: node
+      port: 8266
+      targetPort: 8266
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tdarr
+  namespace: arr-stack
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: "http://tdarr-oauth2-proxy.arr-stack.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__TDARR_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __TDARR_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tdarr
+                port:
+                  number: 8265
+  tls:
+    - hosts:
+        - __TDARR_HOSTNAME__
+      secretName: tdarr-tls

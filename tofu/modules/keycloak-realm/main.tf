@@ -544,6 +544,25 @@ resource "keycloak_openid_client" "tdarr_oauth2_proxy" {
   web_origins         = ["+"]
 }
 
+resource "random_password" "seerr_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "seerr_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "seerr-oauth2-proxy"
+  name      = "oauth2-proxy (Seerr forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.seerr_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://seerr.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
 resource "random_password" "vikunja_client_secret" {
   length  = 32
   special = false
@@ -1066,6 +1085,20 @@ resource "kubernetes_secret" "tdarr_oauth2_proxy_client_secret" {
   data = {
     client-id     = keycloak_openid_client.tdarr_oauth2_proxy.client_id
     client-secret = keycloak_openid_client.tdarr_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "seerr_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "seerr-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.seerr_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.seerr_oauth2_proxy.client_secret
   }
 
   type = "Opaque"

@@ -1,0 +1,135 @@
+# Seerr (https://github.com/seerr-team/seerr) -- request management and
+# media discovery, connecting to Jellyfin (as its backend media server,
+# also what lets it trigger a library scan once a request's download
+# finishes importing) and Sonarr/Radarr (to actually submit requests).
+#
+# No immutable version tags found at onboarding time -- :latest is the
+# only documented option, same floating-tag exception category as hotio's
+# :release images elsewhere in this repo.
+#
+# No init process bundled in the image (a genuine change from the
+# Jellyseerr codebase this was forked from, per Seerr's own migration
+# docs) -- left as-is for now; Kubernetes' own process lifecycle handling
+# doesn't have the same PID-1 zombie-reaping concern Docker Compose's
+# `init: true` addresses, and this hasn't shown any live symptom.
+#
+# Jellyfin connection (hostname jellyfin.jellyfin.svc.cluster.local:8096,
+# API key), Sonarr/Radarr connections (arr-stack namespace), and the
+# approval-permissions setup (granting "Manage Requests" only to the
+# owner's own account, never auto-granted to other imported users) are
+# all configured by hand via Seerr's own setup wizard/Settings UI after
+# first boot -- no env var covers any of this, same "managed by hand"
+# precedent as Jellyfin's own SSO plugin config.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seerr-config
+  namespace: media-requests
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seerr
+  namespace: media-requests
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: seerr
+  template:
+    metadata:
+      labels:
+        app: seerr
+      annotations:
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: seerr
+          image: ghcr.io/seerr-team/seerr:latest
+          ports:
+            - containerPort: 5055
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          readinessProbe:
+            tcpSocket:
+              port: 5055
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5055
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: seerr-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seerr
+  namespace: media-requests
+spec:
+  selector:
+    app: seerr
+  ports:
+    - port: 5055
+      targetPort: 5055
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: seerr
+  namespace: media-requests
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.media-requests.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__APP_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __APP_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: seerr
+                port:
+                  number: 5055
+  tls:
+    - hosts:
+        - __APP_HOSTNAME__
+      secretName: seerr-tls

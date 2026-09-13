@@ -1,0 +1,16 @@
+# Seerr (https://github.com/seerr-team/seerr, the maintained successor to
+# Jellyseerr/Overseerr -- both merged into one codebase, Jellyseerr itself is
+# deprecated) -- a media request manager connecting to Jellyfin and
+# Sonarr/Radarr. Own namespace (not folded into apps/arr-stack/) since it's
+# not security-coupled to the VPN/hotio posture arr-stack's other apps
+# share -- it needs no privileged access and its image runs as a plain
+# non-root user with no root-start dance, unlike every hotio/LinuxServer.io
+# image in this stack.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media-requests
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

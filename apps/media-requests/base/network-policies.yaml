@@ -1,0 +1,129 @@
+# Default-deny + only the traffic this namespace actually needs, same
+# pattern as every other namespace in this repo (#31).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: media-requests
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: media-requests
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: media-requests
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# ingress-nginx -> Seerr's own Ingress and oauth2-proxy's ("/oauth2" path,
+# plus its own auth-url subrequest).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-ingress
+  namespace: media-requests
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the *external*
+# keycloak.<domain_name> hostname, which resolves back through
+# ingress-nginx's LoadBalancer IP -- same pattern as every other app's
+# oauth2-proxy here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-egress
+  namespace: media-requests
+spec:
+  podSelector:
+    matchLabels:
+      app: oauth2-proxy
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+---
+# Cross-namespace pod-to-pod egress: Seerr calls Sonarr's and Radarr's APIs
+# directly to submit requests -- third use of the MAS<->Synapse precedent
+# (apps/matrix-mas/base/), also used by Sonarr/Radarr -> qBittorrent
+# (apps/arr-stack/base/network-policies.yaml). Only one direction is
+# needed (Seerr initiates; Sonarr/Radarr never call back into
+# media-requests).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-arr-stack-namespace-egress
+  namespace: media-requests
+spec:
+  podSelector:
+    matchLabels:
+      app: seerr
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: arr-stack
+      ports:
+        - port: 8989 # Sonarr
+          protocol: TCP
+        - port: 7878 # Radarr
+          protocol: TCP
+---
+# Cross-namespace pod-to-pod egress: Seerr calls Jellyfin's API directly
+# (import users/libraries, trigger a scan) -- matching ingress rule in
+# apps/jellyfin/base/network-policies.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jellyfin-namespace-egress
+  namespace: media-requests
+spec:
+  podSelector:
+    matchLabels:
+      app: seerr
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: jellyfin
+      ports:
+        - port: 8096
+          protocol: TCP

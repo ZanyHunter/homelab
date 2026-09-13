@@ -503,6 +503,47 @@ resource "keycloak_openid_client" "qbittorrent_oauth2_proxy" {
   web_origins         = ["+"]
 }
 
+# Byparr has no client here -- no Ingress/oauth2-proxy of its own, purely an
+# internal service other arr-stack apps call (see apps/arr-stack/base/byparr.yaml).
+
+resource "random_password" "bazarr_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "bazarr_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "bazarr-oauth2-proxy"
+  name      = "oauth2-proxy (Bazarr forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.bazarr_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://bazarr.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
+resource "random_password" "tdarr_oauth2_proxy_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "keycloak_openid_client" "tdarr_oauth2_proxy" {
+  realm_id  = keycloak_realm.homelab.id
+  client_id = "tdarr-oauth2-proxy"
+  name      = "oauth2-proxy (Tdarr forward-auth)"
+  enabled   = true
+
+  access_type           = "CONFIDENTIAL"
+  standard_flow_enabled = true
+  client_secret         = random_password.tdarr_oauth2_proxy_client_secret.result
+
+  valid_redirect_uris = ["https://tdarr.${var.domain_name}/oauth2/callback"]
+  web_origins         = ["+"]
+}
+
 resource "random_password" "vikunja_client_secret" {
   length  = 32
   special = false
@@ -997,6 +1038,34 @@ resource "kubernetes_secret" "qbittorrent_oauth2_proxy_client_secret" {
   data = {
     client-id     = keycloak_openid_client.qbittorrent_oauth2_proxy.client_id
     client-secret = keycloak_openid_client.qbittorrent_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "bazarr_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "bazarr-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.bazarr_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.bazarr_oauth2_proxy.client_secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "tdarr_oauth2_proxy_client_secret" {
+  metadata {
+    name      = "tdarr-oidc-client-secret"
+    namespace = var.keycloak_secrets_namespace
+  }
+
+  data = {
+    client-id     = keycloak_openid_client.tdarr_oauth2_proxy.client_id
+    client-secret = keycloak_openid_client.tdarr_oauth2_proxy.client_secret
   }
 
   type = "Opaque"

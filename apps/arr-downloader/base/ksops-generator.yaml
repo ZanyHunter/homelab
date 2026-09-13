@@ -8,4 +8,4 @@ metadata:
         path: ksops
 files:
   - ./qbittorrent-oauth2-proxy-cookie-secret.enc.yaml
-  - ./proton-vpn-credentials.enc.yaml
+  - ./vpn-credentials.enc.yaml

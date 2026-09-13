@@ -92,9 +92,9 @@ spec:
 # gluetun-qbittorrent pod (NetworkPolicy is enforced per-pod regardless of
 # which container in it originates the traffic), scoped by the pod's own
 # label rather than namespace-wide. Can't pin the destination to a specific
-# IP the way most egress rules in this repo do -- Proton's WireGuard
-# endpoint isn't a fixed, knowable-in-advance address any more than
-# LiveKit's STUN-detection egress target was (apps/matrix-livekit/base/
+# IP the way most egress rules in this repo do -- the VPN provider's
+# WireGuard endpoint isn't a fixed, knowable-in-advance address any more
+# than LiveKit's STUN-detection egress target was (apps/matrix-livekit/base/
 # network-policies.yaml) -- so this is 0.0.0.0/0 like that rule, not a
 # scoped ipBlock.
 #
@@ -112,7 +112,9 @@ spec:
 # paid plan to use our dedicated P2P servers"), a separate, unrelated
 # problem this widened rule doesn't solve by itself. Kept widened anyway
 # since it's the objectively correct shape for a torrent client regardless
-# of which VPN tier is in use -- see docs/src/explanation/arr-stack.md.
+# of which VPN tier is in use -- confirmed still correct after switching
+# the provider to Mullvad (which allows P2P on every server, unlike
+# Proton's free plan) -- see docs/src/explanation/arr-stack.md.
 #
 # Open question, not assumed: once Gluetun's tunnel is up, qBittorrent's own
 # internet-bound torrent traffic exits via Gluetun's internal tun0 interface

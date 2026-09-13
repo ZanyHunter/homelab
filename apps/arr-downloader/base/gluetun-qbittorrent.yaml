@@ -100,15 +100,28 @@ spec:
               value: wireguard
             - name: SERVER_COUNTRIES
               value: Switzerland
-            # Allows inbound traffic to qBittorrent's WebUI (8080) through
-            # Gluetun's own default-deny-inbound firewall -- separate from,
-            # and in addition to, the Kubernetes NetworkPolicy ingress rule
-            # in network-policies.yaml. Without this, Sonarr/Radarr's own
-            # API calls and Ingress traffic can reach the pod's IP at the
-            # CNI level but still get dropped by Gluetun's internal
-            # iptables.
+            # Allows inbound traffic to qBittorrent's WebUI (8080) and
+            # Gluetun's own HTTP proxy (8888, see below) through Gluetun's
+            # default-deny-inbound firewall -- separate from, and in
+            # addition to, the Kubernetes NetworkPolicy ingress rule in
+            # network-policies.yaml. Without this, Sonarr/Radarr/Prowlarr's
+            # own traffic can reach the pod's IP at the CNI level but still
+            # get dropped by Gluetun's internal iptables.
             - name: FIREWALL_INPUT_PORTS
-              value: "8080"
+              value: "8080,8888"
+            # Gluetun's built-in HTTP proxy -- lets Sonarr/Radarr/Prowlarr
+            # (which stay in arr-stack, not this privileged namespace) route
+            # specific outbound traffic through this tunnel without sharing
+            # this pod's network namespace, via a plain HTTP proxy setting
+            # on each app's own side. See network-policies.yaml for the
+            # cross-namespace rule that allows arr-stack to reach this port,
+            # and docs/src/explanation/arr-stack.md for why this has no
+            # per-purpose granularity (it's all-or-nothing past each app's
+            # own proxy bypass list).
+            - name: HTTPPROXY
+              value: "on"
+            - name: HTTPPROXY_LISTENING_ADDRESS
+              value: ":8888"
             # 0.0.0.0, not the 127.0.0.1 default, so Kubernetes' own
             # kubelet-executed probes (which hit the pod IP, not localhost)
             # can actually reach it.
@@ -225,6 +238,18 @@ spec:
   ports:
     - port: 8080
       targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gluetun-proxy
+  namespace: arr-downloader
+spec:
+  selector:
+    app: gluetun-qbittorrent
+  ports:
+    - port: 8888
+      targetPort: 8888
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

@@ -11,6 +11,11 @@ resources:
   - radarr-oauth2-proxy.yaml
   - prowlarr.yaml
   - prowlarr-oauth2-proxy.yaml
+  - byparr.yaml
+  - bazarr.yaml
+  - bazarr-oauth2-proxy.yaml
+  - tdarr.yaml
+  - tdarr-oauth2-proxy.yaml
 
 generators:
   - ksops-generator.yaml

@@ -108,6 +108,72 @@ replacements:
   - source:
       kind: ConfigMap
       name: env-values
+      fieldPath: data.bazarr-hostname
+    targets:
+      - select:
+          kind: Ingress
+          name: bazarr
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Ingress
+          name: bazarr
+        fieldPaths:
+          - metadata.annotations.[nginx.ingress.kubernetes.io/auth-signin]
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Ingress
+          name: bazarr-oauth2-proxy
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: bazarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.2
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.tdarr-hostname
+    targets:
+      - select:
+          kind: Ingress
+          name: tdarr
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Ingress
+          name: tdarr
+        fieldPaths:
+          - metadata.annotations.[nginx.ingress.kubernetes.io/auth-signin]
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Ingress
+          name: tdarr-oauth2-proxy
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+      - select:
+          kind: Deployment
+          name: tdarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.2
+        options:
+          delimiter: "/"
+          index: 2
+  - source:
+      kind: ConfigMap
+      name: env-values
       fieldPath: data.keycloak-hostname
     targets:
       - select:
@@ -134,6 +200,22 @@ replacements:
         options:
           delimiter: "/"
           index: 2
+      - select:
+          kind: Deployment
+          name: bazarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.1
+        options:
+          delimiter: "/"
+          index: 2
+      - select:
+          kind: Deployment
+          name: tdarr-oauth2-proxy
+        fieldPaths:
+          - spec.template.spec.containers.0.args.1
+        options:
+          delimiter: "/"
+          index: 2
   - source:
       kind: ConfigMap
       name: env-values
@@ -152,6 +234,26 @@ replacements:
       - select:
           kind: PersistentVolumeClaim
           name: prowlarr-config
+        fieldPaths:
+          - spec.storageClassName
+      - select:
+          kind: PersistentVolumeClaim
+          name: bazarr-config
+        fieldPaths:
+          - spec.storageClassName
+      - select:
+          kind: PersistentVolumeClaim
+          name: tdarr-config
+        fieldPaths:
+          - spec.storageClassName
+  - source:
+      kind: ConfigMap
+      name: env-values
+      fieldPath: data.storage-class-nfs
+    targets:
+      - select:
+          kind: PersistentVolumeClaim
+          name: tdarr-cache
         fieldPaths:
           - spec.storageClassName
   - source:

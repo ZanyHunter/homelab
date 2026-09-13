@@ -68,9 +68,10 @@ spec:
 # Each oauth2-proxy's own OIDC calls (discovery/token/jwks) go to the
 # *external* keycloak.<domain_name> hostname, which resolves back through
 # ingress-nginx's LoadBalancer IP -- same pattern as every other app's
-# oauth2-proxy here. Scoped to the three oauth2-proxy pods specifically
-# (not namespace-wide) since Sonarr/Radarr/Prowlarr themselves have no
-# reason to reach ingress-nginx directly.
+# oauth2-proxy here. Scoped to the oauth2-proxy pods specifically (not
+# namespace-wide) since the apps behind them have no reason to reach
+# ingress-nginx directly. Byparr has no Ingress/oauth2-proxy of its own
+# (see byparr.yaml), so it's never in this list.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -81,7 +82,7 @@ spec:
     matchExpressions:
       - key: app
         operator: In
-        values: ["sonarr-oauth2-proxy", "radarr-oauth2-proxy", "prowlarr-oauth2-proxy"]
+        values: ["sonarr-oauth2-proxy", "radarr-oauth2-proxy", "prowlarr-oauth2-proxy", "bazarr-oauth2-proxy", "tdarr-oauth2-proxy"]
   policyTypes: ["Egress"]
   egress:
     - to:
@@ -91,11 +92,19 @@ spec:
 ---
 # Sonarr/Radarr's metadata-provider lookups (cover art/info) and Prowlarr's
 # indexer queries -- same exact rule shape as Pinchflat's precedent
-# (apps/youtube-archiver/base/network-policies.yaml): scoped to these three
-# pods' labels, not namespace-wide, and 443/TCP only since none of these
-# apps ever make a raw/non-HTTPS connection the way qBittorrent's torrent
+# (apps/youtube-archiver/base/network-policies.yaml): scoped to these pods'
+# labels, not namespace-wide, and 443/TCP only since none of these apps
+# ever make a raw/non-HTTPS connection the way qBittorrent's torrent
 # traffic does (that traffic stays entirely inside apps/arr-downloader/,
-# behind Gluetun).
+# behind Gluetun). Bazarr's subtitle-provider lookups are the same shape --
+# added here deliberately rather than to the Gluetun-proxy rule above,
+# since subtitle traffic isn't "indexer/tracker traffic" under this app's
+# own VPN-routing scoping (see docs/src/explanation/arr-stack.md). Tdarr
+# was initially left out (only reads local media and writes its own PVCs)
+# but found live to genuinely need this too -- its community plugin/flow
+# marketplace (Settings > Plugins, backing the Flow editor's search) fetches
+# its catalog live from GitHub, and returned an empty result set with no
+# egress rule present.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -106,7 +115,7 @@ spec:
     matchExpressions:
       - key: app
         operator: In
-        values: ["sonarr", "radarr", "prowlarr"]
+        values: ["sonarr", "radarr", "prowlarr", "bazarr", "tdarr"]
   policyTypes: ["Egress"]
   egress:
     - to:

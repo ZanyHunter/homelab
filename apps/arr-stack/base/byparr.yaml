@@ -1,0 +1,81 @@
+# Byparr (https://github.com/ThePhaseless/Byparr) -- a Cloudflare-bypass
+# proxy for Prowlarr's indexers, API-compatible drop-in for FlareSolverr
+# (same endpoint shape, actively maintained where FlareSolverr's own
+# development has slowed). Purely an internal service other apps call --
+# no WebUI worth exposing, so no Ingress/oauth2-proxy/Keycloak client here,
+# unlike every other app in this namespace.
+#
+# Joins arr-stack (baseline PSA) rather than getting its own namespace --
+# it's stateless (no PVC) and doesn't need Gluetun's NET_ADMIN capability
+# itself, only a route *through* it (see network-policies.yaml's
+# allow-arr-downloader-proxy-egress rule and gluetun-qbittorrent.yaml's
+# HTTPPROXY_* env vars) for its own outbound Cloudflare-solving traffic
+# to count as VPN-routed the same as Sonarr/Radarr/Prowlarr's.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: byparr
+  namespace: arr-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: byparr
+  template:
+    metadata:
+      labels:
+        app: byparr
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: byparr
+          image: ghcr.io/thephaseless/byparr:latest
+          env:
+            # Routes Byparr's own outbound (Cloudflare-challenge-solving)
+            # requests through Gluetun's tunnel, same as Sonarr/Radarr/
+            # Prowlarr -- see docs/src/explanation/arr-stack.md. Verify
+            # live: if Camoufox doesn't honor these, this is a known,
+            # documented gap rather than a bigger architecture change for
+            # one app.
+            - name: HTTP_PROXY
+              value: "http://gluetun-proxy.arr-downloader.svc.cluster.local:8888"
+            - name: HTTPS_PROXY
+              value: "http://gluetun-proxy.arr-downloader.svc.cluster.local:8888"
+            - name: NO_PROXY
+              value: "*.arr-stack.svc.cluster.local,*.arr-downloader.svc.cluster.local,*.cluster.local,localhost,127.0.0.1"
+          ports:
+            - containerPort: 8191
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            tcpSocket:
+              port: 8191
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8191
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            # Found live: 1Gi OOMKilled it on the very first real page
+            # navigation -- Camoufox is a full Firefox build, not a
+            # lightweight headless shim, and needs real headroom.
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: byparr
+  namespace: arr-stack
+spec:
+  selector:
+    app: byparr
+  ports:
+    - port: 8191
+      targetPort: 8191

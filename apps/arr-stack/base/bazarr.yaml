@@ -1,0 +1,141 @@
+# Bazarr (https://www.bazarr.media/) -- subtitle manager. Watches Sonarr's
+# and Radarr's own libraries and downloads matching subtitles for existing
+# and newly-imported media.
+#
+# LinuxServer.io's image (not hotio's -- no hotio Bazarr image exists) uses
+# the same s6-overlay root-start-then-drop-to-PUID/PGID model as every other
+# app in this namespace, so it needs the same baseline-PSA/no-runAsNonRoot
+# treatment as Sonarr/Radarr/Prowlarr/qBittorrent (see sonarr.yaml's
+# comment). No stable numbered tag found at onboarding time (LinuxServer.io's
+# own tag list is mostly development/beta channels for this image) -- :latest
+# for now, same floating-tag exception category as hotio's :release, re-pin
+# once a clean stable tag is confirmed.
+#
+# Shares arr-media-rw (the same PVC Sonarr/Radarr/qBittorrent already mount)
+# at /media -- no new PV/PVC needed, just another consumer of the existing
+# claim, so it sees the exact same /media/TV Shows and /media/Movies paths
+# Sonarr/Radarr do. Connects to Sonarr (sonarr.arr-stack.svc.cluster.local:
+# 8989) and Radarr (:7878) by API key, and to at least one subtitle provider
+# -- both managed by hand via its own setup wizard/Settings UI, same
+# "managed by hand" precedent as Jellyfin's SSO plugin config. English-only
+# subtitles for this pass, per the user's own choice.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bazarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: __STORAGE_CLASS_CEPH__
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+  namespace: arr-stack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+      annotations:
+        backup.velero.io/backup-volumes: "config"
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: UMASK
+              value: "002"
+          ports:
+            - containerPort: 6767
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /media
+          readinessProbe:
+            tcpSocket:
+              port: 6767
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 6767
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: bazarr-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: arr-media-rw
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: bazarr
+  ports:
+    - port: 6767
+      targetPort: 6767
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bazarr
+  namespace: arr-stack
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: "http://bazarr-oauth2-proxy.arr-stack.svc.cluster.local/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://__BAZARR_HOSTNAME__/oauth2/start?rd=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: __BAZARR_HOSTNAME__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bazarr
+                port:
+                  number: 6767
+  tls:
+    - hosts:
+        - __BAZARR_HOSTNAME__
+      secretName: bazarr-tls

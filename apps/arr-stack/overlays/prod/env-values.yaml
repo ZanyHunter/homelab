@@ -18,7 +18,10 @@ data:
   sonarr-hostname: sonarr.thepugh.family
   radarr-hostname: radarr.thepugh.family
   prowlarr-hostname: prowlarr.thepugh.family
+  bazarr-hostname: bazarr.thepugh.family
+  tdarr-hostname: tdarr.thepugh.family
   keycloak-hostname: keycloak.thepugh.family
   storage-class-ceph: ceph-rbd-prod
+  storage-class-nfs: nfs-prod
   nfs-server: truenas.thepugh.family
   nfs-media-root-path: /mnt/Main/jellyfin-media

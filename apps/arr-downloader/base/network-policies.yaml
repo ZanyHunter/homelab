@@ -169,3 +169,10 @@ spec:
       ports:
         - port: 8080
           protocol: TCP
+        # Gluetun's own built-in HTTP proxy (see gluetun-qbittorrent.yaml) --
+        # matches arr-stack's allow-arr-downloader-proxy-egress rule.
+        # Sonarr/Radarr/Prowlarr (and Byparr) all reach this port to route
+        # specific outbound traffic through the VPN tunnel while staying
+        # outside this privileged namespace themselves.
+        - port: 8888
+          protocol: TCP

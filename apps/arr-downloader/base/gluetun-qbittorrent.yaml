@@ -19,6 +19,23 @@
 # /media/Downloads by hand via its WebUI (Options > Downloads > Default Save
 # Path) after first boot -- no env var controls this on hotio's image,
 # same "managed by hand" precedent as Jellyfin's SSO plugin config.
+#
+# Gluetun is a native sidecar (initContainers with restartPolicy: Always,
+# stable since Kubernetes 1.29) rather than a regular container -- found
+# live that without this, qBittorrent starts and binds its listening/DHT
+# sockets before Gluetun's tunnel is actually up (both containers in a pod
+# start roughly simultaneously, with no ordering guarantee otherwise).
+# qBittorrent's own log confirmed it: on every restart, including a fully
+# fresh one, its DHT/listen sockets bound only to the pod's normal eth0 IP
+# and loopback -- never to tun0 -- and it doesn't rebind once tun0
+# appears afterward, so DHT/peer/tracker traffic silently never touched
+# the tunnel at all despite the tunnel itself working fine (confirmed via
+# a direct curl and a raw DHT UDP ping from inside the pod, both
+# succeeding through tun0). Gluetun's startupProbe below (hitting its own
+# health endpoint, which only returns 200 once the VPN is actually
+# healthy) is what makes this a real ordering gate, not just a container
+# list reorder -- Kubernetes holds qBittorrent's container creation until
+# it passes.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -54,26 +71,35 @@ spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-      containers:
+      initContainers:
         - name: gluetun
+          # restartPolicy: Always is what makes this a native sidecar
+          # rather than a one-shot init step -- it keeps running for the
+          # pod's whole lifetime, and Kubernetes holds qBittorrent's own
+          # container start until this container's startupProbe (below)
+          # first succeeds.
+          restartPolicy: Always
           image: ghcr.io/qdm12/gluetun:v3.41.1
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
           env:
+            # Switched from protonvpn to mullvad -- found live that Proton's
+            # free plan blocks P2P/torrent traffic outright (confirmed
+            # against Proton's own docs), a hard provider-level ceiling no
+            # config change here could fix. Mullvad allows P2P on every
+            # server, no special subset to find, and (unlike Proton) has no
+            # free tier at all -- a real paid subscription, registered via
+            # a locally-generated WireGuard keypair uploaded through
+            # Mullvad's account portal (Advanced > Create device) rather
+            # than a portal-generated config -- the private key here never
+            # left this machine.
             - name: VPN_SERVICE_PROVIDER
-              value: protonvpn
+              value: mullvad
             - name: VPN_TYPE
               value: wireguard
-            # Proton's free plan (#confirmed live to include a Switzerland
-            # server as of this writing -- re-verify if Proton's own free-
-            # tier country list ever changes) -- FREE_ONLY restricts Gluetun
-            # to servers that plan can actually reach, so a config error
-            # fails fast instead of silently trying a paid-only server.
             - name: SERVER_COUNTRIES
               value: Switzerland
-            - name: FREE_ONLY
-              value: "on"
             # Allows inbound traffic to qBittorrent's WebUI (8080) through
             # Gluetun's own default-deny-inbound firewall -- separate from,
             # and in addition to, the Kubernetes NetworkPolicy ingress rule
@@ -91,18 +117,30 @@ spec:
             - name: WIREGUARD_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
-                  name: proton-vpn-credentials
+                  name: vpn-credentials
                   key: wireguard-private-key
             - name: WIREGUARD_ADDRESSES
               valueFrom:
                 secretKeyRef:
-                  name: proton-vpn-credentials
+                  name: vpn-credentials
                   key: wireguard-addresses
+          # Gates qBittorrent's container start -- see this file's
+          # top-of-file comment. periodSeconds x failureThreshold allows up
+          # to 2 minutes: Gluetun retries individual Mullvad servers on its
+          # own (each attempt takes a few seconds), and was observed live
+          # cycling through 4-5 before landing on one that passed its own
+          # healthcheck, taking ~30-40s in practice -- generous headroom
+          # over that.
+          startupProbe:
+            httpGet:
+              path: /
+              port: 9999
+            periodSeconds: 5
+            failureThreshold: 24
           readinessProbe:
             httpGet:
               path: /
               port: 9999
-            initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
@@ -117,6 +155,7 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
+      containers:
         - name: qbittorrent
           # hotio's image over linuxserver.io's -- chosen expecting
           # rootless-first behaviour, but found live to use the identical

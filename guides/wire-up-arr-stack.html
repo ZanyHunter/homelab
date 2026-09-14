@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Repository Layout - ZanyHunter&#x27;s Homelab</title>
+        <title>Wire Up the *arr Stack - ZanyHunter&#x27;s Homelab</title>
 
 
         <!-- Custom HTML head -->
@@ -147,7 +147,7 @@
                         <a href="https://github.com/ZanyHunter/homelab" title="Git repository" aria-label="Git repository">
                             <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
                         </a>
-                        <a href="https://github.com/ZanyHunter/homelab/edit/main/docs/src/reference/repository-layout.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                        <a href="https://github.com/ZanyHunter/homelab/edit/main/docs/src/guides/wire-up-arr-stack.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
                             <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
                         </a>
 
@@ -181,76 +181,156 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="repository-layout"><a class="header" href="#repository-layout">Repository Layout</a></h1>
-<h2 id="tofu"><a class="header" href="#tofu"><code>tofu/</code></a></h2>
-<pre><code>tofu/
-  modules/                 # plain Tofu root modules — the actual resources
-    network/                 # unifi_network.this (the VLAN)
-    talos-cluster/            # Proxmox VMs, Talos bootstrap, kubeconfig
-    core-addons/              # MetalLB, ingress-nginx, cert-manager, ArgoCD, NFS/Ceph storage
-    backup/                   # MinIO, Velero
-    keycloak-infra/            # Postgres, Keycloak
-    observability/             # kube-prometheus-stack, Loki, Grafana Alloy
-    keycloak-realm/            # homelab realm/clients, oauth2-proxy + whoami demo
-  live/
-    root.hcl                 # shared: generates each unit's backend, secrets decrypt
-    dev/
-      env.hcl                  # this environment's real values (cluster, nodes, chart versions, ...)
-      network/terragrunt.hcl
-      talos-cluster/terragrunt.hcl
-      core-addons/terragrunt.hcl
-      backup/terragrunt.hcl
-      keycloak-infra/terragrunt.hcl
-      observability/terragrunt.hcl
-      keycloak-realm/terragrunt.hcl
-    prod/                     # same shape, placeholder env.hcl — scaffolding, never applied
-      ...
-  secrets.enc.yaml           # SOPS/age-encrypted provider credentials
-  state/                      # gitignored; SMB mount point for Tofu state
+                        <h1 id="wire-up-the-arr-stack-sonarrradarrprowlarrqbittorrent"><a class="header" href="#wire-up-the-arr-stack-sonarrradarrprowlarrqbittorrent">Wire Up the *arr Stack (Sonarr/Radarr/Prowlarr/qBittorrent)</a></h1>
+<p>Everything in this guide lives entirely in each app’s own persistent runtime state (its Ceph-backed <code>/config</code> PVC) — none of it is captured in git, Kustomize, or Tofu. A PVC loss/recreation, or standing this app up fresh in a new environment (e.g. promoting to prod), needs every step here redone by hand. See <a href="../explanation/arr-stack.html">*arr Stack</a> for the architecture and why none of this is templated.</p>
+<p>All commands assume <code>kubectl</code> is pointed at the right cluster and namespaces <code>arr-stack</code>/<code>arr-downloader</code> already exist and are <code>Running</code>.</p>
+<h2 id="1-get-each-apps-auto-generated-api-key"><a class="header" href="#1-get-each-apps-auto-generated-api-key">1. Get each app’s auto-generated API key</a></h2>
+<p>Sonarr, Radarr, and Prowlarr each generate their own API key on first boot, stored in <code>/config/config.xml</code>:</p>
+<pre><code class="language-bash">kubectl exec -n arr-stack deploy/sonarr   -- grep -o "&lt;ApiKey&gt;[^&lt;]*&lt;/ApiKey&gt;" /config/config.xml
+kubectl exec -n arr-stack deploy/radarr   -- grep -o "&lt;ApiKey&gt;[^&lt;]*&lt;/ApiKey&gt;" /config/config.xml
+kubectl exec -n arr-stack deploy/prowlarr -- grep -o "&lt;ApiKey&gt;[^&lt;]*&lt;/ApiKey&gt;" /config/config.xml
 </code></pre>
-<p>Dependency graph: <code>network</code> → <code>talos-cluster</code> → <code>core-addons</code> → {<code>backup</code>, <code>keycloak-infra</code>, <code>observability</code>} → <code>keycloak-realm</code>. See <a href="../explanation/terragrunt-units.html">Terragrunt Units</a> for why it’s split this way.</p>
-<h2 id="apps"><a class="header" href="#apps"><code>apps/</code></a></h2>
-<pre><code>apps/
-  cluster-addons/       # cluster-level GitOps config (MetalLB pool, ClusterIssuers, ESO RBAC/ClusterSecretStore)
-  immich/
-  actual/
-  paperless/
-  vaultwarden/
-  inventory/            # Homebox
-  changedetection/
-  &lt;app&gt;/
-    base/                # environment-agnostic manifests, placeholder tokens (__APP_HOSTNAME__, etc.)
-      kustomization.yaml
-    overlays/
-      dev/
-        env-values.yaml    # this environment's real values, as a ConfigMap
-        kustomization.yaml # resources: [../../base, env-values.yaml] + replacements:
-      prod/
-        ...
+<p>qBittorrent’s WebUI admin username/password is <code>admin</code> / a temporary password printed once on first boot, found via:</p>
+<pre><code class="language-bash">kubectl logs -n arr-downloader deploy/gluetun-qbittorrent -c qbittorrent | grep -i "temporary password"
 </code></pre>
-<p>Every directory here gets discovered by ArgoCD’s <code>ApplicationSet</code> at <code>apps/*/overlays/&lt;cluster_name&gt;</code> — see <a href="../explanation/gitops-app-of-apps.html">GitOps: App-of-Apps and Secrets</a>.</p>
-<h2 id="docs"><a class="header" href="#docs"><code>docs/</code></a></h2>
-<pre><code>docs/
-  book.toml          # mdBook config (title, preprocessors, output settings)
-  src/
-    SUMMARY.md          # table of contents
-    introduction.md
-    guides/              # task-oriented how-tos, including the from-scratch deployment guide
-    tutorials/           # teach-by-doing lessons (currently a stub — see its index page)
-    reference/            # dry factual lookups (this page included)
-    explanation/          # architecture and design-decision writeups
-  book/               # gitignored build output — `mdbook build docs` to generate locally
+<p>That temporary password rotates on every pod restart until step 2 below sets a permanent one.</p>
+<h2 id="2-port-forward-all-three-arr-stack-apps-for-local-api-access"><a class="header" href="#2-port-forward-all-three-arr-stack-apps-for-local-api-access">2. Port-forward all three arr-stack apps for local API access</a></h2>
+<p>Constructing JSON payloads is much easier from your own shell than nested inside <code>kubectl exec</code>. Run these in the background:</p>
+<pre><code class="language-bash">kubectl port-forward -n arr-stack svc/sonarr 18989:8989 &amp;
+kubectl port-forward -n arr-stack svc/radarr 17878:7878 &amp;
+kubectl port-forward -n arr-stack svc/prowlarr 19696:9696 &amp;
 </code></pre>
+<p>qBittorrent’s own API is only reachable from inside the <code>arr-downloader</code> pod itself (<code>kubectl exec ... curl http://localhost:8080/...</code>) since it shares Gluetun’s network namespace — its firewall only allows the ports explicitly opened via <code>FIREWALL_INPUT_PORTS</code> (<code>apps/arr-downloader/base/gluetun-qbittorrent.yaml</code>), which doesn’t include an arbitrary local port-forward.</p>
+<h2 id="3-fix-qbittorrents-own-login-stacking-on-top-of-oauth2-proxy"><a class="header" href="#3-fix-qbittorrents-own-login-stacking-on-top-of-oauth2-proxy">3. Fix qBittorrent’s own login stacking on top of oauth2-proxy</a></h2>
+<p>oauth2-proxy’s forward-auth only gates whether ingress-nginx lets a request through — it can’t also log you into qBittorrent’s own separate internal account system. Fix via qBittorrent’s own reverse-proxy-trust mechanism, applied through its API:</p>
+<pre><code class="language-bash"># From inside the qbittorrent container (see step 2's note on why):
+kubectl exec -n arr-downloader deploy/gluetun-qbittorrent -c qbittorrent -- sh -c '
+curl -s -c /tmp/cookies.txt -H "Referer: http://localhost:8080" \
+  --data "username=admin&amp;password=&lt;TEMP_PASSWORD_FROM_STEP_1&gt;" \
+  http://localhost:8080/api/v2/auth/login
+
+curl -s -b /tmp/cookies.txt -H "Referer: http://localhost:8080" \
+  --data-urlencode '"'"'json={"web_ui_reverse_proxy_enabled": true, "web_ui_reverse_proxies_list": "&lt;POD_CIDR&gt;", "bypass_auth_subnet_whitelist_enabled": true, "bypass_auth_subnet_whitelist": "&lt;ENV_NETWORK_CIDR&gt;,&lt;POD_CIDR&gt;", "web_ui_password": "&lt;NEW_PERMANENT_PASSWORD&gt;", "save_path": "/media/Downloads"}'"'"' \
+  http://localhost:8080/api/v2/app/setPreferences
+'
+</code></pre>
+<ul>
+<li><code>&lt;POD_CIDR&gt;</code>: the cluster’s pod network (dev: <code>10.244.0.0/16</code> — get any cluster’s via <code>kubectl get nodes -o jsonpath='"'"'{range .items[*]}{.spec.podCIDR}{"\n"}{end}'"'"'</code> and take the common supernet). This is what lets qBittorrent trust <code>X-Forwarded-For</code> from ingress-nginx instead of seeing every request as coming from ingress-nginx’s own pod IP.</li>
+<li><code>&lt;ENV_NETWORK_CIDR&gt;</code>: that environment’s <code>network_cidr</code> from <code>env.hcl</code> (dev: <code>192.168.160.32/27</code>) — the real LAN/VPN subnet browser clients connect from.</li>
+<li><code>bypass_auth_subnet_whitelist</code> needs <strong>both</strong> CIDRs, comma-separated — found live that <code>&lt;ENV_NETWORK_CIDR&gt;</code> alone never matched. Checking ingress-nginx’s own access log for a failed request showed its <code>$remote_addr</code> was already a pod-network address (<code>10.244.6.1</code>, not a real LAN IP) by the time it reached ingress-nginx — something upstream (most likely kube-proxy/MetalLB’s default SNAT behavior for <code>externalTrafficPolicy: Cluster</code>) masks the real client IP before ingress-nginx ever sees it, so that’s also what ends up in <code>X-Forwarded-For</code>. Include <code>&lt;POD_CIDR&gt;</code> in the whitelist too (not just the trusted-proxies-list field above) to match what’s actually observed.</li>
+<li><code>save_path</code>: qBittorrent’s own “default save path” preference — mounting the <code>arr-downloads</code> PVC at <code>/media/Downloads</code> doesn’t automatically tell qBittorrent to save there; this is a separate internal setting.</li>
+<li>Pick <code>&lt;NEW_PERMANENT_PASSWORD&gt;</code> yourself (e.g. <code>openssl rand -base64 24 | tr -d '=+/' | head -c 24</code>) — Sonarr/Radarr’s download-client login (step 4) needs a password that doesn’t rotate on every pod restart.</li>
+</ul>
+<p><strong>If login still fails after this</strong>: check <code>kubectl logs -n ingress-nginx deploy/ingress-nginx-controller | grep qbittorrent</code> for the actual <code>$remote_addr</code> ingress-nginx is logging on the failing request, and add whatever CIDR that address actually falls in to <code>bypass_auth_subnet_whitelist</code> — don’t assume the LAN subnet is what’s really arriving.</p>
+<p>Verify it took:</p>
+<pre><code class="language-bash">kubectl exec -n arr-downloader deploy/gluetun-qbittorrent -c qbittorrent -- sh -c '
+curl -s -b /tmp/cookies.txt http://localhost:8080/api/v2/app/preferences
+' | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['web_ui_reverse_proxy_enabled'], d['bypass_auth_subnet_whitelist_enabled'], d['save_path'])"
+</code></pre>
+<h2 id="4-add-qbittorrent-as-a-download-client-in-sonarr-and-radarr"><a class="header" href="#4-add-qbittorrent-as-a-download-client-in-sonarr-and-radarr">4. Add qBittorrent as a download client in Sonarr and Radarr</a></h2>
+<p>Fetch the real field schema first rather than guessing — Sonarr’s <code>tvCategory</code>/Radarr’s <code>movieCategory</code> fields differ:</p>
+<pre><code class="language-bash">curl -s http://localhost:18989/api/v3/downloadclient/schema -H "X-Api-Key: &lt;SONARR_API_KEY&gt;" \
+  | python3 -c "import json,sys; [print(json.dumps(d,indent=2)) for d in json.load(sys.stdin) if d['implementation']=='QBittorrent']"
+</code></pre>
+<p>Then <code>POST</code> the filled-in object (host/port/username/password are the fields that matter; everything else can keep its schema default):</p>
+<pre><code class="language-bash">curl -s -X POST http://localhost:18989/api/v3/downloadclient \
+  -H "X-Api-Key: &lt;SONARR_API_KEY&gt;" -H "Content-Type: application/json" \
+  --data '{
+    "enable": true, "protocol": "torrent", "priority": 1,
+    "removeCompletedDownloads": true, "removeFailedDownloads": true,
+    "name": "qBittorrent", "implementation": "QBittorrent", "configContract": "QBittorrentSettings",
+    "fields": [
+      {"name": "host", "value": "qbittorrent.arr-downloader.svc.cluster.local"},
+      {"name": "port", "value": 8080},
+      {"name": "useSsl", "value": false},
+      {"name": "username", "value": "admin"},
+      {"name": "password", "value": "&lt;QBITTORRENT_PERMANENT_PASSWORD&gt;"},
+      {"name": "tvCategory", "value": "tv-sonarr"},
+      {"name": "recentTvPriority", "value": 0}, {"name": "olderTvPriority", "value": 0},
+      {"name": "initialState", "value": 0}
+    ]
+  }'
+</code></pre>
+<p>Same shape for Radarr on <code>http://localhost:17878/api/v3/downloadclient</code> with <code>&lt;RADARR_API_KEY&gt;</code>, <code>movieCategory: "radarr"</code>, <code>recentMoviePriority</code>/<code>olderMoviePriority</code> instead of the <code>tv*</code> field names.</p>
+<p><code>qbittorrent.arr-downloader.svc.cluster.local</code> is the in-cluster Service DNS name — identical in every environment regardless of dev/prod, since it resolves within whichever cluster <code>kubectl</code> is pointed at.</p>
+<p><strong>Verify it actually works, not just that it saved</strong> — force a fresh health check and confirm no <code>RemotePathMappingCheck</code>/connection errors:</p>
+<pre><code class="language-bash">curl -s -X POST http://localhost:18989/api/v3/command -H "X-Api-Key: &lt;SONARR_API_KEY&gt;" -H "Content-Type: application/json" --data '{"name":"CheckHealth"}'
+sleep 3
+curl -s http://localhost:18989/api/v3/health -H "X-Api-Key: &lt;SONARR_API_KEY&gt;"
+</code></pre>
+<p>A lingering <code>RemotePathMappingCheck</code> error here almost always means step 3’s <code>save_path</code> fix wasn’t applied (or the pod hasn’t picked it up yet) — Radarr reported qBittorrent’s downloads as landing in its factory-default <code>/app/qBittorrent/downloads</code>, which doesn’t exist in this deployment, until that was fixed.</p>
+<h2 id="5-add-indexers-to-prowlarr"><a class="header" href="#5-add-indexers-to-prowlarr">5. Add indexers to Prowlarr</a></h2>
+<p>Prowlarr ships ~600 built-in indexer definitions. Fetch the schema, pick ones with <code>"privacy": "public"</code> (no account needed), and check whether they need FlareSolverr (not deployed here — see <a href="../explanation/arr-stack.html">*arr Stack</a>):</p>
+<pre><code class="language-bash">curl -s http://localhost:19696/api/v1/indexer/schema -H "X-Api-Key: &lt;PROWLARR_API_KEY&gt;" &gt; /tmp/prowlarr-schema.json
+python3 -c "
+import json
+data = json.load(open('/tmp/prowlarr-schema.json'))
+for d in data:
+    if d.get('privacy') == 'public':
+        needs_fs = any('flaresolverr' in str(f.get('name','')).lower() for f in d['fields'])
+        if not needs_fs:
+            print(d['name'])
+"
+</code></pre>
+<p>Even indexers whose Prowlarr definition doesn’t mention FlareSolverr can still be live-blocked by Cloudflare at the actual site (found live: <code>LimeTorrents</code>, <code>The Pirate Bay</code>, and <code>Magnet Cat</code> all rejected with <code>"blocked by CloudFlare Protection"</code> despite passing the schema check) — Prowlarr tests real connectivity before saving, so a <code>400</code> response here means try a different one, not that something’s misconfigured.</p>
+<p>Confirmed working without FlareSolverr as of this writing: <strong>Knaben</strong>, <strong>TorrentDownload</strong>, <strong>World-torrent</strong>, <strong>YTS</strong> (movies only — no TV categories). To add one, get its schema entry, set a <code>baseUrl</code> from its <code>indexerUrls</code>, and set a valid <code>appProfileId</code> (Prowlarr’s default “Standard” profile is usually <code>id: 1</code> — confirm via <code>GET /api/v1/appprofile</code>):</p>
+<pre><code class="language-bash">python3 -c "
+import json
+data = json.load(open('/tmp/prowlarr-schema.json'))
+for d in data:
+    if d['name'] == 'Knaben':
+        for f in d['fields']:
+            if f['name'] == 'baseUrl':
+                f['value'] = d['indexerUrls'][0]
+        d['enable'] = True
+        d['appProfileId'] = 1
+        json.dump(d, open('/tmp/knaben.json', 'w'))
+"
+curl -s -X POST http://localhost:19696/api/v1/indexer -H "X-Api-Key: &lt;PROWLARR_API_KEY&gt;" -H "Content-Type: application/json" --data @/tmp/knaben.json
+</code></pre>
+<p>Repeat per indexer. <code>Torrent Downloads</code> (a different site from <code>TorrentDownload</code> above) saved successfully in Prowlarr but never propagated to Sonarr/Radarr via the app sync in step 6, for reasons not tracked down — a real, unresolved quirk, not something silently assumed fine.</p>
+<h2 id="6-connect-prowlarr-to-sonarr-and-radarr"><a class="header" href="#6-connect-prowlarr-to-sonarr-and-radarr">6. Connect Prowlarr to Sonarr and Radarr</a></h2>
+<p>This is what actually syncs indexers out to each app — adding indexers to Prowlarr alone does nothing for Sonarr/Radarr until this step:</p>
+<pre><code class="language-bash">curl -s http://localhost:19696/api/v1/applications/schema -H "X-Api-Key: &lt;PROWLARR_API_KEY&gt;" &gt; /tmp/prowlarr-apps-schema.json
+python3 -c "
+import json
+data = json.load(open('/tmp/prowlarr-apps-schema.json'))
+for d in data:
+    if d['implementation'] == 'Sonarr':
+        for f in d['fields']:
+            if f['name'] == 'prowlarrUrl': f['value'] = 'http://prowlarr.arr-stack.svc.cluster.local:9696'
+            elif f['name'] == 'baseUrl': f['value'] = 'http://sonarr.arr-stack.svc.cluster.local:8989'
+            elif f['name'] == 'apiKey': f['value'] = '&lt;SONARR_API_KEY&gt;'
+        d['name'] = 'Sonarr'
+        d['enable'] = True
+        json.dump(d, open('/tmp/prowlarr-app-sonarr.json', 'w'))
+"
+curl -s -X POST http://localhost:19696/api/v1/applications -H "X-Api-Key: &lt;PROWLARR_API_KEY&gt;" -H "Content-Type: application/json" --data @/tmp/prowlarr-app-sonarr.json
+</code></pre>
+<p>Same shape for Radarr (<code>implementation == 'Radarr'</code>, <code>baseUrl</code> → <code>radarr.arr-stack.svc.cluster.local:7878</code>, its own API key). Both connections are live-tested by Prowlarr before saving — a <code>201</code> means it actually reached that app, not just that the object validated.</p>
+<p>Force an immediate sync rather than waiting for the scheduled interval:</p>
+<pre><code class="language-bash">curl -s -X POST http://localhost:19696/api/v1/command -H "X-Api-Key: &lt;PROWLARR_API_KEY&gt;" -H "Content-Type: application/json" --data '{"name":"ApplicationIndexerSync"}'
+sleep 10
+curl -s http://localhost:18989/api/v3/indexer -H "X-Api-Key: &lt;SONARR_API_KEY&gt;"   # should list the synced indexers
+curl -s http://localhost:17878/api/v3/indexer -H "X-Api-Key: &lt;RADARR_API_KEY&gt;"
+</code></pre>
+<h2 id="7-verify-the-whole-pipeline-actually-works"><a class="header" href="#7-verify-the-whole-pipeline-actually-works">7. Verify the whole pipeline actually works</a></h2>
+<p>A real, read-only search query (no download, safe to run) is the fastest way to confirm every indexer is genuinely reachable and returning current results, not just configured:</p>
+<pre><code class="language-bash">curl -s "http://localhost:19696/api/v1/search?query=ubuntu&amp;type=search&amp;indexerIds=1&amp;indexerIds=2&amp;indexerIds=3&amp;indexerIds=4" \
+  -H "X-Api-Key: &lt;PROWLARR_API_KEY&gt;" | python3 -c "import json,sys; print(len(json.load(sys.stdin)), 'results')"
+</code></pre>
+<p>Confirmed live on dev: 185 real results with real seeder counts across all configured indexers.</p>
+<p>Not covered by this guide: an actual end-to-end grab (searching for a real show/movie in Sonarr/Radarr’s own UI, sending it to qBittorrent, and confirming the completed download gets hardlinked into <code>/media/Movies</code> or <code>/media/TV Shows</code>) — this exercises the same wiring set up here, just through each app’s own UI instead of its API.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../tutorials/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../guides/grant-platform-admin-access.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../reference/nfs-export-settings.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../tutorials/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -260,11 +340,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../tutorials/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../guides/grant-platform-admin-access.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../reference/nfs-export-settings.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../tutorials/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

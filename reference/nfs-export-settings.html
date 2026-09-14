@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-9c20764e.js";
+            window.path_to_searchindex_js = "../searchindex-9bedff37.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-57119c9c.js"></script>
+        <script src="../toc-260e4ae9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -223,6 +223,7 @@ umount /mnt/test
 <li><strong>Permissions</strong>: files must be world-readable (or otherwise readable by whatever uid the Jellyfin pod runs as) for the non-root pod to read them — plain Unix permissions, unrelated to root-squash. See the Jellyfin page’s gotchas section for a real permissions issue found live here.</li>
 <li>Not used by <code>csi-driver-nfs</code>/any StorageClass at all — this is a static PV pointing directly at a pre-existing, already-populated export, not a dynamic-provisioning target.</li>
 </ul>
+<p><strong>A second writer as of Pinchflat’s storage redesign</strong>: <code>/mnt/Main/jellyfin-media/YouTube</code>, a subdirectory inside this same export, holds Pinchflat’s downloaded videos (<code>apps/youtube-archiver/base/downloads-pvc.yaml</code>, its own static PV, read-write). This directory needs to be created by hand and <code>chown</code>’d to <code>1000:1000</code> before that PV/PVC is applied — both Pinchflat and Jellyfin already run as that exact uid/gid, so no broader world-writable/world-readable treatment is needed the way the rest of this export’s content required. No export-level (TrueNAS share) change was needed for this — the export was already a plain read-write NFS share reachable from both VLANs; Jellyfin’s own read-only behavior has only ever been enforced client-side via its PV’s <code>mountOptions: [ro]</code>. See <a href="../explanation/jellyfin.html#sharing-this-export-with-pinchflats-downloaded-videos">Jellyfin</a> and <a href="../explanation/self-hosted-apps.html">Self-Hosted Apps</a> for the full reasoning, including why this is shared across dev/prod rather than split per-environment like every other app’s storage.</p>
 
                     </main>
 

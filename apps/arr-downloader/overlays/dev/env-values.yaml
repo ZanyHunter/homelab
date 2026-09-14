@@ -12,7 +12,7 @@ kind: ConfigMap
 metadata:
   name: env-values
 data:
-  app-hostname: qbittorrent.dev.thepugh.family
+  app-hostname: qbittorrent-arr.dev.thepugh.family
   keycloak-hostname: keycloak.dev.thepugh.family
   storage-class-ceph: ceph-rbd-dev
   nfs-server: truenas.thepugh.family

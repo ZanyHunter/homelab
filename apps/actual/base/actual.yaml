@@ -122,6 +122,12 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # A real budget backup/import upload (POST /sync/upload-user-file) can
+    # easily exceed nginx's default 1MB body-size limit — found live as a
+    # real 413 mid-migration, surfaced by Actual's own frontend only as a
+    # generic "problem syncing" message. Same fix as Paperless-ngx's
+    # document uploads.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   ingressClassName: nginx
   rules:

@@ -5,6 +5,9 @@ resources:
   - ../../base
   - env-values.yaml
 
+generators:
+  - ksops-generator.yaml
+
 replacements:
   - source:
       kind: ConfigMap

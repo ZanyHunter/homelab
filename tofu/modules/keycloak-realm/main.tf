@@ -499,7 +499,10 @@ resource "keycloak_openid_client" "qbittorrent_oauth2_proxy" {
   standard_flow_enabled = true
   client_secret         = random_password.qbittorrent_oauth2_proxy_client_secret.result
 
-  valid_redirect_uris = ["https://qbittorrent.${var.domain_name}/oauth2/callback"]
+  # qbittorrent-arr, not qbittorrent -- the user is standing up a second,
+  # general-purpose qBittorrent instance later, so this one's hostname now
+  # signals it's specifically the arr-stack-managed one.
+  valid_redirect_uris = ["https://qbittorrent-arr.${var.domain_name}/oauth2/callback"]
   web_origins         = ["+"]
 }
 

@@ -188,3 +188,32 @@ spec:
       ports:
         - port: 8888
           protocol: TCP
+---
+# Sonarr/Radarr's native Jellyfin "Connect" notification (Settings > Connect)
+# pushes a library-refresh call to Jellyfin's API on every import/upgrade/
+# rename/delete -- found missing live (#57-era precedent) when an in-place
+# quality upgrade left Jellyfin serving a deleted file until the next
+# scheduled scan, a real "Playback Error" on prod. Same shape as Seerr's own
+# rule (apps/jellyfin/base/network-policies.yaml's matching ingress rule),
+# one more use of the MAS <-> Synapse precedent. Only one direction is
+# needed (Sonarr/Radarr initiate; Jellyfin never calls back into arr-stack).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jellyfin-namespace-egress
+  namespace: arr-stack
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["sonarr", "radarr"]
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: jellyfin
+      ports:
+        - port: 8096
+          protocol: TCP

@@ -90,3 +90,27 @@ spec:
       ports:
         - port: 8096
           protocol: TCP
+---
+# Cross-namespace pod-to-pod ingress: Sonarr/Radarr's native Jellyfin
+# "Connect" notification (apps/arr-stack/base/network-policies.yaml's
+# matching egress rule) pushes a library-refresh call here on every
+# import/upgrade/rename/delete, so Jellyfin never serves a stale/deleted
+# file between scheduled scans -- found missing live as a real "Playback
+# Error" after a Sonarr quality upgrade. Only one direction is needed
+# (Sonarr/Radarr initiate; Jellyfin never calls back into arr-stack).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-arr-stack-namespace-ingress
+  namespace: jellyfin
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: arr-stack
+      ports:
+        - port: 8096
+          protocol: TCP

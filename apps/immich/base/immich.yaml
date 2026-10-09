@@ -100,8 +100,17 @@
 #           env:
 #             IMMICH_ALLOW_SETUP: "false"
 #           resources:
+#             # limits.memory bumped 2Gi -> 4Gi (prod incident, 2026-10-09):
+#             # the v3.1.0 -> v3.3.1 bump above started OOMKilling this
+#             # container every ~3min in prod, traced to a burst of
+#             # back-to-back video transcode jobs (the same container also
+#             # runs the microservices/worker process) now needing more
+#             # headroom than 2Gi gave it — found live via `kubectl describe`
+#             # showing `Reason: OOMKilled` and the previous container's logs
+#             # showing a tight loop of "Transcoding video ... without
+#             # hardware acceleration" right up to the kill.
 #             requests: { cpu: 250m, memory: 512Mi }
-#             limits: { memory: 2Gi }
+#             limits: { memory: 4Gi }
 #   ingress:
 #     main:
 #       enabled: true
@@ -509,7 +518,7 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              memory: 2Gi
+              memory: 4Gi
             requests:
               cpu: 250m
               memory: 512Mi

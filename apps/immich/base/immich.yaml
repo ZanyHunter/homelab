@@ -1,10 +1,13 @@
 # Pinned `helm template` render of oci://ghcr.io/immich-app/immich-charts/immich
-# @ 0.13.1 (app version v3.1.0) — committed as static output rather than
-# rendered at sync time (Kustomize's helmCharts inflator has a real,
-# currently-unresolved bug pulling OCI charts: kubernetes-sigs/kustomize#4381,
-# argoproj/argo-cd#21257). Same "avoid third-party chart pinning risk"
-# reasoning already used for Postgres/MinIO elsewhere in this repo, just
-# applied to a whole chart instead of a single container.
+# @ 0.13.4 (chart's own appVersion v3.2.0, image.tag overridden below to the
+# actual latest app release — immich-charts doesn't track every Immich
+# release, same gap already documented in the v3.0.0 -> v3.1.0 bump below)
+# — committed as static output rather than rendered at sync time (Kustomize's
+# helmCharts inflator has a real, currently-unresolved bug pulling OCI
+# charts: kubernetes-sigs/kustomize#4381, argoproj/argo-cd#21257). Same
+# "avoid third-party chart pinning risk" reasoning already used for
+# Postgres/MinIO elsewhere in this repo, just applied to a whole chart
+# instead of a single container.
 #
 # runAsUser/fsGroup: 1000 was picked (not any single image's actual UID) and
 # verified live — both immich-server and immich-machine-learning's images
@@ -26,10 +29,28 @@
 # role: no reason to reintroduce noisy default realm roles into the claim
 # just because a newer server version happens to tolerate them now.
 #
+# Bumped v3.1.0 -> v3.3.1 (chart 0.13.1 -> 0.13.4): a routine version-catchup
+# upgrade after the dev cluster sat powered off for a while, not tied to any
+# specific fix this repo needed. Checked the v3.2.0/v3.3.0/v3.3.1 release
+# notes for breaking changes first (none found) and diffed both chart
+# versions' templates/values.schema.json before re-rendering — the only
+# template change (#411/#412 upstream) is an `unset $ctx.Values.immich
+# "configuration"` guard that doesn't affect this deployment, since it only
+# matters for the chart's own inline `immich.configuration` value, not the
+# `existingConfiguration`/`configurationKind: Secret` path this repo uses.
+#
+# The values block below was itself out of date before this upgrade — it
+# never got updated for issue #85's machine-learning `/cache` PVC (the
+# `Recreate` strategy override, `fsGroupChangePolicy`, and the bumped
+# resources it required), so a prior re-render would have silently dropped
+# those. Corrected here to match what's actually committed below.
+#
 # To upgrade: `helm pull oci://ghcr.io/immich-app/immich-charts/immich
 # --version <new> --untar`, re-render with the values below (see
 # docs/src/explanation/immich.md), review the diff, replace
-# this file.
+# this file — and if the values block below needed any one-off addition to
+# produce that diff cleanly, update the block itself in the same change so
+# it doesn't go stale again.
 #
 # helm template immich <chart> --namespace immich -f -  <<'VALUES'
 # defaultPodOptions:
@@ -37,6 +58,7 @@
 #     runAsNonRoot: true
 #     runAsUser: 1000
 #     fsGroup: 1000
+#     fsGroupChangePolicy: OnRootMismatch
 #     seccompProfile:
 #       type: RuntimeDefault
 # controllers:
@@ -44,7 +66,7 @@
 #     containers:
 #       main:
 #         image:
-#           tag: v3.1.0
+#           tag: v3.3.1
 #         env:
 #           DB_HOSTNAME: immich-postgres
 #           DB_USERNAME: immich
@@ -89,22 +111,36 @@
 #         cert-manager.io/cluster-issuer: letsencrypt-prod
 #         nginx.ingress.kubernetes.io/ssl-redirect: "true"
 #       hosts:
-#         - host: photos.dev.thepugh.family
+#         - host: __APP_HOSTNAME__
 #           paths:
 #             - path: "/"
 #               service: { identifier: main }
 #       tls:
-#         - hosts: [photos.dev.thepugh.family]
+#         - hosts: [__APP_HOSTNAME__]
 #           secretName: immich-tls
 # machine-learning:
 #   enabled: true
 #   controllers:
 #     main:
+#       # See issue #85 below for why this isn't the chart's RollingUpdate
+#       # default, and the base/overlay kustomization.yaml for the
+#       # __APP_HOSTNAME__ substitution.
+#       strategy: Recreate
 #       containers:
 #         main:
 #           resources:
-#             requests: { cpu: 500m, memory: 512Mi }
-#             limits: { cpu: "2", memory: 3Gi }
+#             # Bumped from 500m/512Mi requests, 2/3Gi limits (issue #85) —
+#             # see the inline comment on the rendered resources block below
+#             # for the live-verified reasoning.
+#             requests: { cpu: "1", memory: 2Gi }
+#             limits: { cpu: "4", memory: 8Gi }
+#   persistence:
+#     cache:
+#       # Default is `type: emptyDir`; this is a real PVC (immich-ml-cache,
+#       # issue #85) so the ML models survive a pod restart instead of
+#       # re-downloading every time.
+#       type: persistentVolumeClaim
+#       existingClaim: immich-ml-cache
 # VALUES
 ---
 # Source: immich/templates/machine-learning.yaml
@@ -116,8 +152,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: machine-learning
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 ---
 # Source: immich/templates/server.yaml
@@ -129,8 +165,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: server
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 ---
 # Source: immich/templates/valkey.yaml
@@ -142,8 +178,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: valkey
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 ---
 # Source: immich/templates/machine-learning.yaml
@@ -156,8 +192,8 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: machine-learning
     app.kubernetes.io/service: immich-machine-learning
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 spec:
   type: ClusterIP
@@ -179,7 +215,6 @@ spec:
 
 
 
-
 ---
 # Source: immich/templates/server.yaml
 apiVersion: v1
@@ -191,8 +226,8 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: server
     app.kubernetes.io/service: immich-server
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 spec:
   type: ClusterIP
@@ -202,7 +237,7 @@ spec:
       protocol: TCP
       name: http
       appProtocol: kubernetes.io/ws
-        
+
   selector:
     app.kubernetes.io/controller: main
     app.kubernetes.io/instance: immich
@@ -218,8 +253,8 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: valkey
     app.kubernetes.io/service: immich-valkey
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 spec:
   type: ClusterIP
@@ -241,7 +276,6 @@ spec:
 
 
 
-
 ---
 # Source: immich/templates/machine-learning.yaml
 apiVersion: apps/v1
@@ -253,8 +287,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: machine-learning
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 spec:
   revisionHistoryLimit: 3
@@ -273,11 +307,11 @@ spec:
       app.kubernetes.io/instance: immich
   template:
     metadata:
-      labels: 
+      labels:
         app.kubernetes.io/controller: main
         app.kubernetes.io/instance: immich
         app.kubernetes.io/name: machine-learning
-    spec: 
+    spec:
       enableServiceLinks: false
       serviceAccountName: immich-machine-learning
       automountServiceAccountToken: false
@@ -319,7 +353,7 @@ spec:
             value: immich-valkey
           - name: TRANSFORMERS_CACHE
             value: /cache
-          image: ghcr.io/immich-app/immich-machine-learning:v3.1.0
+          image: ghcr.io/immich-app/immich-machine-learning:v3.3.1
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -389,8 +423,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: server
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 spec:
   revisionHistoryLimit: 3
@@ -404,11 +438,11 @@ spec:
       app.kubernetes.io/instance: immich
   template:
     metadata:
-      labels: 
+      labels:
         app.kubernetes.io/controller: main
         app.kubernetes.io/instance: immich
         app.kubernetes.io/name: server
-    spec: 
+    spec:
       enableServiceLinks: false
       serviceAccountName: immich-server
       automountServiceAccountToken: false
@@ -429,7 +463,7 @@ spec:
       hostNetwork: false
       hostPID: false
       dnsPolicy: ClusterFirst
-      containers: 
+      containers:
         - env:
           - name: DB_DATABASE_NAME
             value: immich
@@ -450,7 +484,7 @@ spec:
             value: http://immich-machine-learning:3003
           - name: REDIS_HOSTNAME
             value: immich-valkey
-          image: ghcr.io/immich-app/immich-server:v3.1.0
+          image: ghcr.io/immich-app/immich-server:v3.3.1
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -498,7 +532,7 @@ spec:
             name: config
           - mountPath: /data
             name: data
-      volumes: 
+      volumes:
         - name: config
           secret:
             secretName: immich-config
@@ -516,8 +550,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: valkey
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   namespace: immich
 spec:
   revisionHistoryLimit: 3
@@ -531,15 +565,15 @@ spec:
       app.kubernetes.io/instance: immich
   template:
     metadata:
-      labels: 
+      labels:
         app.kubernetes.io/controller: main
         app.kubernetes.io/instance: immich
         app.kubernetes.io/name: valkey
-    spec: 
+    spec:
       enableServiceLinks: false
       serviceAccountName: immich-valkey
       automountServiceAccountToken: false
-      securityContext: 
+      securityContext:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
@@ -549,7 +583,7 @@ spec:
       hostNetwork: false
       hostPID: false
       dnsPolicy: ClusterFirst
-      containers: 
+      containers:
         - env:
           - name: DB_DATABASE_NAME
             value: immich
@@ -566,7 +600,7 @@ spec:
             value: http://immich-machine-learning:3003
           - name: REDIS_HOSTNAME
             value: immich-valkey
-          image: docker.io/valkey/valkey:9.1-alpine@sha256:a35428eba9043cc0b79dbe54100f0c92784f2de00ad09b01182bfb1c5c83d1bd
+          image: docker.io/valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
@@ -612,7 +646,7 @@ spec:
           volumeMounts:
           - mountPath: /data
             name: data
-      volumes: 
+      volumes:
         - emptyDir: {}
           name: data
 ---
@@ -625,8 +659,8 @@ metadata:
     app.kubernetes.io/instance: immich
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: server
-    app.kubernetes.io/version: v3.0.0
-    helm.sh/chart: immich-0.13.1
+    app.kubernetes.io/version: v3.2.0
+    helm.sh/chart: immich-0.13.4
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-body-size: "0"

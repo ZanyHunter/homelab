@@ -201,37 +201,23 @@ resource "helm_release" "velero" {
         extraEnvVars = [
           { name = "HOME", value = "/tmp" }
         ]
+        # Garage is the backend now (#108). The location keeps its original
+        # name "default" on purpose: every existing kopia BackupRepository is
+        # keyed off it (<namespace>-default-kopia), so renaming it would
+        # orphan all of them. MinIO (still deployed, no longer referenced
+        # here) is retired separately once its history is copied and soaked.
         backupStorageLocation = [
           {
             name     = "default"
             provider = "aws"
-            bucket   = var.backup.minio_bucket
-            default  = true
-            credential = {
-              name = kubernetes_secret.velero_minio_credentials.metadata[0].name
-              key  = "cloud"
-            }
-            config = {
-              # MinIO doesn't validate AWS regions; "minio" just needs to be
-              # a non-empty, consistent value.
-              region           = "minio"
-              s3Url            = "http://minio.${kubernetes_namespace.minio.metadata[0].name}.svc.cluster.local:9000"
-              s3ForcePathStyle = "true"
-            }
-          },
-          # Garage, the MinIO replacement (#108) — added alongside, not
-          # instead, so existing backups stay reachable through the default
-          # location until they're copied across and the default is repointed.
-          {
-            name     = "garage"
-            provider = "aws"
             bucket   = var.garage.bucket
-            default  = false
+            default  = true
             credential = {
               name = kubernetes_secret.velero_garage_credentials.metadata[0].name
               key  = "cloud"
             }
             config = {
+              # Garage validates the region against its s3_region setting.
               region           = "garage"
               s3Url            = "http://garage.${kubernetes_namespace.garage.metadata[0].name}.svc.cluster.local:3900"
               s3ForcePathStyle = "true"
@@ -251,8 +237,7 @@ resource "helm_release" "velero" {
   ]
 
   depends_on = [
-    helm_release.minio,
-    kubernetes_secret.velero_minio_credentials,
+    kubernetes_deployment_v1.garage,
     kubernetes_secret.velero_garage_credentials,
   ]
 }

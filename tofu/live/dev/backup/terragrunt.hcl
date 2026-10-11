@@ -31,7 +31,8 @@ dependency "core_addons" {
 
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
-    nfs_storage_class_name = "mock-nfs"
+    nfs_storage_class_name      = "mock-nfs"
+    ceph_rbd_storage_class_name = "mock-ceph-rbd"
   }
 }
 
@@ -65,4 +66,6 @@ inputs = {
   velero_plugin_for_aws_version = include.env.locals.velero_plugin_for_aws_version
   backup                        = include.env.locals.backup
   nfs_storage_class_name        = dependency.core_addons.outputs.nfs_storage_class_name
+  ceph_storage_class_name       = dependency.core_addons.outputs.ceph_rbd_storage_class_name
+  garage                        = include.env.locals.garage
 }

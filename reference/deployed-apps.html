@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-9bedff37.js";
+            window.path_to_searchindex_js = "../searchindex-55d2decc.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-260e4ae9.js"></script>
@@ -220,7 +220,7 @@
 <tr><td><a href="../explanation/arr-stack.html">Sonarr</a></td><td><code>sonarr.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Media: static NFS PV shared with Radarr/qBittorrent (dev: isolated test path; prod: <code>jellyfin-media</code>)</td><td>Keycloak OIDC via oauth2-proxy (forward-auth)</td></tr>
 <tr><td><a href="../explanation/arr-stack.html">Radarr</a></td><td><code>radarr.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Media: static NFS PV shared with Sonarr/qBittorrent (dev: isolated test path; prod: <code>jellyfin-media</code>)</td><td>Keycloak OIDC via oauth2-proxy (forward-auth)</td></tr>
 <tr><td><a href="../explanation/arr-stack.html">Prowlarr</a></td><td><code>prowlarr.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>None — indexer manager only</td><td>Keycloak OIDC via oauth2-proxy (forward-auth)</td></tr>
-<tr><td><a href="../explanation/arr-stack.html">qBittorrent</a></td><td><code>qbittorrent.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Downloads: static NFS PV (dev: isolated test path; prod: <code>jellyfin-media/Downloads</code>)</td><td>Keycloak OIDC via oauth2-proxy (forward-auth); all traffic routed through Gluetun/Mullvad VPN (Switzerland) — the one <code>privileged</code>-PSA app namespace in this repo. Confirmed live with real downloads in progress; see the explanation page</td></tr>
+<tr><td><a href="../explanation/arr-stack.html">qBittorrent</a></td><td><code>qbittorrent-arr.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Downloads: static NFS PV (dev: isolated test path; prod: <code>jellyfin-media/Downloads</code>)</td><td>Keycloak OIDC via oauth2-proxy (forward-auth); all traffic routed through Gluetun/Mullvad VPN (Switzerland) — the one <code>privileged</code>-PSA app namespace in this repo. Confirmed live with real downloads in progress; see the explanation page</td></tr>
 <tr><td><a href="../explanation/arr-stack.html">Byparr</a></td><td>None — internal only</td><td>None</td><td>None</td><td>None — internal service only, Prowlarr’s indexer-proxy connection is the only consumer</td></tr>
 <tr><td><a href="../explanation/arr-stack.html">Bazarr</a></td><td><code>bazarr.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Media: shares Sonarr/Radarr’s <code>arr-media-rw</code> mount</td><td>Keycloak OIDC via oauth2-proxy (forward-auth)</td></tr>
 <tr><td><a href="../explanation/arr-stack.html">Tdarr</a></td><td><code>tdarr.dev.thepugh.family</code></td><td>SQLite (bundled), <code>ceph-rbd-dev</code> (5Gi)</td><td>Media: shares Sonarr/Radarr’s <code>arr-media-rw</code> mount; cache: <code>nfs-dev</code> (100Gi)</td><td>Keycloak OIDC via oauth2-proxy (forward-auth)</td></tr>

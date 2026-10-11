@@ -218,6 +218,24 @@ resource "helm_release" "velero" {
               s3Url            = "http://minio.${kubernetes_namespace.minio.metadata[0].name}.svc.cluster.local:9000"
               s3ForcePathStyle = "true"
             }
+          },
+          # Garage, the MinIO replacement (#108) — added alongside, not
+          # instead, so existing backups stay reachable through the default
+          # location until they're copied across and the default is repointed.
+          {
+            name     = "garage"
+            provider = "aws"
+            bucket   = var.garage.bucket
+            default  = false
+            credential = {
+              name = kubernetes_secret.velero_garage_credentials.metadata[0].name
+              key  = "cloud"
+            }
+            config = {
+              region           = "garage"
+              s3Url            = "http://garage.${kubernetes_namespace.garage.metadata[0].name}.svc.cluster.local:3900"
+              s3ForcePathStyle = "true"
+            }
           }
         ]
       }
@@ -235,6 +253,7 @@ resource "helm_release" "velero" {
   depends_on = [
     helm_release.minio,
     kubernetes_secret.velero_minio_credentials,
+    kubernetes_secret.velero_garage_credentials,
   ]
 }
 
@@ -243,6 +262,7 @@ resource "helm_release" "velero" {
 locals {
   backup_namespaces = {
     minio  = kubernetes_namespace.minio.metadata[0].name
+    garage = kubernetes_namespace.garage.metadata[0].name
     velero = kubernetes_namespace.velero.metadata[0].name
   }
 }

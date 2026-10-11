@@ -78,6 +78,15 @@ locals {
     minio_storage_size = "50Gi"
   }
 
+  # Garage replaces MinIO as Velero's S3 backend (#108). Pinned by digest;
+  # swap `image` for a mirror we control if Docker Hub ever pulls it too.
+  garage = {
+    image     = "dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020"
+    bucket    = "velero"
+    data_size = "50Gi"
+    meta_size = "5Gi"
+  }
+
   nfs_storage = {
     server = "truenas.thepugh.family"
     share  = "/mnt/Main/k8s-dev"

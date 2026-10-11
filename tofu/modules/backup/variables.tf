@@ -24,3 +24,18 @@ variable "nfs_storage_class_name" {
   type        = string
   description = "Name of the NFS StorageClass (core-addons unit's output) MinIO's own data volume is provisioned on."
 }
+
+variable "ceph_storage_class_name" {
+  type        = string
+  description = "Name of the Ceph-backed StorageClass (core-addons unit's output) Garage's small metadata volume is provisioned on — its SQLite metadata DB can't safely live on NFS."
+}
+
+variable "garage" {
+  description = "Garage (MinIO's replacement as Velero's S3 backend, #108) — image, bucket, and volume sizes."
+  type = object({
+    image     = string # full reference, ideally pinned by digest and pulled from a registry we control
+    bucket    = string
+    data_size = string # PVC size for the NFS-backed object data volume
+    meta_size = string # PVC size for the Ceph-backed metadata volume
+  })
+}

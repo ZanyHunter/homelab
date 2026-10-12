@@ -1,96 +1,6 @@
-# MinIO: an S3-compatible gateway in front of the NFS share, since Velero
-# needs an S3 API and doesn't speak NFS natively. Single-tenant standalone
-# mode is plenty for homelab scale; its own data volume is just another PVC
-# on the existing nfs_storage-backed StorageClass.
-resource "kubernetes_namespace" "minio" {
-  metadata {
-    name = "minio"
-    labels = {
-      # The main minio Deployment itself passes "restricted" cleanly with the
-      # explicit containerSecurityContext below, but the chart's post-install
-      # Job (makeBucketJob/makeUserJob, creates the bucket/root user) has its
-      # own separate securityContext value that only exposes {enabled,
-      # runAsUser, runAsGroup} — no way to set the allowPrivilegeEscalation/
-      # capabilities/seccompProfile "restricted" also requires. PSA applies
-      # namespace-wide, so the whole namespace stays at "baseline" (still a
-      # real improvement over the previous unrestricted default) rather than
-      # patching around the chart's limited values schema for a Job that
-      # only runs once at install/upgrade time.
-      "pod-security.kubernetes.io/enforce" = "baseline"
-      "pod-security.kubernetes.io/audit"   = "baseline"
-      "pod-security.kubernetes.io/warn"    = "baseline"
-    }
-  }
-}
-
-resource "random_password" "minio_root_password" {
-  length  = 32
-  special = false
-}
-
-resource "kubernetes_secret" "minio_credentials" {
-  metadata {
-    name      = "minio-credentials"
-    namespace = kubernetes_namespace.minio.metadata[0].name
-  }
-
-  data = {
-    rootUser     = "velero-admin"
-    rootPassword = random_password.minio_root_password.result
-  }
-
-  type = "Opaque"
-}
-
-resource "helm_release" "minio" {
-  name       = "minio"
-  repository = "https://charts.min.io/"
-  chart      = "minio"
-  version    = var.chart_versions.minio
-  namespace  = kubernetes_namespace.minio.metadata[0].name
-
-  values = [
-    yamlencode({
-      mode           = "standalone"
-      existingSecret = kubernetes_secret.minio_credentials.metadata[0].name
-      persistence = {
-        enabled      = true
-        storageClass = var.nfs_storage_class_name
-        size         = var.backup.minio_storage_size
-      }
-      # Chart default is a 16Gi memory *request* (sized for distributed mode)
-      # — wildly oversized for a single-tenant backup target.
-      resources = {
-        requests = {
-          memory = "512Mi"
-        }
-      }
-      containerSecurityContext = {
-        allowPrivilegeEscalation = false
-        capabilities             = { drop = ["ALL"] }
-        runAsNonRoot             = true
-        seccompProfile           = { type = "RuntimeDefault" }
-      }
-      buckets = [
-        {
-          name   = var.backup.minio_bucket
-          policy = "none"
-          purge  = false
-        }
-      ]
-      # No ingress/LoadBalancer: internal-only, reached in-cluster by Velero
-      # over ClusterIP (the chart default).
-    })
-  ]
-
-  depends_on = [
-    kubernetes_secret.minio_credentials,
-  ]
-}
-
 # Velero: backs up Kubernetes object definitions (Deployments, Services,
-# ConfigMaps/Secrets, PVC/PV objects, ArgoCD Applications, etc.) to the MinIO
-# bucket above. File-system backup (restic/kopia, deployNodeAgent) and CSI
+# ConfigMaps/Secrets, PVC/PV objects, ArgoCD Applications, etc.) to the Garage
+# bucket (garage.tf). File-system backup (restic/kopia, deployNodeAgent) and CSI
 # volume snapshots are both left disabled: today everything is already
 # NFS-backed, and that NFS share has its own offsite backup outside this
 # repo's concern — backing up the same bytes a second way through Velero
@@ -131,25 +41,6 @@ locals {
   }
 }
 
-resource "kubernetes_secret" "velero_minio_credentials" {
-  metadata {
-    name      = "velero-minio-credentials"
-    namespace = kubernetes_namespace.velero.metadata[0].name
-  }
-
-  # velero-plugin-for-aws expects a single "cloud" key holding an AWS-style
-  # credentials file — MinIO reuses its S3-compatible API for this.
-  data = {
-    cloud = <<-EOT
-      [default]
-      aws_access_key_id=velero-admin
-      aws_secret_access_key=${random_password.minio_root_password.result}
-    EOT
-  }
-
-  type = "Opaque"
-}
-
 resource "helm_release" "velero" {
   name       = "velero"
   repository = "https://vmware-tanzu.github.io/helm-charts/"
@@ -172,7 +63,7 @@ resource "helm_release" "velero" {
       containerSecurityContext = local.velero_container_security_context
       credentials = {
         useSecret      = true
-        existingSecret = kubernetes_secret.velero_minio_credentials.metadata[0].name
+        existingSecret = kubernetes_secret.velero_garage_credentials.metadata[0].name
       }
       snapshotsEnabled = false
       # File System Backup (kopia/restic) — actual volume *data*, not just
@@ -183,7 +74,7 @@ resource "helm_release" "velero" {
       # data). Opt-in per-pod via the backup.velero.io/backup-volumes
       # annotation (see keycloak-infra's Postgres StatefulSet) rather than
       # defaultVolumesToFsBackup — deliberately not backing up every volume
-      # in the cluster (MinIO's own data, Loki chunks, Prometheus TSDB, etc.)
+      # in the cluster (Garage's own data, Loki chunks, Prometheus TSDB, etc.)
       # by default, consistent with this repo's preference for explicit
       # opt-in over broad defaults. Works identically regardless of which
       # StorageClass a PVC uses, so it's one mechanism for both NFS- and
@@ -204,8 +95,7 @@ resource "helm_release" "velero" {
         # Garage is the backend now (#108). The location keeps its original
         # name "default" on purpose: every existing kopia BackupRepository is
         # keyed off it (<namespace>-default-kopia), so renaming it would
-        # orphan all of them. MinIO (still deployed, no longer referenced
-        # here) is retired separately once its history is copied and soaked.
+        # orphan all of them. (It used to point at MinIO, retired in #108.)
         backupStorageLocation = [
           {
             name     = "default"
@@ -246,7 +136,6 @@ resource "helm_release" "velero" {
 # actually needs (#31) ---------------------------------------------------
 locals {
   backup_namespaces = {
-    minio  = kubernetes_namespace.minio.metadata[0].name
     garage = kubernetes_namespace.garage.metadata[0].name
     velero = kubernetes_namespace.velero.metadata[0].name
   }
@@ -296,10 +185,10 @@ resource "kubernetes_network_policy" "allow_dns_egress" {
   }
 }
 
-# Same-namespace pod-to-pod traffic (e.g. minio's own post-install "make
-# bucket" Job talking to the minio Deployment's Service) — found live that
-# without this, that Job hangs forever with no obvious error, just a stuck
-# 0/1 "Running" post-upgrade hook. Applied to every namespace by default
+# Same-namespace pod-to-pod traffic (e.g. a chart's post-install Job talking to
+# its own Deployment's Service) — found live, with MinIO's old "make bucket"
+# hook Job, that without this such a Job hangs forever with no obvious error,
+# just a stuck 0/1 "Running" post-upgrade hook. Applied to every namespace by default
 # rather than judged case-by-case per pod, since a helper Job/sidecar's
 # same-namespace traffic need is easy to miss ahead of time.
 resource "kubernetes_network_policy" "allow_same_namespace" {
@@ -348,55 +237,6 @@ resource "kubernetes_network_policy" "velero_allow_apiserver_egress" {
       }
       ports {
         port     = "443"
-        protocol = "TCP"
-      }
-    }
-  }
-}
-
-# velero -> minio (backupStorageLocation), and the matching ingress side.
-resource "kubernetes_network_policy" "velero_allow_minio_egress" {
-  metadata {
-    name      = "allow-minio-egress"
-    namespace = kubernetes_namespace.velero.metadata[0].name
-  }
-
-  spec {
-    pod_selector {}
-    policy_types = ["Egress"]
-
-    egress {
-      to {
-        namespace_selector {
-          match_labels = { "kubernetes.io/metadata.name" = kubernetes_namespace.minio.metadata[0].name }
-        }
-      }
-      ports {
-        port     = "9000"
-        protocol = "TCP"
-      }
-    }
-  }
-}
-
-resource "kubernetes_network_policy" "minio_allow_velero_ingress" {
-  metadata {
-    name      = "allow-velero-ingress"
-    namespace = kubernetes_namespace.minio.metadata[0].name
-  }
-
-  spec {
-    pod_selector {}
-    policy_types = ["Ingress"]
-
-    ingress {
-      from {
-        namespace_selector {
-          match_labels = { "kubernetes.io/metadata.name" = kubernetes_namespace.velero.metadata[0].name }
-        }
-      }
-      ports {
-        port     = "9000"
         protocol = "TCP"
       }
     }

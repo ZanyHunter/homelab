@@ -48,7 +48,7 @@ resource "random_password" "grafana_oidc_client_secret" {
 # Kept in its own Secret (sourced into the pod via envValueFrom below) rather
 # than inline in the "grafana.ini" values block, so the client secret doesn't
 # end up in the plaintext-rendered grafana.ini ConfigMap — same reasoning as
-# grafana-admin-credentials/MinIO/Velero already isolating credentials this way.
+# grafana-admin-credentials/Garage/Velero already isolating credentials this way.
 resource "kubernetes_secret" "grafana_oidc_credentials" {
   metadata {
     name      = "grafana-oidc-credentials"
@@ -350,7 +350,7 @@ resource "helm_release" "loki" {
       # (allocatedMemory: 8192, ~8Gi) left loki-chunks-cache-0 permanently
       # unschedulable on the 4GB-RAM-per-worker nodes this cluster had at the
       # time — same class of oversized-chart-default problem already hit
-      # with MinIO (tofu/modules/backup/main.tf). That default is sized for
+      # with MinIO's chart (since retired, #108). That default is sized for
       # a much larger deployment than this homelab's actual log volume
       # needs, though — allocatedMemory is an independently tunable number,
       # not an enabled/disabled-only toggle, and workers are now sized with

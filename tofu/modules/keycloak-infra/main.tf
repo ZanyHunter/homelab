@@ -1,7 +1,7 @@
 # --- Postgres: Keycloak's only backing store -------------------------------
 # Hand-rolled rather than a chart: a single-instance Postgres is simple enough
 # that pulling in a community chart wasn't worth the pinning-risk exposure
-# (see the MinIO/Bitnami note in tofu/modules/backup — the same concern
+# (the same concern that once applied to the since-retired MinIO chart
 # applies to most third-party Postgres charts). Runs on the same
 # nfs_storage-backed StorageClass as everything else; Postgres-on-NFS has
 # known caveats (fsync/locking semantics), but at this homelab scale and

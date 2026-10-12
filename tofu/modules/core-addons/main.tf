@@ -85,7 +85,7 @@ resource "kubernetes_namespace" "ceph_csi_rbd" {
 # only (docs/src/guides/deploy-from-scratch.md) — scoped to that one pool, not
 # broad cluster access, since this is the same physical Ceph cluster backing
 # every Proxmox VM disk. Tofu-managed Secret rather than the chart's own
-# secret.create, matching how every other credential in this repo (MinIO,
+# secret.create, matching how every other credential in this repo (Garage,
 # Grafana, Velero) is handled.
 resource "kubernetes_secret" "ceph_csi_rbd_credentials" {
   metadata {
@@ -1226,7 +1226,7 @@ resource "kubernetes_secret" "cloudflared_tunnel_token" {
 
 # Hand-rolled, not a chart — Cloudflare doesn't publish an official Helm
 # chart for cloudflared, and this repo already avoids third-party charts for
-# pinned-version risk (see Postgres in keycloak-infra, MinIO in backup).
+# pinned-version risk (see Postgres in keycloak-infra, Garage in backup).
 # Two replicas: Cloudflare Tunnel natively supports multiple concurrent
 # connectors on the same tunnel token, so this is real redundancy for free,
 # not just a cosmetic replica count.

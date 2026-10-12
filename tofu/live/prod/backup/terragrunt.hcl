@@ -60,7 +60,6 @@ generate "provider" {
 
 inputs = {
   chart_versions = {
-    minio  = include.env.locals.chart_versions.minio
     velero = include.env.locals.chart_versions.velero
   }
   velero_plugin_for_aws_version = include.env.locals.velero_plugin_for_aws_version

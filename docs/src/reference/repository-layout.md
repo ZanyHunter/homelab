@@ -8,7 +8,7 @@ tofu/
     network/                 # unifi_network.this (the VLAN)
     talos-cluster/            # Proxmox VMs, Talos bootstrap, kubeconfig
     core-addons/              # MetalLB, ingress-nginx, cert-manager, ArgoCD, NFS/Ceph storage
-    backup/                   # MinIO, Velero
+    backup/                   # Garage, Velero
     keycloak-infra/            # Postgres, Keycloak
     observability/             # kube-prometheus-stack, Loki, Grafana Alloy
     keycloak-realm/            # homelab realm/clients, oauth2-proxy + whoami demo

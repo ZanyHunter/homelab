@@ -69,7 +69,7 @@ resource "kubernetes_secret" "velero_garage_credentials" {
     namespace = kubernetes_namespace.velero.metadata[0].name
   }
 
-  # Same single "cloud" key velero-plugin-for-aws expects for MinIO.
+  # The single "cloud" key velero-plugin-for-aws expects.
   data = {
     cloud = <<-EOT
       [default]
@@ -290,7 +290,7 @@ resource "kubernetes_deployment_v1" "garage" {
   }
 
   # Don't block on the pod: a stuck pull/provision shouldn't fail the whole
-  # backup unit's apply (MinIO's is the live backend until cutover).
+  # backup unit's apply (there is no other backup backend to fall back on).
   wait_for_rollout = false
 }
 
@@ -311,7 +311,7 @@ resource "kubernetes_service_v1" "garage" {
 }
 
 # velero -> garage (second BackupStorageLocation), and the matching ingress
-# side. Mirrors allow-minio-egress/allow-velero-ingress.
+# side.
 resource "kubernetes_network_policy" "velero_allow_garage_egress" {
   metadata {
     name      = "allow-garage-egress"

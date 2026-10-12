@@ -28,7 +28,7 @@ The image is Debian-based (`postgres:18-bookworm`), so it runs as **uid 999** �
 `apps/immich/base/immich.yaml` is a **pinned `helm template` render** of `oci://ghcr.io/immich-app/immich-charts/immich`, not something rendered live at ArgoCD sync time. Two reasons:
 
 1. Kustomize's `helmCharts:` inflator has a real, currently-unresolved bug pulling OCI charts ([kubernetes-sigs/kustomize#4381](https://github.com/kubernetes-sigs/kustomize/issues/4381), [argoproj/argo-cd#21257](https://github.com/argoproj/argo-cd/issues/21257)) — the underlying `helm pull --repo oci://...` invocation it generates is invalid. Not worth building on a currently-broken combination.
-2. It's the same "avoid third-party chart pinning risk" reasoning already used for Postgres and MinIO elsewhere in this repo (see `tofu/modules/backup/main.tf`'s MinIO note) — just applied to a whole chart instead of a single container.
+2. It's the same "avoid third-party chart pinning risk" reasoning already used for Postgres elsewhere in this repo (see `tofu/modules/keycloak-infra/main.tf`'s Postgres note) — just applied to a whole chart instead of a single container.
 
 The file's header comment has the exact values used and the upgrade procedure. Redis is the chart's own bundled Valkey (`valkey.enabled: true`) — trivial/ephemeral, not worth hand-rolling separately, unlike Postgres.
 

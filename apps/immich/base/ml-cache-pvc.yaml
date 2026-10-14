@@ -8,6 +8,12 @@
 # no backup.velero.io/backup-volumes annotation — this is a re-fetchable
 # cache, not source-of-truth data, same treatment as Wikipedia's ZIM cache
 # (docs/src/explanation/wikipedia-mirror.md).
+#
+# Sized at 20Gi, not the 10Gi it first shipped with: since Immich v3.3.1 the
+# ML service also writes a "prepared" (prepacked) copy of every model under
+# <model>/cpu/, plus a transient model.aligned file while preparing it, so
+# the two SigLIP towers alone need ~10GB on top of the originals. At 10Gi
+# prod's /cache filled up and every Smart Search query 500'd with ENOSPC.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -19,4 +25,4 @@ spec:
   storageClassName: __STORAGE_CLASS_CEPH__
   resources:
     requests:
-      storage: 10Gi
+      storage: 20Gi

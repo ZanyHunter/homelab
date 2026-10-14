@@ -38,6 +38,12 @@ The file's header comment has the exact values used and the upgrade procedure. R
 
 `machine-learning.enabled: true` from the start, with explicit resource requests/limits (`500m`/`512Mi` requests, `2`/`3Gi` limits) rather than the chart's unset default — deliberately conservative given this cluster's per-node RAM, sized alongside the worker node resize (see `CLAUDE.md`'s Kubernetes cluster section) that made room for it in the first place.
 
+### Model cache sizing (`immich-ml-cache`)
+
+`/cache` is a Ceph-backed PVC (a re-fetchable cache, so no Velero annotation) holding the Smart Search CLIP model (`ViT-L-16-SigLIP-256__webli`) plus the facial-recognition and OCR models. **Size it for roughly 4x the downloaded weights, not 1x**: since Immich v3.3.1 the ML service writes a second, "prepared" copy of every model under `<model>/cpu/x86_64/batch1/`, and a transient `model.aligned` file while preparing it. The two SigLIP towers alone were ~2.6GB downloaded but ~10GB on disk once prepared. The PVC shipped at 10Gi and filled up in prod, after which every Smart Search query returned a 500 (`OSError: [Errno 28] No space left on device` in the ML pod's log, `Machine learning request ... failed for all URLs` in the server's). It is now 20Gi.
+
+This failure is easy to miss: the visual tower is prepared at startup, but the textual one only on the first text search, and the pod stays `Running`/`Ready` throughout. After any model change or Immich upgrade, run a real text search and check `kubectl exec deploy/immich-machine-learning -n immich -- df -h /cache`. A failed preparation can leave a stale `model.aligned` behind; restarting the ML pod once there's free space clears it.
+
 ## Authentication: Keycloak, native OIDC
 
 Immich has native OIDC support (see the [Onboard a New App](../guides/onboard-a-new-app.md) guide's "apps with native OIDC support" path) — no oauth2-proxy needed. `keycloak_openid_client.immich` (`tofu/modules/keycloak-realm/main.tf`) is Tofu-managed like ArgoCD/Grafana's clients, but its secret is generated *here* directly (`random_password.immich_client_secret`) rather than passed in from another unit — Immich's own config lives in `apps/immich/` under GitOps, not in any Terragrunt unit's Helm values, so there's no cross-unit dependency to wire.

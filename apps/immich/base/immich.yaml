@@ -39,6 +39,12 @@
 # matters for the chart's own inline `immich.configuration` value, not the
 # `existingConfiguration`/`configurationKind: Secret` path this repo uses.
 #
+# Bumped v3.3.1 -> v3.3.5 (chart stays 0.13.4): a security patch release —
+# v3.3.5 ships Node.js October 2026 security patches and a CA-compromise
+# fix (updated certifi). v3.3.3/v3.3.4 are bug-fix/perf-only. No breaking
+# changes, no new migrations noted in the release notes; only the image tag
+# changed (both server and machine-learning).
+#
 # The values block below was itself out of date before this upgrade — it
 # never got updated for issue #85's machine-learning `/cache` PVC (the
 # `Recreate` strategy override, `fsGroupChangePolicy`, and the bumped
@@ -66,7 +72,7 @@
 #     containers:
 #       main:
 #         image:
-#           tag: v3.3.1
+#           tag: v3.3.5
 #         env:
 #           DB_HOSTNAME: immich-postgres
 #           DB_USERNAME: immich
@@ -362,7 +368,7 @@ spec:
             value: immich-valkey
           - name: TRANSFORMERS_CACHE
             value: /cache
-          image: ghcr.io/immich-app/immich-machine-learning:v3.3.1
+          image: ghcr.io/immich-app/immich-machine-learning:v3.3.5
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -493,7 +499,7 @@ spec:
             value: http://immich-machine-learning:3003
           - name: REDIS_HOSTNAME
             value: immich-valkey
-          image: ghcr.io/immich-app/immich-server:v3.3.1
+          image: ghcr.io/immich-app/immich-server:v3.3.5
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3

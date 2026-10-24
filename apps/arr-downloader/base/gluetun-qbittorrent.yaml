@@ -83,6 +83,16 @@ spec:
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
+          # ip rules live in the pod's network namespace, so they outlive a
+          # container restart; a stale one makes every later start fail with
+          # "adding IPv6 rule: file exists" until the pod is recreated.
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - (ip rule del table 51820; ip -6 rule del table 51820) || true
           env:
             # Switched from protonvpn to mullvad -- found live that Proton's
             # free plan blocks P2P/torrent traffic outright (confirmed

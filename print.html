@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7d683fc9.js";
+            window.path_to_searchindex_js = "searchindex-01f16ac6.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-260e4ae9.js"></script>
+        <script src="toc-d596d7b9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -608,6 +608,24 @@ curl -s http://localhost:17878/api/v3/indexer -H "X-Api-Key: &lt;RADARR_API_KEY&
 </code></pre>
 <p>Confirmed live on dev: 185 real results with real seeder counts across all configured indexers.</p>
 <p>Not covered by this guide: an actual end-to-end grab (searching for a real show/movie in Sonarr/Radarr’s own UI, sending it to qBittorrent, and confirming the completed download gets hardlinked into <code>/media/Movies</code> or <code>/media/TV Shows</code>) — this exercises the same wiring set up here, just through each app’s own UI instead of its API.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="resize-cluster-nodes"><a class="header" href="#resize-cluster-nodes">Resize Cluster Nodes</a></h1>
+<p>Node CPU/memory comes from <code>node_resources</code> in <code>tofu/live/&lt;env&gt;/env.hcl</code>. Changing it makes the Proxmox provider reboot each affected VM, and a plain <code>terragrunt apply</code> of <code>talos-cluster</code> reboots <strong>all of them at once</strong> — for control planes that takes down all three etcd members together and loses quorum. Apply one VM at a time instead, from <code>tofu/live/&lt;env&gt;/talos-cluster/</code>.</p>
+<hr>
+<pre><code class="language-bash">export KUBECONFIG=&lt;kubeconfig for this environment&gt;
+terragrunt plan   # confirm only memory/cores changes on the nodes you expect
+
+# Control planes: strictly one at a time. Worker nodes: cordon+drain each first (below).
+for n in &lt;ctrl-00&gt; &lt;ctrl-01&gt; &lt;ctrl-02&gt;; do
+  terragrunt apply -target="proxmox_virtual_environment_vm.nodes[\"$n\"]"
+  kubectl wait --for=condition=Ready node/$n --timeout=10m
+  # Don't move on until all three etcd members are back and the API is healthy
+  kubectl get --raw='/readyz?verbose' | tail -3
+done
+</code></pre>
+<p>Node names are the keys of <code>k8s_nodes</code> for that environment (see its <code>env.hcl</code>). For a worker, run <code>kubectl cordon &lt;node&gt; &amp;&amp; kubectl drain &lt;node&gt; --ignore-daemonsets --delete-emptydir-data</code> before its apply and <code>kubectl uncordon &lt;node&gt;</code> after it is <code>Ready</code>.</p>
+<p>After the last node, run an untargeted <code>terragrunt plan</code> — it should show no changes.</p>
+<p>Apply dev first and watch it for a day before touching prod; prod’s <code>terragrunt</code> commands are run by the operator only.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="tutorials"><a class="header" href="#tutorials">Tutorials</a></h1>
 <p>Tutorials teach a newcomer by walking them through a lesson end-to-end — distinct from the <a href="#deploy-from-scratch">Guides</a> section, which gives someone who already knows what they want the exact steps to get it done.</p>
@@ -1266,6 +1284,9 @@ existing ClusterIP Service → the app's existing Ingress → the app's Service/
 <p><strong>A real gotcha found live</strong>: neither the <code>immich-server</code> nor <code>immich-machine-learning</code> images ship a built-in non-root user, and <code>restricted</code> Pod Security Admission requires an explicit non-root declaration regardless — the first deploy attempt failed with a real <code>container has runAsNonRoot and image will run as root</code> on both. Fixed with an arbitrary <code>runAsUser: 1000</code>/<code>fsGroup: 1000</code> (not any specific image UID — there isn’t one to match) applied globally via <code>defaultPodOptions</code>. Root-squash is disabled on the NFS export (same as elsewhere in this repo), so the exact UID writing to the media PVC doesn’t matter.</p>
 <h2 id="machine-learning"><a class="header" href="#machine-learning">Machine learning</a></h2>
 <p><code>machine-learning.enabled: true</code> from the start, with explicit resource requests/limits (<code>500m</code>/<code>512Mi</code> requests, <code>2</code>/<code>3Gi</code> limits) rather than the chart’s unset default — deliberately conservative given this cluster’s per-node RAM, sized alongside the worker node resize (see <code>CLAUDE.md</code>’s Kubernetes cluster section) that made room for it in the first place.</p>
+<h3 id="model-cache-sizing-immich-ml-cache"><a class="header" href="#model-cache-sizing-immich-ml-cache">Model cache sizing (<code>immich-ml-cache</code>)</a></h3>
+<p><code>/cache</code> is a Ceph-backed PVC (a re-fetchable cache, so no Velero annotation) holding the Smart Search CLIP model (<code>ViT-L-16-SigLIP-256__webli</code>) plus the facial-recognition and OCR models. <strong>Size it for roughly 4x the downloaded weights, not 1x</strong>: since Immich v3.3.1 the ML service writes a second, “prepared” copy of every model under <code>&lt;model&gt;/cpu/x86_64/batch1/</code>, and a transient <code>model.aligned</code> file while preparing it. The two SigLIP towers alone were ~2.6GB downloaded but ~10GB on disk once prepared. The PVC shipped at 10Gi and filled up in prod, after which every Smart Search query returned a 500 (<code>OSError: [Errno 28] No space left on device</code> in the ML pod’s log, <code>Machine learning request ... failed for all URLs</code> in the server’s). It is now 20Gi.</p>
+<p>This failure is easy to miss: the visual tower is prepared at startup, but the textual one only on the first text search, and the pod stays <code>Running</code>/<code>Ready</code> throughout. After any model change or Immich upgrade, run a real text search and check <code>kubectl exec deploy/immich-machine-learning -n immich -- df -h /cache</code>. A failed preparation can leave a stale <code>model.aligned</code> behind; restarting the ML pod once there’s free space clears it.</p>
 <h2 id="authentication-keycloak-native-oidc"><a class="header" href="#authentication-keycloak-native-oidc">Authentication: Keycloak, native OIDC</a></h2>
 <p>Immich has native OIDC support (see the <a href="#onboard-a-new-app">Onboard a New App</a> guide’s “apps with native OIDC support” path) — no oauth2-proxy needed. <code>keycloak_openid_client.immich</code> (<code>tofu/modules/keycloak-realm/main.tf</code>) is Tofu-managed like ArgoCD/Grafana’s clients, but its secret is generated <em>here</em> directly (<code>random_password.immich_client_secret</code>) rather than passed in from another unit — Immich’s own config lives in <code>apps/immich/</code> under GitOps, not in any Terragrunt unit’s Helm values, so there’s no cross-unit dependency to wire.</p>
 <p>The secret reaches the running Immich automatically (#42, no manual <code>terragrunt output</code>/hand-carry step): <code>keycloak-realm</code> also writes it into a plain <code>kubernetes_secret.immich_oidc_client_secret</code> in the <code>keycloak-secrets</code> namespace (owned by <code>core-addons</code>, populated by <code>keycloak-realm</code>), and <code>apps/immich/base/immich-config-externalsecret.yaml</code> — an <code>ExternalSecret</code> reading from that namespace via ESO’s <code>ClusterSecretStore</code> (<code>apps/cluster-addons/base/</code>) — renders the full <code>immich-config.yaml</code> (note: <strong>YAML</strong>, not JSON — the chart mounts it at <code>IMMICH_CONFIG_FILE=/config/immich-config.yaml</code>) with the <code>oauth</code> block, interpolating just <code>clientSecret</code> from the live value. Referenced via <code>immich.existingConfiguration: immich-config</code> / <code>immich.configurationKind: Secret</code> in the chart values, rather than threading the secret through the Kustomize helm-chart values pipeline directly. See <a href="#gitops-app-of-apps-and-secrets">GitOps: App-of-Apps and Secrets</a>’s ExternalSecrets section for the general mechanism.</p>

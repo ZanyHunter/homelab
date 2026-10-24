@@ -95,6 +95,10 @@ How the user hands off work, especially for larger refactors/features tracked ov
 - **The `@claude` GitHub App/Action integration** (triggers an automated run when `@claude` is mentioned in an issue/PR, no local session needed) was considered and deliberately skipped for now: that integration runs on an isolated GitHub Actions runner with access only to the git repo and configured Actions secrets — no local machine access, meaning no age key and no LAN reachability. Since nearly everything in this repo eventually touches secrets or needs LAN access, it would only cover a narrow slice of work (pure code review/refactor suggestions). Revisit if the balance of work shifts toward tasks that don't need local access.
 - **GitHub Projects** (kanban board over issues) is worth adding once more than 3-4 larger initiatives are in flight concurrently; not needed yet.
 
+## Code comments
+
+The code speaks for itself. Limit comments: don't add comments or docs paragraphs recording why a version was bumped or what changed — git history and PRs carry that. Comment only non-obvious constraints a future reader couldn't infer from the code.
+
 ## Documentation
 
 Keep `docs/src/` in sync with infrastructure changes as part of the same change/PR — when a Tofu change alters operational procedure or adds/changes a subsystem, update the relevant mdBook page(s) alongside it rather than letting docs drift.

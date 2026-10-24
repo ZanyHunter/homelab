@@ -12,6 +12,7 @@
 - [Migrate Storage to Ceph](./guides/migrate-storage-to-ceph.md)
 - [Grant Platform-Admin Access](./guides/grant-platform-admin-access.md)
 - [Wire Up the *arr Stack](./guides/wire-up-arr-stack.md)
+- [Resize Cluster Nodes](./guides/resize-cluster-nodes.md)
 
 # Tutorials
 

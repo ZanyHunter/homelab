@@ -31,7 +31,7 @@ locals {
   node_resources = {
     controlplane = {
       cores  = 4
-      memory = 4096
+      memory = 6144
     }
     worker = {
       cores  = 8

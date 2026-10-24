@@ -47,7 +47,7 @@ locals {
     }
     worker = {
       cores  = 8
-      memory = 16384
+      memory = 8192
     }
   }
 

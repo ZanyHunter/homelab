@@ -191,8 +191,10 @@ resource "helm_release" "kube_prometheus_stack" {
                 {
                   alert = "VeleroBackupStale"
                   # 100000s (~27.8h) gives the daily 03:00 schedule (var.backup.schedule
-                  # in the backup unit) a buffer past 24h before paging.
-                  expr   = "time() - max(velero_backup_last_successful_timestamp) by (schedule) > 100000"
+                  # in the backup unit) a buffer past 24h before paging. The
+                  # schedule!="" matcher drops the series Velero exports for
+                  # manually-created backups, which never refreshes.
+                  expr   = "time() - max(velero_backup_last_successful_timestamp{schedule!=\"\"}) by (schedule) > 100000"
                   for    = "1h"
                   labels = { severity = "critical" }
                   annotations = {
